@@ -108,6 +108,43 @@
       </Component>
     </DirectoryRef>
 
+    <!-- Windows Explorer Context Menu Integration -->
+    <DirectoryRef Id="TARGETDIR">
+      <!-- Right-click on folder -->
+      <Component Id="FolderContextMenu" Guid="{A0B1C2D3-E4F5-6A7B-8C9D-0E1F2A3B4C5D}">
+        <RegistryKey Root="HKCR" Key="Directory\shell\PhotoOrganizer">
+          <RegistryValue Type="string" Value="Open in Photo Organizer" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]PhotoOrganizer.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="Directory\shell\PhotoOrganizer\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]PhotoOrganizer.exe&quot; -d &quot;%1&quot;" />
+        </RegistryKey>
+        <RegistryValue Root="HKCU"
+                       Key="Software\PhotoOrganizer"
+                       Name="folderContextMenu"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+      </Component>
+
+      <!-- Right-click on folder background -->
+      <Component Id="FolderBackgroundContextMenu" Guid="{B1C2D3E4-F5A6-7B8C-9D0E-1F2A3B4C5D6E}">
+        <RegistryKey Root="HKCR" Key="Directory\Background\shell\PhotoOrganizer">
+          <RegistryValue Type="string" Value="Open in Photo Organizer" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]PhotoOrganizer.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="Directory\Background\shell\PhotoOrganizer\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]PhotoOrganizer.exe&quot; -d &quot;%V&quot;" />
+        </RegistryKey>
+        <RegistryValue Root="HKCU"
+                       Key="Software\PhotoOrganizer"
+                       Name="folderBackgroundContextMenu"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
     <!-- Features -->
     <Feature Id="ProductFeature" Title="Photo Organizer" Level="1">
       <ComponentRef Id="PhotoOrganizerExe" />
@@ -119,6 +156,12 @@
 
     <Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" Level="1">
       <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <Feature Id="ExplorerIntegrationFeature" Title="Windows Explorer Integration" Level="1"
+             Description="Adds 'Open in Photo Organizer' to the right-click context menu in Windows Explorer">
+      <ComponentRef Id="FolderContextMenu" />
+      <ComponentRef Id="FolderBackgroundContextMenu" />
     </Feature>
 
     <!-- UI -->

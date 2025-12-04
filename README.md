@@ -68,9 +68,15 @@ See `PhotoOrganizer.Installer/README.md` for detailed instructions.
 
 ## Usage
 
+### Quick Start from Windows Explorer
+After installation, you can right-click on any folder in Windows Explorer and select **"Open in Photo Organizer"** to quickly organize photos in that folder.
+
+### Manual Usage
+
 1. **Select Directory**
    - Type the path in the directory textbox, or
-   - Click "Browse..." to select a folder containing photos
+   - Click "Browse..." to select a folder containing photos, or
+   - Right-click a folder in Windows Explorer and choose "Open in Photo Organizer"
    - Click "Load Photos" to load thumbnails
 
 2. **Adjust Thumbnail Size**
@@ -88,6 +94,16 @@ See `PhotoOrganizer.Installer/README.md` for detailed instructions.
    - Click "Apply Rename" button
    - Confirm the operation in the dialog
    - Files are renamed safely on disk
+
+### Command Line Usage
+
+You can also launch Photo Organizer from the command line with a directory:
+
+```bash
+PhotoOrganizer.exe -d "C:\Path\To\Photos"
+# or
+PhotoOrganizer.exe --directory "C:\Path\To\Photos"
+```
 
 ## Supported Image Formats
 
@@ -136,6 +152,15 @@ The rename algorithm (ported from the Python `auto-rename` script) works as foll
 
 - **F5** - Refresh/reload photos from current directory
 - **Ctrl+O** - Open browse directory dialog
+
+## Windows Explorer Integration
+
+The installer adds context menu integration to Windows Explorer:
+
+- **Right-click on a folder** → "Open in Photo Organizer" - Opens that folder
+- **Right-click on folder background** → "Open in Photo Organizer" - Opens the current folder
+
+This feature can be enabled/disabled during installation via the "Windows Explorer Integration" feature.
 
 ## Settings
 

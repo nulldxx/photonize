@@ -21,7 +21,7 @@ public class MainViewModel : INotifyPropertyChanged
     private string _statusMessage = "Ready";
     private bool _isLoading;
 
-    public MainViewModel()
+    public MainViewModel(string? initialDirectory = null)
     {
         _thumbnailGenerator = new ThumbnailGenerator();
         _fileRenamer = new FileRenamer();
@@ -35,6 +35,12 @@ public class MainViewModel : INotifyPropertyChanged
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
 
         LoadSavedSettings();
+
+        // Override with command line directory if provided
+        if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
+        {
+            DirectoryPath = initialDirectory;
+        }
     }
 
     public ObservableCollection<PhotoItem> Photos { get; }

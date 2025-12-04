@@ -9,10 +9,6 @@
         BorderBrush="#FF2A2A2A"
         BorderThickness="1">
 
-    <Window.DataContext>
-        <viewModels:MainViewModel/>
-    </Window.DataContext>
-
     <Window.Resources>
         <helpers:PhotoDropHandler x:Key="PhotoDropHandler"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
