@@ -9,6 +9,7 @@
         <Color x:Key="LightBackground">#FF3E3E42</Color>
         <Color x:Key="ControlBackground">#FF252526</Color>
         <Color x:Key="BorderColor">#FF3F3F46</Color>
+        <Color x:Key="SubtleBorderColor">#FF383838</Color>
         <Color x:Key="AccentColor">#FF007ACC</Color>
         <Color x:Key="AccentHover">#FF1C97EA</Color>
         <Color x:Key="TextPrimary">#FFF1F1F1</Color>
@@ -19,6 +20,7 @@
         <SolidColorBrush x:Key="LightBackgroundBrush" Color="{StaticResource LightBackground}"/>
         <SolidColorBrush x:Key="ControlBackgroundBrush" Color="{StaticResource ControlBackground}"/>
         <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
+        <SolidColorBrush x:Key="SubtleBorderBrush" Color="{StaticResource SubtleBorderColor}"/>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
         <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHover}"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
@@ -85,7 +87,7 @@
         <!-- GroupBox Style -->
         <Style TargetType="GroupBox">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource SubtleBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="{StaticResource MediumBackgroundBrush}"/>
             <Setter Property="Template">
@@ -98,7 +100,7 @@
                             </Grid.RowDefinitions>
                             <Border Grid.Row="0"
                                     Background="{StaticResource ControlBackgroundBrush}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderBrush="{StaticResource SubtleBorderBrush}"
                                     BorderThickness="1,1,1,0"
                                     Padding="8,4">
                                 <ContentPresenter ContentSource="Header"
@@ -107,7 +109,7 @@
                             </Border>
                             <Border Grid.Row="1"
                                     Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderBrush="{StaticResource SubtleBorderBrush}"
                                     BorderThickness="1,0,1,1">
                                 <ContentPresenter Margin="{TemplateBinding Padding}"/>
                             </Border>

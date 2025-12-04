@@ -5,7 +5,9 @@
         xmlns:viewModels="clr-namespace:PhotoOrganizer.ViewModels"
         xmlns:helpers="clr-namespace:PhotoOrganizer.Helpers"
         Title="Photo Organizer" Height="700" Width="1000"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        BorderBrush="#FF383838"
+        BorderThickness="1">
 
     <Window.DataContext>
         <viewModels:MainViewModel/>
