@@ -51,6 +51,21 @@ dotnet publish -c Release -r win-x64 --self-contained
 
 The executable will be in: `PhotoOrganizer/bin/Release/net8.0-windows/win-x64/publish/PhotoOrganizer.exe`
 
+### Building the Installer
+
+To create a Windows Installer (.msi):
+
+**Prerequisites:**
+- Install WiX Toolset v3.11+ from https://wixtoolset.org/releases/
+
+**Build Steps:**
+1. Open `PhotoOrganizer.sln` in Visual Studio 2022
+2. Set configuration to **Release|x64**
+3. Build the `PhotoOrganizer.Installer` project
+4. Find the installer at: `PhotoOrganizer.Installer\bin\x64\Release\PhotoOrganizer.msi`
+
+See `PhotoOrganizer.Installer/README.md` for detailed instructions.
+
 ## Usage
 
 1. **Select Directory**
@@ -99,6 +114,11 @@ PhotoOrganizer/
 ├── Helpers/             # Utility classes (PhotoDropHandler)
 ├── MainWindow.xaml      # Main UI layout
 └── App.xaml             # Application entry point
+
+PhotoOrganizer.Installer/
+├── Product.wxs          # WiX installer definition
+├── License.rtf          # License agreement
+└── PhotoOrganizer.ico   # Application icon
 ```
 
 ### Rename Logic
