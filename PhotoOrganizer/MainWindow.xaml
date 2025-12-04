@@ -23,7 +23,7 @@
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding BrowseDirectoryCommand}"/>
     </Window.InputBindings>
 
-    <Grid>
+    <Grid Background="#FF1E1E1E">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
