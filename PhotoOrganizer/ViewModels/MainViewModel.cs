@@ -179,6 +179,7 @@ public class MainViewModel : INotifyPropertyChanged
             }
 
             StatusMessage = $"Loaded {Photos.Count} photo(s)";
+            ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
         }
         catch (Exception ex)
@@ -188,6 +189,7 @@ public class MainViewModel : INotifyPropertyChanged
         finally
         {
             IsLoading = false;
+            ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
         }
     }
 
@@ -240,6 +242,9 @@ public class MainViewModel : INotifyPropertyChanged
         {
             Photos[i].DisplayOrder = i;
         }
+
+        // Notify that the collection state has changed
+        ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
