@@ -9,7 +9,7 @@
         <Color x:Key="LightBackground">#FF3E3E42</Color>
         <Color x:Key="ControlBackground">#FF252526</Color>
         <Color x:Key="BorderColor">#FF3F3F46</Color>
-        <Color x:Key="SubtleBorderColor">#FF383838</Color>
+        <Color x:Key="SubtleBorderColor">#FF333333</Color>
         <Color x:Key="AccentColor">#FF007ACC</Color>
         <Color x:Key="AccentHover">#FF1C97EA</Color>
         <Color x:Key="TextPrimary">#FFF1F1F1</Color>

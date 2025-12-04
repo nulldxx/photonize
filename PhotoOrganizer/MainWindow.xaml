@@ -6,7 +6,7 @@
         xmlns:helpers="clr-namespace:PhotoOrganizer.Helpers"
         Title="Photo Organizer" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
-        BorderBrush="#FF383838"
+        BorderBrush="#FF333333"
         BorderThickness="1">
 
     <Window.DataContext>
