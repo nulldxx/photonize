@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Windows;
 using GongSolutions.Wpf.DragDrop;
-using PhotoOrganizer.Models;
-using PhotoOrganizer.ViewModels;
+using Photonize.Models;
+using Photonize.ViewModels;
 
-namespace PhotoOrganizer.Helpers;
+namespace Photonize.Helpers;
 
 public class PhotoDropHandler : IDropTarget
 {

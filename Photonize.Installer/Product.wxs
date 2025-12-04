@@ -27,7 +27,7 @@
     <!-- Installation directory structure -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="PhotoOrganizer" />
+        <Directory Id="INSTALLFOLDER" Name="Photonize" />
       </Directory>
 
       <Directory Id="ProgramMenuFolder">
@@ -39,35 +39,35 @@
 
     <!-- Components -->
     <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="PhotoOrganizerExe" Guid="{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}">
-        <File Id="PhotoOrganizerEXE"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.exe"
+      <Component Id="PhotonizeExe" Guid="{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}">
+        <File Id="PhotonizeEXE"
+              Source="$(var.Photonize.TargetDir)Photonize.exe"
               KeyPath="yes"
               Checksum="yes" />
-        <File Id="PhotoOrganizerDLL"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.dll" />
-        <File Id="PhotoOrganizerRuntimeConfigJson"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.runtimeconfig.json" />
-        <File Id="PhotoOrganizerDepsJsonFile"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.deps.json" />
+        <File Id="PhotonizeDLL"
+              Source="$(var.Photonize.TargetDir)Photonize.dll" />
+        <File Id="PhotonizeRuntimeConfigJson"
+              Source="$(var.Photonize.TargetDir)Photonize.runtimeconfig.json" />
+        <File Id="PhotonizeDepsJsonFile"
+              Source="$(var.Photonize.TargetDir)Photonize.deps.json" />
       </Component>
 
       <!-- NuGet Dependencies -->
       <Component Id="NewtonsoftJson" Guid="{5E6F7A8B-9C0D-1E2F-3A4B-5C6D7E8F9A0B}">
         <File Id="NewtonsoftJsonDll"
-              Source="$(var.PhotoOrganizer.TargetDir)Newtonsoft.Json.dll"
+              Source="$(var.Photonize.TargetDir)Newtonsoft.Json.dll"
               KeyPath="yes" />
       </Component>
 
       <Component Id="CommunityToolkitMvvm" Guid="{6F7A8B9C-0D1E-2F3A-4B5C-6D7E8F9A0B1C}">
         <File Id="CommunityToolkitMvvmDll"
-              Source="$(var.PhotoOrganizer.TargetDir)CommunityToolkit.Mvvm.dll"
+              Source="$(var.Photonize.TargetDir)CommunityToolkit.Mvvm.dll"
               KeyPath="yes" />
       </Component>
 
       <Component Id="GongWpfDragDrop" Guid="{7A8B9C0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}">
         <File Id="GongWpfDragDropDll"
-              Source="$(var.PhotoOrganizer.TargetDir)GongSolutions.WPF.DragDrop.dll"
+              Source="$(var.Photonize.TargetDir)GongSolutions.WPF.DragDrop.dll"
               KeyPath="yes" />
       </Component>
     </DirectoryRef>
@@ -78,11 +78,11 @@
         <Shortcut Id="ApplicationStartMenuShortcut"
                   Name="Photo Organizer"
                   Description="Photo organization and batch renaming tool"
-                  Target="[INSTALLFOLDER]PhotoOrganizer.exe"
+                  Target="[INSTALLFOLDER]Photonize.exe"
                   WorkingDirectory="INSTALLFOLDER"/>
         <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
         <RegistryValue Root="HKCU"
-                       Key="Software\PhotoOrganizer"
+                       Key="Software\Photonize"
                        Name="installed"
                        Type="integer"
                        Value="1"
@@ -96,11 +96,11 @@
         <Shortcut Id="DesktopShortcut"
                   Name="Photo Organizer"
                   Description="Photo organization and batch renaming tool"
-                  Target="[INSTALLFOLDER]PhotoOrganizer.exe"
+                  Target="[INSTALLFOLDER]Photonize.exe"
                   WorkingDirectory="INSTALLFOLDER"/>
         <RemoveFolder Id="CleanUpDesktopShortcut" Directory="DesktopFolder" On="uninstall"/>
         <RegistryValue Root="HKCU"
-                       Key="Software\PhotoOrganizer"
+                       Key="Software\Photonize"
                        Name="desktopShortcut"
                        Type="integer"
                        Value="1"
@@ -112,15 +112,15 @@
     <DirectoryRef Id="TARGETDIR">
       <!-- Right-click on folder -->
       <Component Id="FolderContextMenu" Guid="{A0B1C2D3-E4F5-6A7B-8C9D-0E1F2A3B4C5D}">
-        <RegistryKey Root="HKCR" Key="Directory\shell\PhotoOrganizer">
+        <RegistryKey Root="HKCR" Key="Directory\shell\Photonize">
           <RegistryValue Type="string" Value="Open in Photo Organizer" />
-          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]PhotoOrganizer.exe,0" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
         </RegistryKey>
-        <RegistryKey Root="HKCR" Key="Directory\shell\PhotoOrganizer\command">
-          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]PhotoOrganizer.exe&quot; -d &quot;%1&quot;" />
+        <RegistryKey Root="HKCR" Key="Directory\shell\Photonize\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -d &quot;%1&quot;" />
         </RegistryKey>
         <RegistryValue Root="HKCU"
-                       Key="Software\PhotoOrganizer"
+                       Key="Software\Photonize"
                        Name="folderContextMenu"
                        Type="integer"
                        Value="1"
@@ -129,15 +129,15 @@
 
       <!-- Right-click on folder background -->
       <Component Id="FolderBackgroundContextMenu" Guid="{B1C2D3E4-F5A6-7B8C-9D0E-1F2A3B4C5D6E}">
-        <RegistryKey Root="HKCR" Key="Directory\Background\shell\PhotoOrganizer">
+        <RegistryKey Root="HKCR" Key="Directory\Background\shell\Photonize">
           <RegistryValue Type="string" Value="Open in Photo Organizer" />
-          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]PhotoOrganizer.exe,0" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
         </RegistryKey>
-        <RegistryKey Root="HKCR" Key="Directory\Background\shell\PhotoOrganizer\command">
-          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]PhotoOrganizer.exe&quot; -d &quot;%V&quot;" />
+        <RegistryKey Root="HKCR" Key="Directory\Background\shell\Photonize\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -d &quot;%V&quot;" />
         </RegistryKey>
         <RegistryValue Root="HKCU"
-                       Key="Software\PhotoOrganizer"
+                       Key="Software\Photonize"
                        Name="folderBackgroundContextMenu"
                        Type="integer"
                        Value="1"
@@ -147,7 +147,7 @@
 
     <!-- Features -->
     <Feature Id="ProductFeature" Title="Photo Organizer" Level="1">
-      <ComponentRef Id="PhotoOrganizerExe" />
+      <ComponentRef Id="PhotonizeExe" />
       <ComponentRef Id="NewtonsoftJson" />
       <ComponentRef Id="CommunityToolkitMvvm" />
       <ComponentRef Id="GongWpfDragDrop" />
@@ -172,7 +172,7 @@
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
 
     <!-- Icons -->
-    <Icon Id="icon.ico" SourceFile="PhotoOrganizer.ico"/>
+    <Icon Id="icon.ico" SourceFile="Photonize.ico"/>
     <Property Id="ARPPRODUCTICON" Value="icon.ico" />
 
     <!-- Add/Remove Programs -->

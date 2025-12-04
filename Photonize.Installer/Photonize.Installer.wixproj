@@ -6,7 +6,7 @@
     <ProductVersion>3.11</ProductVersion>
     <ProjectGuid>{B2E3F7D9-8A5C-4E1F-9D2A-3C4B5E6F7A8B}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>PhotoOrganizer</OutputName>
+    <OutputName>Photonize</OutputName>
     <OutputType>Package</OutputType>
   </PropertyGroup>
 
@@ -33,8 +33,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PhotoOrganizer\PhotoOrganizer.csproj">
-      <Name>PhotoOrganizer</Name>
+    <ProjectReference Include="..\Photonize\Photonize.csproj">
+      <Name>Photonize</Name>
       <Project>{A7B8E9C1-2D3F-4E5A-9B8C-1F2E3D4A5B6C}</Project>
       <Private>True</Private>
       <DoNotHarvest>True</DoNotHarvest>
@@ -45,7 +45,7 @@
 
   <ItemGroup>
     <Content Include="License.rtf" />
-    <Content Include="PhotoOrganizer.ico" />
+    <Content Include="Photonize.ico" />
   </ItemGroup>
 
   <Import Project="$(WixTargetsPath)" Condition=" '$(WixTargetsPath)' != '' " />

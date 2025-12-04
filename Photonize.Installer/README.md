@@ -17,29 +17,29 @@ You need to install the WiX Toolset to build the installer:
 
 ### Using Visual Studio
 
-1. Open `PhotoOrganizer.sln`
+1. Open `Photonize.sln`
 2. Set build configuration to **Release|x64**
-3. Right-click on `PhotoOrganizer.Installer` project
+3. Right-click on `Photonize.Installer` project
 4. Select **Build**
-5. The installer will be created at: `PhotoOrganizer.Installer\bin\x64\Release\PhotoOrganizer.msi`
+5. The installer will be created at: `Photonize.Installer\bin\x64\Release\Photonize.msi`
 
 ### Using Command Line
 
 ```bash
 # Build the main application first
-cd PhotoOrganizer
+cd Photonize
 dotnet build -c Release
 
 # Build the installer
-cd ../PhotoOrganizer.Installer
-msbuild PhotoOrganizer.Installer.wixproj /p:Configuration=Release /p:Platform=x64
+cd ../Photonize.Installer
+msbuild Photonize.Installer.wixproj /p:Configuration=Release /p:Platform=x64
 ```
 
 ## Installer Features
 
 The installer includes:
 
-- **Installation Location**: `C:\Program Files\PhotoOrganizer\`
+- **Installation Location**: `C:\Program Files\Photonize\`
 - **Start Menu Shortcut**: Creates a shortcut in the Start Menu under "Photo Organizer"
 - **Desktop Shortcut**: Optional desktop shortcut (user can choose during installation)
 - **Uninstaller**: Available through Windows Settings > Apps & features
@@ -47,8 +47,8 @@ The installer includes:
 
 ## What Gets Installed
 
-- PhotoOrganizer.exe (main executable)
-- PhotoOrganizer.dll
+- Photonize.exe (main executable)
+- Photonize.dll
 - Required NuGet dependencies:
   - Newtonsoft.Json.dll
   - CommunityToolkit.Mvvm.dll
@@ -59,7 +59,7 @@ The installer includes:
 
 ### Icon
 
-Replace `PhotoOrganizer.ico` with your custom application icon. The current file is a placeholder.
+Replace `Photonize.ico` with your custom application icon. The current file is a placeholder.
 
 ### License
 
@@ -87,7 +87,7 @@ Edit these defines in `Product.wxs`:
 - Restart Visual Studio after installation
 
 ### Missing DLL files during build
-- Ensure PhotoOrganizer project is built in Release mode first
+- Ensure Photonize project is built in Release mode first
 - Check that all NuGet packages are restored
 
 ### Installer doesn't include all dependencies

@@ -11,7 +11,7 @@ Photo Organizer is a Windows desktop application built with WPF and .NET 8 that 
 ### Building and Running
 ```bash
 # Build the solution
-cd PhotoOrganizer
+cd Photonize
 dotnet restore
 dotnet build -c Release
 
@@ -20,13 +20,13 @@ dotnet run
 
 # Publish standalone executable
 dotnet publish -c Release -r win-x64 --self-contained
-# Output: PhotoOrganizer/bin/Release/net8.0-windows/win-x64/publish/PhotoOrganizer.exe
+# Output: Photonize/bin/Release/net8.0-windows/win-x64/publish/Photonize.exe
 ```
 
 ### Visual Studio
 ```bash
 # Open the solution
-PhotoOrganizer.sln
+Photonize.sln
 # Then press F5 to build and run
 ```
 
@@ -49,7 +49,7 @@ The application follows strict MVVM separation:
 **Services Layer** (`Services/`):
 - `ThumbnailGenerator` - Asynchronously loads images and creates BitmapImage thumbnails with caching
 - `FileRenamer` - Implements two-pass atomic rename algorithm (ported from `~/dot-files/scripts/auto-rename`)
-- `SettingsService` - JSON persistence to `%APPDATA%/PhotoOrganizer/settings.json`
+- `SettingsService` - JSON persistence to `%APPDATA%/Photonize/settings.json`
 
 **Drag-and-Drop** (`Helpers/PhotoDropHandler.cs`):
 - Implements `IDropTarget` from GongSolutions.Wpf.DragDrop

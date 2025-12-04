@@ -26,12 +26,12 @@ A Windows desktop application for organizing and renaming photographs with visua
 ### Build Instructions
 
 **Using Visual Studio:**
-1. Open `PhotoOrganizer.sln` in Visual Studio 2022
+1. Open `Photonize.sln` in Visual Studio 2022
 2. Press F5 to build and run
 
 **Using command line:**
 ```bash
-cd PhotoOrganizer
+cd Photonize
 dotnet restore
 dotnet build -c Release
 ```
@@ -39,7 +39,7 @@ dotnet build -c Release
 ### Run the Application
 
 ```bash
-cd PhotoOrganizer
+cd Photonize
 dotnet run
 ```
 
@@ -49,7 +49,7 @@ Or build and run the executable:
 dotnet publish -c Release -r win-x64 --self-contained
 ```
 
-The executable will be in: `PhotoOrganizer/bin/Release/net8.0-windows/win-x64/publish/PhotoOrganizer.exe`
+The executable will be in: `Photonize/bin/Release/net8.0-windows/win-x64/publish/Photonize.exe`
 
 ### Building the Installer
 
@@ -59,12 +59,12 @@ To create a Windows Installer (.msi):
 - Install WiX Toolset v3.11+ from https://wixtoolset.org/releases/
 
 **Build Steps:**
-1. Open `PhotoOrganizer.sln` in Visual Studio 2022
+1. Open `Photonize.sln` in Visual Studio 2022
 2. Set configuration to **Release|x64**
-3. Build the `PhotoOrganizer.Installer` project
-4. Find the installer at: `PhotoOrganizer.Installer\bin\x64\Release\PhotoOrganizer.msi`
+3. Build the `Photonize.Installer` project
+4. Find the installer at: `Photonize.Installer\bin\x64\Release\Photonize.msi`
 
-See `PhotoOrganizer.Installer/README.md` for detailed instructions.
+See `Photonize.Installer/README.md` for detailed instructions.
 
 ## Usage
 
@@ -100,9 +100,9 @@ After installation, you can right-click on any folder in Windows Explorer and se
 You can also launch Photo Organizer from the command line with a directory:
 
 ```bash
-PhotoOrganizer.exe -d "C:\Path\To\Photos"
+Photonize.exe -d "C:\Path\To\Photos"
 # or
-PhotoOrganizer.exe --directory "C:\Path\To\Photos"
+Photonize.exe --directory "C:\Path\To\Photos"
 ```
 
 ## Supported Image Formats
@@ -119,11 +119,11 @@ PhotoOrganizer.exe --directory "C:\Path\To\Photos"
 - **Framework**: WPF with .NET 8
 - **Pattern**: MVVM (Model-View-ViewModel)
 - **Drag-and-Drop**: GongSolutions.Wpf.DragDrop library
-- **Settings**: JSON file stored in `%APPDATA%/PhotoOrganizer/settings.json`
+- **Settings**: JSON file stored in `%APPDATA%/Photonize/settings.json`
 
 ### Project Structure
 ```
-PhotoOrganizer/
+Photonize/
 ├── Models/              # Data models (PhotoItem)
 ├── ViewModels/          # Business logic (MainViewModel)
 ├── Services/            # Core services (ThumbnailGenerator, FileRenamer, SettingsService)
@@ -131,10 +131,10 @@ PhotoOrganizer/
 ├── MainWindow.xaml      # Main UI layout
 └── App.xaml             # Application entry point
 
-PhotoOrganizer.Installer/
+Photonize.Installer/
 ├── Product.wxs          # WiX installer definition
 ├── License.rtf          # License agreement
-└── PhotoOrganizer.ico   # Application icon
+└── Photonize.ico   # Application icon
 ```
 
 ### Rename Logic
@@ -164,7 +164,7 @@ This feature can be enabled/disabled during installation via the "Windows Explor
 
 ## Settings
 
-Settings are automatically saved to: `%APPDATA%/PhotoOrganizer/settings.json`
+Settings are automatically saved to: `%APPDATA%/Photonize/settings.json`
 
 Persisted settings include:
 - Last opened directory path

@@ -4,10 +4,10 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
-using PhotoOrganizer.Models;
-using PhotoOrganizer.Services;
+using Photonize.Models;
+using Photonize.Services;
 
-namespace PhotoOrganizer.ViewModels;
+namespace Photonize.ViewModels;
 
 public class MainViewModel : INotifyPropertyChanged
 {

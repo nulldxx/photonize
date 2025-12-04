@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
 
-namespace PhotoOrganizer.Models;
+namespace Photonize.Models;
 
 public class PhotoItem : INotifyPropertyChanged
 {

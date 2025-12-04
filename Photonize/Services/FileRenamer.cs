@@ -1,8 +1,8 @@
 using System.IO;
 using System.Text.RegularExpressions;
-using PhotoOrganizer.Models;
+using Photonize.Models;
 
-namespace PhotoOrganizer.Services;
+namespace Photonize.Services;
 
 public class FileRenamer
 {

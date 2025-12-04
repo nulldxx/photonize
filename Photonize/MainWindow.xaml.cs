@@ -1,7 +1,7 @@
 using System.Windows;
-using PhotoOrganizer.ViewModels;
+using Photonize.ViewModels;
 
-namespace PhotoOrganizer;
+namespace Photonize;
 
 public partial class MainWindow : Window
 {

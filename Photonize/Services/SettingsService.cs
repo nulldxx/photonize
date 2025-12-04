@@ -1,7 +1,7 @@
 using System.IO;
 using Newtonsoft.Json;
 
-namespace PhotoOrganizer.Services;
+namespace Photonize.Services;
 
 public class AppSettings
 {
@@ -17,7 +17,7 @@ public class SettingsService
     public SettingsService()
     {
         var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var appFolder = Path.Combine(appDataPath, "PhotoOrganizer");
+        var appFolder = Path.Combine(appDataPath, "Photonize");
         Directory.CreateDirectory(appFolder);
         _settingsPath = Path.Combine(appFolder, "settings.json");
     }

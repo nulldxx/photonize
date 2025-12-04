@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows.Media.Imaging;
 
-namespace PhotoOrganizer.Services;
+namespace Photonize.Services;
 
 public class ThumbnailGenerator
 {

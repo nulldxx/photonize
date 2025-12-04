@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace PhotoOrganizer;
+namespace Photonize;
 
 public partial class App : Application
 {
