@@ -25,6 +25,11 @@ A Windows desktop application for organizing and renaming photographs with visua
 
 ### Build Instructions
 
+**Using Visual Studio:**
+1. Open `PhotoOrganizer.sln` in Visual Studio 2022
+2. Press F5 to build and run
+
+**Using command line:**
 ```bash
 cd PhotoOrganizer
 dotnet restore
@@ -34,6 +39,7 @@ dotnet build -c Release
 ### Run the Application
 
 ```bash
+cd PhotoOrganizer
 dotnet run
 ```
 
