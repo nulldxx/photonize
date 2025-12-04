@@ -76,6 +76,16 @@ This prevents issues when reordering files where target names might conflict wit
 ## Supported Image Formats
 JPG, JPEG, PNG, BMP, GIF, TIFF - defined in `ThumbnailGenerator.SupportedExtensions`
 
+## UI Theming
+The application uses a comprehensive dark theme defined in `App.xaml`:
+- **Color palette**: Charcoal/dark gray backgrounds (#1E1E1E, #2D2D30, #3E3E42) with light text (#F1F1F1)
+- **Accent color**: Blue (#007ACC) for focus states, hover effects, and primary actions
+- **Custom styles**: All controls (Window, TextBox, Button, GroupBox, Slider, etc.) have dark theme styles
+- **Photo thumbnails**: Use `PhotoBorderStyle` with hover effects (border highlights on mouse-over)
+- **Primary button**: "Apply Rename" uses `PrimaryButtonStyle` with accent blue background
+
+When adding new UI elements, use existing resource brushes (`DarkBackgroundBrush`, `AccentBrush`, `TextPrimaryBrush`, etc.) to maintain consistency.
+
 ## Settings Persistence
 AppSettings class with JSON serialization stores:
 - LastDirectoryPath - Auto-loads on startup if directory still exists

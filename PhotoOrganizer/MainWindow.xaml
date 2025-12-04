@@ -115,11 +115,9 @@
 
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="Gray"
-                                    BorderThickness="1"
+                            <Border Style="{StaticResource PhotoBorderStyle}"
                                     Margin="5"
                                     Padding="5"
-                                    Background="White"
                                     ToolTip="{Binding FilePath}">
                                 <StackPanel>
                                     <Image Source="{Binding Thumbnail}"
@@ -143,6 +141,7 @@
         <!-- Apply Button -->
         <Grid Grid.Row="4" Margin="10,5,10,5">
             <Button Content="Apply Rename"
+                    Style="{StaticResource PrimaryButtonStyle}"
                     Command="{Binding ApplyRenameCommand}"
                     Padding="20,10"
                     FontSize="16"
