@@ -26,6 +26,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <WixExtension Include="WixUIExtension">
+      <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
+      <Name>WixUIExtension</Name>
+    </WixExtension>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PhotoOrganizer\PhotoOrganizer.csproj">
       <Name>PhotoOrganizer</Name>
       <Project>{A7B8E9C1-2D3F-4E5A-9B8C-1F2E3D4A5B6C}</Project>
@@ -34,6 +41,11 @@
       <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
       <RefTargetDir>INSTALLFOLDER</RefTargetDir>
     </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="License.rtf" />
+    <Content Include="PhotoOrganizer.ico" />
   </ItemGroup>
 
   <Import Project="$(WixTargetsPath)" Condition=" '$(WixTargetsPath)' != '' " />

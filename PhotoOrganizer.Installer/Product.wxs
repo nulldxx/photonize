@@ -21,12 +21,8 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Prerequisites -->
-    <PropertyRef Id="WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED"/>
-
-    <Condition Message="This application requires .NET 8.0 or later. Please install .NET 8.0 Desktop Runtime from https://dotnet.microsoft.com/download">
-      <![CDATA[Installed OR WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED]]>
-    </Condition>
+    <!-- Note: .NET 8 Runtime required but not checked during installation -->
+    <!-- Users should install from: https://dotnet.microsoft.com/download/dotnet/8.0 -->
 
     <!-- Installation directory structure -->
     <Directory Id="TARGETDIR" Name="SourceDir">
