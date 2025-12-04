@@ -41,27 +41,15 @@
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="PhotoOrganizerExe" Guid="{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}">
         <File Id="PhotoOrganizerEXE"
-              Source="$(var.PhotoOrganizer.TargetPath)"
+              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.exe"
               KeyPath="yes"
               Checksum="yes" />
-      </Component>
-
-      <Component Id="PhotoOrganizerDll" Guid="{2B3C4D5E-6F7A-8B9C-0D1E-2F3A4B5C6D7E}">
         <File Id="PhotoOrganizerDLL"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.dll"
-              KeyPath="yes" />
-      </Component>
-
-      <Component Id="PhotoOrganizerRuntimeConfig" Guid="{3C4D5E6F-7A8B-9C0D-1E2F-3A4B5C6D7E8F}">
+              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.dll" />
         <File Id="PhotoOrganizerRuntimeConfigJson"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.runtimeconfig.json"
-              KeyPath="yes" />
-      </Component>
-
-      <Component Id="PhotoOrganizerDepsJson" Guid="{4D5E6F7A-8B9C-0D1E-2F3A-4B5C6D7E8F9A}">
+              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.runtimeconfig.json" />
         <File Id="PhotoOrganizerDepsJsonFile"
-              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.deps.json"
-              KeyPath="yes" />
+              Source="$(var.PhotoOrganizer.TargetDir)PhotoOrganizer.deps.json" />
       </Component>
 
       <!-- NuGet Dependencies -->
@@ -123,9 +111,6 @@
     <!-- Features -->
     <Feature Id="ProductFeature" Title="Photo Organizer" Level="1">
       <ComponentRef Id="PhotoOrganizerExe" />
-      <ComponentRef Id="PhotoOrganizerDll" />
-      <ComponentRef Id="PhotoOrganizerRuntimeConfig" />
-      <ComponentRef Id="PhotoOrganizerDepsJson" />
       <ComponentRef Id="NewtonsoftJson" />
       <ComponentRef Id="CommunityToolkitMvvm" />
       <ComponentRef Id="GongWpfDragDrop" />
