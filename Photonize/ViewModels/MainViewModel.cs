@@ -301,7 +301,7 @@ public class MainViewModel : INotifyPropertyChanged
             StatusMessage = $"Loaded {Photos.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
-            UpdateUnsavedChanges();
+            // Don't mark as unsaved changes on initial load
         }
         catch (Exception ex)
         {
