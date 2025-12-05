@@ -23,6 +23,7 @@ public class MainViewModel : INotifyPropertyChanged
     private string _statusMessage = "Ready";
     private bool _isLoading;
     private PhotoItem? _selectedPhoto;
+    private List<PhotoItem> _selectedPhotos = new List<PhotoItem>();
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -116,6 +117,12 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public void UpdateSelectedPhotos(IEnumerable<PhotoItem> selectedItems)
+    {
+        _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
+        ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
+    }
+
     public ICommand BrowseDirectoryCommand { get; }
     public ICommand LoadPhotosCommand { get; }
     public ICommand ApplyRenameCommand { get; }
@@ -183,6 +190,7 @@ public class MainViewModel : INotifyPropertyChanged
         IsLoading = true;
         StatusMessage = "Loading photos...";
         Photos.Clear();
+        _selectedPhotos.Clear();
 
         try
         {
@@ -410,20 +418,46 @@ public class MainViewModel : INotifyPropertyChanged
 
     private bool CanDeletePhoto(PhotoItem? photo)
     {
-        // Allow delete if we have a parameter (from context menu) or if we have a selected photo (from delete key)
-        return photo != null || SelectedPhoto != null;
+        // Allow delete if we have a parameter (from context menu) or if we have selected photos
+        return photo != null || SelectedPhoto != null || _selectedPhotos.Count > 0;
     }
 
     private void DeletePhoto(PhotoItem? photo)
     {
-        // Use the parameter if provided (from context menu), otherwise use selected photo (from delete key)
-        var photoToDelete = photo ?? SelectedPhoto;
+        // Determine which photos to delete
+        List<PhotoItem> photosToDelete = new List<PhotoItem>();
 
-        if (photoToDelete == null)
+        // If there are multiple selected photos, delete all of them
+        if (_selectedPhotos.Count > 1)
+        {
+            photosToDelete.AddRange(_selectedPhotos);
+        }
+        // Otherwise delete the single photo (from context menu or selected photo)
+        else
+        {
+            var singlePhoto = photo ?? SelectedPhoto;
+            if (singlePhoto != null)
+            {
+                photosToDelete.Add(singlePhoto);
+            }
+        }
+
+        if (photosToDelete.Count == 0)
             return;
 
+        // Show confirmation dialog
+        string message;
+        if (photosToDelete.Count == 1)
+        {
+            message = $"Are you sure you want to permanently delete this file?\n\n{photosToDelete[0].FileName}\n\nThis action cannot be undone.";
+        }
+        else
+        {
+            message = $"Are you sure you want to permanently delete {photosToDelete.Count} files?\n\nThis action cannot be undone.";
+        }
+
         var result = MessageBox.Show(
-            $"Are you sure you want to permanently delete this file?\n\n{photoToDelete.FileName}\n\nThis action cannot be undone.",
+            message,
             "Confirm Delete",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
@@ -433,33 +467,64 @@ public class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            // Delete the file from disk
-            if (File.Exists(photoToDelete.FilePath))
-            {
-                File.Delete(photoToDelete.FilePath);
-            }
+            int deletedCount = 0;
+            List<string> failedFiles = new List<string>();
 
-            // Remove from collection
-            Photos.Remove(photoToDelete);
+            foreach (var photoToDelete in photosToDelete)
+            {
+                try
+                {
+                    // Delete the file from disk
+                    if (File.Exists(photoToDelete.FilePath))
+                    {
+                        File.Delete(photoToDelete.FilePath);
+                    }
+
+                    // Remove from collection
+                    Photos.Remove(photoToDelete);
+                    deletedCount++;
+                }
+                catch (Exception ex)
+                {
+                    failedFiles.Add($"{photoToDelete.FileName}: {ex.Message}");
+                }
+            }
 
             // Update display order for remaining photos
             UpdateDisplayOrder();
 
-            StatusMessage = $"Deleted {photoToDelete.FileName}";
-
-            // Clear selection if we deleted the selected photo
-            if (SelectedPhoto == photoToDelete)
+            // Update status message
+            if (deletedCount == 1)
             {
-                SelectedPhoto = null;
+                StatusMessage = $"Deleted {photosToDelete[0].FileName}";
             }
+            else
+            {
+                StatusMessage = $"Deleted {deletedCount} file(s)";
+            }
+
+            // Show errors if any files failed to delete
+            if (failedFiles.Count > 0)
+            {
+                MessageBox.Show(
+                    $"Failed to delete {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles)}",
+                    "Delete Errors",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+
+            // Clear selection
+            SelectedPhoto = null;
+            _selectedPhotos.Clear();
 
             // Update command states
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+            ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to delete photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = $"Failed to delete {photoToDelete.FileName}";
+            MessageBox.Show($"Failed to delete photos: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = $"Failed to delete photos";
         }
     }
 
@@ -518,6 +583,7 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 // Replace the entire Photos collection with the updated list
                 Photos.Clear();
+                _selectedPhotos.Clear();
                 foreach (var photo in updatedPhotos.OrderBy(p => p.DisplayOrder))
                 {
                     Photos.Add(photo);
