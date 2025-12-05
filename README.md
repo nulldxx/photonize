@@ -4,7 +4,7 @@
 
 Photonize is a Windows desktop application that makes it simple to organize hundreds or thousands of photos. Visually reorder your photos by dragging thumbnails, then automatically rename them all at once with sequential numbering. Perfect for photographers, digital archivists, or anyone managing large photo collections.
 
-Grab the latest release <a href="https://github.com/benstaniford/photonize/releases">here</a>.
+Grab the latest windows installer <a href="https://github.com/benstaniford/photonize/releases">here</a>.
 
 <img width="1960" height="1240" alt="image" src="https://github.com/user-attachments/assets/8869600e-3be1-46ad-be0a-875593823a41" />
 
