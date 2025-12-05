@@ -44,7 +44,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         BrowseDirectoryCommand = new RelayCommand(BrowseDirectory);
         LoadPhotosCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
-        ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Any(p => !p.IsFolder) && !string.IsNullOrEmpty(RenamePrefix));
+        ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Any(p => !p.IsFolder) && !string.IsNullOrEmpty(RenamePrefix) && HasUnsavedChanges);
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
         OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
         DeletePhotoCommand = new RelayCommand<PhotoItem?>(DeletePhoto, CanDeletePhoto);
@@ -162,6 +162,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _hasUnsavedChanges = value;
             OnPropertyChanged();
+            ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
         }
     }
 
@@ -359,7 +360,7 @@ public class MainViewModel : INotifyPropertyChanged
             StatusMessage = $"Loaded {subfolders.Count} folder(s) and {imageFiles.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
-            // Don't mark as unsaved changes on initial load
+            HasUnsavedChanges = false; // Clear unsaved changes after loading
         }
         catch (Exception ex)
         {

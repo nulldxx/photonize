@@ -251,7 +251,7 @@
 
             <!-- Apply Button -->
             <Button Grid.Row="4"
-                    Content="Apply Rename"
+                    Content="✓ Apply"
                     Style="{StaticResource PrimaryButtonStyle}"
                     Command="{Binding ApplyRenameCommand}"
                     Padding="20,10"
