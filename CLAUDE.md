@@ -74,7 +74,7 @@ This prevents issues when reordering files where target names might conflict wit
 - `Newtonsoft.Json` (13.0.3) - Settings serialization
 
 ## Supported Image Formats
-JPG, JPEG, PNG, BMP, GIF, TIFF - defined in `ThumbnailGenerator.SupportedExtensions`
+JPG, JPEG, PNG, WebP, BMP, GIF, TIFF - defined in `ThumbnailGenerator.SupportedExtensions`
 
 ## UI Theming
 The application uses a comprehensive dark theme defined in `App.xaml`:
@@ -110,3 +110,80 @@ When modifying FileRenamer:
 - Check for conflicts with existing files NOT in the rename set
 - Maintain atomic two-pass rename to prevent data loss
 - Handle exceptions at service layer and return tuple results `(bool Success, string Message)`
+
+## Release Process
+
+### Updating Release Notes
+
+Before creating a new release, update the `CHANGELOG.md` file in the repository root:
+
+1. **Add changes to the [Unreleased] section**:
+   ```markdown
+   ## [Unreleased]
+
+   ### Added
+   - New feature descriptions
+
+   ### Changed
+   - Changes to existing functionality
+
+   ### Fixed
+   - Bug fixes
+   ```
+
+2. **Follow Keep a Changelog format**:
+   - Use categories: Added, Changed, Deprecated, Removed, Fixed, Security
+   - Write clear, user-focused descriptions
+   - Include specific feature names and behavior changes
+
+3. **GitHub Action automatically uses CHANGELOG.md**:
+   - The release workflow (`.github/workflows/release.yml`) extracts the `[Unreleased]` section
+   - This content becomes the release notes on GitHub
+   - Installation instructions and system requirements are automatically appended
+
+### Creating a Release
+
+1. **Ensure CHANGELOG.md is up to date** with all changes since the last release
+
+2. **Create and push a version tag**:
+   ```bash
+   git tag v0.1.5
+   git push origin v0.1.5
+   ```
+
+3. **GitHub Actions automatically**:
+   - Builds the application
+   - Creates MSI installer
+   - Extracts release notes from CHANGELOG.md
+   - Creates GitHub release with the MSI attached
+
+4. **After release, archive the released changes**:
+   - Move the `[Unreleased]` content to a new version section in CHANGELOG.md
+   - Clear the `[Unreleased]` section for the next development cycle
+   ```markdown
+   ## [Unreleased]
+
+   _(Empty - no unreleased changes)_
+
+   ## [0.1.5] - 2025-12-05
+
+   ### Added
+   - Features that were released...
+   ```
+
+### Manual Release (if needed)
+
+You can also trigger a release manually from GitHub Actions:
+1. Go to Actions → Build and Release Photonize
+2. Click "Run workflow"
+3. Enter the version (e.g., `v0.1.5`)
+4. Click "Run workflow"
+
+### Release Checklist
+
+Before tagging a release:
+- [ ] All tests pass locally
+- [ ] CHANGELOG.md `[Unreleased]` section is complete and accurate
+- [ ] README.md reflects any new features or changes
+- [ ] Version number follows semantic versioning (MAJOR.MINOR.PATCH)
+- [ ] Build and test the MSI installer locally if possible

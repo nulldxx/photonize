@@ -127,63 +127,54 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $numericVersion = "${{ steps.version.outputs.NUMERIC_VERSION }}"
-          
+
+          Write-Host "Extracting release notes from CHANGELOG.md..."
+
+          # Read CHANGELOG.md
+          if (-not (Test-Path "CHANGELOG.md")) {
+            Write-Host "✗ CHANGELOG.md not found!"
+            exit 1
+          }
+
+          $changelogContent = Get-Content "CHANGELOG.md" -Raw
+
+          # Extract the Unreleased section
+          if ($changelogContent -match '(?s)## \[Unreleased\](.*?)(?=## \[|$)') {
+            $unreleasedSection = $matches[1].Trim()
+            Write-Host "✓ Found Unreleased section"
+          } else {
+            Write-Host "✗ Could not find [Unreleased] section in CHANGELOG.md"
+            exit 1
+          }
+
+          # Build release notes with header and installation instructions
           $releaseNotes = @"
           # Photonize $version
-          
-          ## What's New
-          
-          Photo organization and batch renaming tool for Windows.
-          
+
+          $unreleasedSection
+
           ## Downloads
-          
+
           ### Windows Installer
           - **PhotonizeInstaller-v$numericVersion-x64.msi** - Windows MSI installer (64-bit)
-          
-          ## Features
-          
-          - 📸 **Visual Organization**: Drag and drop photos to reorder them visually
-          - 🔄 **Batch Rename**: Rename multiple photos at once with custom prefixes
-          - 🖼️ **Thumbnail Preview**: View thumbnails of all photos in a folder
-          - 🎨 **Preview Pane**: Full-size preview of selected photos
-          - 💾 **Safe Renaming**: Two-pass atomic rename algorithm prevents file conflicts
-          - 🎯 **Auto-Detection**: Automatically detects common prefixes in filenames
-          - 🔍 **Explorer Integration**: Right-click context menu in Windows Explorer
-          - 🌙 **Dark Theme**: Modern dark UI theme
-          
+
           ## Installation
           1. Download ``PhotonizeInstaller-v$numericVersion-x64.msi``
           2. Run the MSI installer
           3. The application will be installed to Program Files
           4. Desktop and Start Menu shortcuts will be created
           5. Right-click context menu integration will be available in Windows Explorer
-          
+
           ## System Requirements
-          
+
           - **Operating System**: Windows 10 or later (64-bit)
           - **.NET Runtime**: .NET 8.0 Runtime (Desktop) - [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
           - **Disk Space**: ~50 MB
-          
-          ## Supported Image Formats
-          
-          - JPEG/JPG
-          - PNG
-          - BMP
-          - GIF
-          - TIFF/TIF
-          
-          ## Usage
-          
-          1. **Load Photos**: Click "Browse" or use Explorer context menu to open a folder
-          2. **Reorder**: Drag and drop thumbnails to arrange photos in desired order
-          3. **Set Prefix**: Enter a prefix for the renamed files (e.g., "vacation")
-          4. **Preview**: Toggle preview pane to see full-size images
-          5. **Apply**: Click "Apply Rename" to rename files with pattern: prefix-00001.jpg, prefix-00002.jpg, etc.
-          
+
           "@
-          
+
           Set-Content -Path "release_notes.md" -Value $releaseNotes
-          Write-Host "✓ Release notes generated"
+          Write-Host "✓ Release notes generated from CHANGELOG.md"
 
       - name: Create GitHub Release
         env:
