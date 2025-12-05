@@ -41,8 +41,19 @@ public class PhotoDropHandler : IDropTarget
 
             if (isPhotoItem || isPhotoCollection)
             {
-                dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
-                dropInfo.Effects = DragDropEffects.Move;
+                // Check if we're dropping on a folder
+                if (dropInfo.TargetItem is PhotoItem targetItem && targetItem.IsFolder)
+                {
+                    // Show highlight adorner when dropping on folders
+                    dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+                    dropInfo.Effects = DragDropEffects.Move;
+                }
+                else
+                {
+                    // Show insert adorner for reordering between items
+                    dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
+                    dropInfo.Effects = DragDropEffects.Move;
+                }
 
                 // Handle auto-scrolling when dragging near edges
                 HandleAutoScroll(dropInfo);
@@ -77,6 +88,32 @@ public class PhotoDropHandler : IDropTarget
                 if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
                 {
                     await vm.ImportPhotosAsync(files.ToList());
+                }
+            }
+            return;
+        }
+
+        // Check if we're dropping on a folder - handle file move
+        if (dropInfo.TargetItem is PhotoItem targetFolder && targetFolder.IsFolder)
+        {
+            // Get the photos being dragged
+            List<PhotoItem> photosToMove = new List<PhotoItem>();
+
+            if (dropInfo.Data is IEnumerable enumerable && !(dropInfo.Data is string))
+            {
+                photosToMove = enumerable.Cast<PhotoItem>().Where(p => !p.IsFolder).ToList();
+            }
+            else if (dropInfo.Data is PhotoItem singlePhoto && !singlePhoto.IsFolder)
+            {
+                photosToMove.Add(singlePhoto);
+            }
+
+            if (photosToMove.Count > 0)
+            {
+                // Call the ViewModel's move method
+                if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
+                {
+                    await vm.MovePhotosToFolderAsync(photosToMove, targetFolder);
                 }
             }
             return;

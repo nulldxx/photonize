@@ -786,6 +786,95 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public async Task MovePhotosToFolderAsync(List<PhotoItem> photosToMove, PhotoItem targetFolder)
+    {
+        if (photosToMove.Count == 0 || targetFolder == null || !targetFolder.IsFolder)
+            return;
+
+        try
+        {
+            string targetPath = targetFolder.FilePath;
+
+            // Validate target directory exists
+            if (!Directory.Exists(targetPath))
+            {
+                MessageBox.Show($"Target folder does not exist: {targetPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            IsLoading = true;
+            StatusMessage = $"Moving {photosToMove.Count} file(s) to {targetFolder.FileName}...";
+
+            int movedCount = 0;
+            List<string> failedFiles = new List<string>();
+
+            foreach (var photo in photosToMove)
+            {
+                try
+                {
+                    if (!File.Exists(photo.FilePath))
+                        continue;
+
+                    string fileName = Path.GetFileName(photo.FilePath);
+                    string destinationPath = Path.Combine(targetPath, fileName);
+
+                    // Check if file already exists in destination
+                    if (File.Exists(destinationPath))
+                    {
+                        var result = MessageBox.Show(
+                            $"File '{fileName}' already exists in the target folder.\n\nDo you want to overwrite it?",
+                            "File Exists",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question);
+
+                        if (result != MessageBoxResult.Yes)
+                            continue;
+                    }
+
+                    // Move the file
+                    File.Move(photo.FilePath, destinationPath, overwrite: true);
+                    movedCount++;
+                }
+                catch (Exception ex)
+                {
+                    failedFiles.Add($"{photo.FileName}: {ex.Message}");
+                }
+            }
+
+            // Refresh the current directory view
+            await LoadPhotosAsync();
+
+            // Update status message
+            if (movedCount == 1)
+            {
+                StatusMessage = $"Moved {photosToMove[0].FileName} to {targetFolder.FileName}";
+            }
+            else
+            {
+                StatusMessage = $"Moved {movedCount} file(s) to {targetFolder.FileName}";
+            }
+
+            // Show errors if any files failed to move
+            if (failedFiles.Count > 0)
+            {
+                MessageBox.Show(
+                    $"Failed to move {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles)}",
+                    "Move Errors",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to move files: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = $"Failed to move files";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public async Task ImportPhotosAsync(List<string> filesToImport)
     {
         if (string.IsNullOrEmpty(DirectoryPath) || !Directory.Exists(DirectoryPath))
