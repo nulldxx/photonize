@@ -2,6 +2,7 @@ using System.Collections;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using GongSolutions.Wpf.DragDrop;
@@ -168,22 +169,22 @@ public class PhotoDropHandler : IDropTarget
         if (_scrollViewer == null)
             return;
 
-        // Get the mouse position relative to the ScrollViewer
-        var mousePosition = dropInfo.DropPosition;
-        var scrollViewerBounds = new Rect(0, 0, _scrollViewer.ActualWidth, _scrollViewer.ActualHeight);
+        // Get the actual mouse position relative to the ScrollViewer
+        Point mousePosition = Mouse.GetPosition(_scrollViewer);
 
         // Calculate scroll speed based on proximity to edges
         double newScrollSpeed = 0;
 
         // Check if near top edge
-        if (mousePosition.Y < ScrollMargin)
+        if (mousePosition.Y >= 0 && mousePosition.Y < ScrollMargin)
         {
             // Scroll up - speed increases as we get closer to edge
             double ratio = 1.0 - (mousePosition.Y / ScrollMargin);
             newScrollSpeed = -ratio * MaxScrollSpeed;
         }
         // Check if near bottom edge
-        else if (mousePosition.Y > (_scrollViewer.ActualHeight - ScrollMargin))
+        else if (mousePosition.Y > (_scrollViewer.ActualHeight - ScrollMargin) &&
+                 mousePosition.Y <= _scrollViewer.ActualHeight)
         {
             // Scroll down - speed increases as we get closer to edge
             double distanceFromBottom = _scrollViewer.ActualHeight - mousePosition.Y;
