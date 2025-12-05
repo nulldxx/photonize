@@ -83,6 +83,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _thumbnailSize = value;
             OnPropertyChanged();
+            SaveSettings();
         }
     }
 
