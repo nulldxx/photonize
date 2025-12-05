@@ -45,6 +45,19 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup WiX Toolset
+        run: |
+          Write-Host "Installing WiX Toolset..."
+          choco install wixtoolset -y --no-progress
+          Write-Host "Refreshing environment..."
+          refreshenv
+          # Add WiX to PATH for this session
+          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+
       - name: Update WiX Product Version
         run: |
           $version = "${{ steps.version.outputs.NUMERIC_VERSION }}"
@@ -66,24 +79,13 @@ jobs:
           Get-Content $wxsPath | Select-String "define ProductVersion"
 
       - name: Restore dependencies
-        run: dotnet restore Photonize.sln
+        run: dotnet restore Photonize/Photonize.csproj
 
       - name: Build Photonize Application
         run: dotnet build Photonize/Photonize.csproj -c Release --no-restore
 
       - name: Publish Photonize Application
         run: dotnet publish Photonize/Photonize.csproj -c Release -o Photonize/bin/Release/net8.0-windows/publish --no-build
-
-      - name: Setup WiX Toolset
-        run: |
-          Write-Host "Installing WiX Toolset..."
-          choco install wixtoolset -y --no-progress
-          Write-Host "Refreshing environment..."
-          refreshenv
-          # Add WiX to PATH for this session
-          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
-          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
-
       - name: Build WiX Installer
         run: |
           $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
