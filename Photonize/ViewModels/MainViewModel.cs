@@ -235,15 +235,18 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        // Show confirmation dialog
-        var result = MessageBox.Show(
-            $"This will rename {Photos.Count} file(s) using the pattern:\n{RenamePrefix}-00001, {RenamePrefix}-00002, etc.\n\nDo you want to continue?",
-            "Confirm Rename",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+        // Only show confirmation if prefix is changing (not just reordering)
+        if (!FilesAlreadyUsePrefix())
+        {
+            var result = MessageBox.Show(
+                $"This will rename {Photos.Count} file(s) using the pattern:\n{RenamePrefix}-00001, {RenamePrefix}-00002, etc.\n\nDo you want to continue?",
+                "Confirm Rename",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
 
-        if (result != MessageBoxResult.Yes)
-            return;
+            if (result != MessageBoxResult.Yes)
+                return;
+        }
 
         IsLoading = true;
         StatusMessage = "Renaming files...";
@@ -306,6 +309,31 @@ public class MainViewModel : INotifyPropertyChanged
         commonPrefix = TrimTrailingNumbersAndSeparators(commonPrefix);
 
         RenamePrefix = commonPrefix;
+    }
+
+    private bool FilesAlreadyUsePrefix()
+    {
+        if (Photos.Count == 0 || string.IsNullOrWhiteSpace(RenamePrefix))
+            return false;
+
+        // Check if all files follow the pattern: {RenamePrefix}-{number}{extension}
+        foreach (var photo in Photos)
+        {
+            var nameWithoutExtension = Path.GetFileNameWithoutExtension(photo.FileName);
+
+            // Check if filename starts with the prefix followed by a dash
+            if (!nameWithoutExtension.StartsWith(RenamePrefix + "-", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // Extract the part after the prefix and dash
+            var suffix = nameWithoutExtension.Substring(RenamePrefix.Length + 1);
+
+            // Check if the suffix is all digits
+            if (string.IsNullOrEmpty(suffix) || !suffix.All(char.IsDigit))
+                return false;
+        }
+
+        return true;
     }
 
     private static string GetCommonPrefix(string str1, string str2)
