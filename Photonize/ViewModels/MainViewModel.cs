@@ -24,6 +24,8 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isLoading;
     private PhotoItem? _selectedPhoto;
     private List<PhotoItem> _selectedPhotos = new List<PhotoItem>();
+    private bool _isPreviewVisible = false;
+    private PhotoItem? _previewPhoto;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -41,6 +43,7 @@ public class MainViewModel : INotifyPropertyChanged
         OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
         DeletePhotoCommand = new RelayCommand<PhotoItem?>(DeletePhoto, CanDeletePhoto);
         ShowInExplorerCommand = new RelayCommand<PhotoItem>(ShowInExplorer);
+        TogglePreviewCommand = new RelayCommand(TogglePreview);
 
         LoadSavedSettings();
 
@@ -118,10 +121,34 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsPreviewVisible
+    {
+        get => _isPreviewVisible;
+        set
+        {
+            _isPreviewVisible = value;
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public PhotoItem? PreviewPhoto
+    {
+        get => _previewPhoto;
+        set
+        {
+            _previewPhoto = value;
+            OnPropertyChanged();
+        }
+    }
+
     public void UpdateSelectedPhotos(IEnumerable<PhotoItem> selectedItems)
     {
         _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
         ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
+
+        // Update preview photo to the first selected item
+        PreviewPhoto = _selectedPhotos.FirstOrDefault();
     }
 
     public ICommand BrowseDirectoryCommand { get; }
@@ -131,6 +158,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand OpenPhotoCommand { get; }
     public ICommand DeletePhotoCommand { get; }
     public ICommand ShowInExplorerCommand { get; }
+    public ICommand TogglePreviewCommand { get; }
 
     private void LoadSavedSettings()
     {
@@ -144,6 +172,8 @@ public class MainViewModel : INotifyPropertyChanged
         {
             RenamePrefix = settings.LastPrefix;
         }
+        _isPreviewVisible = settings.IsPreviewVisible;
+        OnPropertyChanged(nameof(IsPreviewVisible));
     }
 
     private void SaveSettings()
@@ -152,9 +182,15 @@ public class MainViewModel : INotifyPropertyChanged
         {
             LastDirectoryPath = DirectoryPath,
             LastThumbnailSize = ThumbnailSize,
-            LastPrefix = RenamePrefix
+            LastPrefix = RenamePrefix,
+            IsPreviewVisible = IsPreviewVisible
         };
         _settingsService.SaveSettings(settings);
+    }
+
+    private void TogglePreview()
+    {
+        IsPreviewVisible = !IsPreviewVisible;
     }
 
     private void BrowseDirectory()

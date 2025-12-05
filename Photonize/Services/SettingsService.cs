@@ -8,6 +8,7 @@ public class AppSettings
     public string? LastDirectoryPath { get; set; }
     public double LastThumbnailSize { get; set; } = 200;
     public string? LastPrefix { get; set; }
+    public bool IsPreviewVisible { get; set; } = false;
 }
 
 public class SettingsService

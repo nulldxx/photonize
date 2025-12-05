@@ -21,14 +21,21 @@
     </Window.InputBindings>
 
     <Grid Background="#FF1E1E1E">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
         <!-- Top Section: Directory Path -->
         <GroupBox Header="Directory" Grid.Row="0" Margin="10,10,10,5">
@@ -196,32 +203,111 @@
             </ScrollViewer>
         </GroupBox>
 
-        <!-- Apply Button -->
-        <Grid Grid.Row="4" Margin="10,5,10,5">
-            <Button Content="Apply Rename"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Command="{Binding ApplyRenameCommand}"
-                    Padding="20,10"
-                    FontSize="16"
-                    FontWeight="Bold"
-                    HorizontalAlignment="Center"/>
+            <!-- Apply Button -->
+            <Grid Grid.Row="4" Margin="10,5,10,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        Content="Apply Rename"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding ApplyRenameCommand}"
+                        Padding="20,10"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        HorizontalAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="Preview"
+                        Command="{Binding TogglePreviewCommand}"
+                        Padding="20,10"
+                        FontSize="14"
+                        Margin="10,0,0,0"
+                        HorizontalAlignment="Right">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPreviewVisible}" Value="True">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- Status Bar -->
+            <StatusBar Grid.Row="5">
+                <StatusBarItem>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12"/>
+                </StatusBarItem>
+                <Separator/>
+                <StatusBarItem>
+                    <TextBlock Text="{Binding Photos.Count, StringFormat=Photos: {0}}" FontSize="12"/>
+                </StatusBarItem>
+                <StatusBarItem HorizontalAlignment="Right">
+                    <ProgressBar Width="100"
+                                 Height="16"
+                                 IsIndeterminate="True"
+                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}"/>
+                </StatusBarItem>
+            </StatusBar>
         </Grid>
 
-        <!-- Status Bar -->
-        <StatusBar Grid.Row="5">
-            <StatusBarItem>
-                <TextBlock Text="{Binding StatusMessage}" FontSize="12"/>
-            </StatusBarItem>
-            <Separator/>
-            <StatusBarItem>
-                <TextBlock Text="{Binding Photos.Count, StringFormat=Photos: {0}}" FontSize="12"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <ProgressBar Width="100"
-                             Height="16"
-                             IsIndeterminate="True"
-                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}"/>
-            </StatusBarItem>
-        </StatusBar>
+        <!-- Preview Pane -->
+        <Border Grid.Column="1"
+                Width="500"
+                Background="#FF252526"
+                BorderBrush="#FF3E3E42"
+                BorderThickness="1,0,0,0"
+                Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVisConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preview Header -->
+                <Border Grid.Row="0"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF3E3E42"
+                        BorderThickness="0,0,0,1"
+                        Padding="10">
+                    <TextBlock Text="Preview"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#FFF1F1F1"/>
+                </Border>
+
+                <!-- Preview Image -->
+                <Grid Grid.Row="1">
+                    <Image Source="{Binding PreviewPhoto.FilePath}"
+                           Stretch="Uniform"
+                           Margin="10"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"/>
+
+                    <!-- No Image Selected Text -->
+                    <TextBlock Text="No image selected"
+                               FontSize="14"
+                               Foreground="#FF808080"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PreviewPhoto}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
