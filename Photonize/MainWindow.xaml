@@ -101,8 +101,7 @@
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
                 <ListBox ItemsSource="{Binding Photos}"
-                         SelectedItem="{Binding SelectedPhoto}"
-                         SelectionMode="Single"
+                         SelectionMode="Extended"
                          Background="Transparent"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -111,7 +110,8 @@
                          dd:DragDrop.IsDropTarget="True"
                          dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
                          dd:DragDrop.UseDefaultDragAdorner="True"
-                         dd:DragDrop.DefaultDragAdornerOpacity="0.5">
+                         dd:DragDrop.DefaultDragAdornerOpacity="0.5"
+                         x:Name="PhotoListBox">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal"/>
@@ -127,7 +127,19 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <ContentPresenter/>
+                                        <Border x:Name="ItemBorder"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="2"
+                                                CornerRadius="4">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#FF007ACC"/>
+                                                <Setter TargetName="ItemBorder" Property="Background" Value="#33007ACC"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
