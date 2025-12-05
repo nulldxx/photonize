@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using Photonize.ViewModels;
 

@@ -30,89 +30,86 @@ public class PhotoImporter
         string prefix,
         ImportMode mode)
     {
-        return await Task.Run(async () =>
+        try
         {
-            try
+            if (sourceFiles.Count == 0)
+                return (false, "No files to import.", new List<PhotoItem>());
+
+            if (!Directory.Exists(targetDirectory))
+                return (false, "Target directory does not exist.", new List<PhotoItem>());
+
+            // Filter out files that are already in the target directory
+            var filesToImport = sourceFiles
+                .Where(f => Path.GetDirectoryName(Path.GetFullPath(f)) != Path.GetFullPath(targetDirectory))
+                .ToList();
+
+            if (filesToImport.Count == 0)
+                return (false, "All selected files are already in the target directory.", new List<PhotoItem>());
+
+            // Create interleaved or appended list
+            List<(string SourcePath, bool IsNew, int FinalIndex)> fileOperations;
+
+            if (mode == ImportMode.Distribute)
             {
-                if (sourceFiles.Count == 0)
-                    return (false, "No files to import.", new List<PhotoItem>());
-
-                if (!Directory.Exists(targetDirectory))
-                    return (false, "Target directory does not exist.", new List<PhotoItem>());
-
-                // Filter out files that are already in the target directory
-                var filesToImport = sourceFiles
-                    .Where(f => Path.GetDirectoryName(Path.GetFullPath(f)) != Path.GetFullPath(targetDirectory))
-                    .ToList();
-
-                if (filesToImport.Count == 0)
-                    return (false, "All selected files are already in the target directory.", new List<PhotoItem>());
-
-                // Create interleaved or appended list
-                List<(string SourcePath, bool IsNew, int FinalIndex)> fileOperations;
-
-                if (mode == ImportMode.Distribute)
-                {
-                    fileOperations = CalculateDistributedPositions(existingPhotos, filesToImport);
-                }
-                else // Append
-                {
-                    fileOperations = CalculateAppendPositions(existingPhotos, filesToImport);
-                }
-
-                // Phase 1: Rename existing files to temporary names
-                var tempMapping = new Dictionary<string, string>();
-                foreach (var photo in existingPhotos)
-                {
-                    var tempPath = photo.FilePath + ".tmp_import";
-                    File.Move(photo.FilePath, tempPath);
-                    tempMapping[photo.FilePath] = tempPath;
-                }
-
-                // Phase 2: Copy new files and rename all to final names
-                var updatedPhotos = new List<PhotoItem>();
-
-                foreach (var (sourcePath, isNew, finalIndex) in fileOperations.OrderBy(o => o.FinalIndex))
-                {
-                    var extension = Path.GetExtension(sourcePath);
-                    var finalName = $"{prefix}-{(finalIndex + 1):D5}{extension}";
-                    var finalPath = Path.Combine(targetDirectory, finalName);
-
-                    if (isNew)
-                    {
-                        // Copy new file to final location
-                        File.Copy(sourcePath, finalPath, overwrite: false);
-                    }
-                    else
-                    {
-                        // Rename from temp location
-                        var tempPath = tempMapping[sourcePath];
-                        File.Move(tempPath, finalPath);
-                    }
-
-                    // Create PhotoItem for the final list
-                    var photoItem = new PhotoItem
-                    {
-                        FilePath = finalPath,
-                        FileName = finalName,
-                        DisplayOrder = finalIndex
-                    };
-
-                    // Load thumbnail asynchronously
-                    var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(finalPath, 200);
-                    photoItem.Thumbnail = thumbnail;
-
-                    updatedPhotos.Add(photoItem);
-                }
-
-                var modeText = mode == ImportMode.Distribute ? "distributed" : "appended";
-                return (true, $"Successfully {modeText} {filesToImport.Count} file(s).", updatedPhotos);
+                fileOperations = CalculateDistributedPositions(existingPhotos, filesToImport);
             }
-            catch (Exception ex)
+            else // Append
             {
-                return (false, $"Error during import: {ex.Message}", new List<PhotoItem>());
+                fileOperations = CalculateAppendPositions(existingPhotos, filesToImport);
             }
-        });
+
+            // Phase 1: Rename existing files to temporary names
+            var tempMapping = new Dictionary<string, string>();
+            foreach (var photo in existingPhotos)
+            {
+                var tempPath = photo.FilePath + ".tmp_import";
+                File.Move(photo.FilePath, tempPath);
+                tempMapping[photo.FilePath] = tempPath;
+            }
+
+            // Phase 2: Copy new files and rename all to final names
+            var updatedPhotos = new List<PhotoItem>();
+
+            foreach (var (sourcePath, isNew, finalIndex) in fileOperations.OrderBy(o => o.FinalIndex))
+            {
+                var extension = Path.GetExtension(sourcePath);
+                var finalName = $"{prefix}-{(finalIndex + 1):D5}{extension}";
+                var finalPath = Path.Combine(targetDirectory, finalName);
+
+                if (isNew)
+                {
+                    // Copy new file to final location
+                    File.Copy(sourcePath, finalPath, overwrite: false);
+                }
+                else
+                {
+                    // Rename from temp location
+                    var tempPath = tempMapping[sourcePath];
+                    File.Move(tempPath, finalPath);
+                }
+
+                // Create PhotoItem for the final list
+                var photoItem = new PhotoItem
+                {
+                    FilePath = finalPath,
+                    FileName = finalName,
+                    DisplayOrder = finalIndex
+                };
+
+                // Load thumbnail asynchronously
+                var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(finalPath, 200);
+                photoItem.Thumbnail = thumbnail;
+
+                updatedPhotos.Add(photoItem);
+            }
+
+            var modeText = mode == ImportMode.Distribute ? "distributed" : "appended";
+            return (true, $"Successfully {modeText} {filesToImport.Count} file(s).", updatedPhotos);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error during import: {ex.Message}", new List<PhotoItem>());
+        }
     }
 
     /// <summary>
