@@ -1,4 +1,4 @@
-# Photo Organizer
+# Photoize
 
 A Windows desktop application for organizing and renaming photographs with visual thumbnail preview and drag-and-drop reordering.
 
@@ -69,14 +69,14 @@ See `Photonize.Installer/README.md` for detailed instructions.
 ## Usage
 
 ### Quick Start from Windows Explorer
-After installation, you can right-click on any folder in Windows Explorer and select **"Open in Photo Organizer"** to quickly organize photos in that folder.
+After installation, you can right-click on any folder in Windows Explorer and select **"Open in Photoize"** to quickly organize photos in that folder.
 
 ### Manual Usage
 
 1. **Select Directory**
    - Type the path in the directory textbox, or
    - Click "Browse..." to select a folder containing photos, or
-   - Right-click a folder in Windows Explorer and choose "Open in Photo Organizer"
+   - Right-click a folder in Windows Explorer and choose "Open in Photoize"
    - Click "Load Photos" to load thumbnails
 
 2. **Adjust Thumbnail Size**
@@ -97,7 +97,7 @@ After installation, you can right-click on any folder in Windows Explorer and se
 
 ### Command Line Usage
 
-You can also launch Photo Organizer from the command line with a directory:
+You can also launch Photoize from the command line with a directory:
 
 ```bash
 Photonize.exe -d "C:\Path\To\Photos"
@@ -157,8 +157,8 @@ The rename algorithm (ported from the Python `auto-rename` script) works as foll
 
 The installer adds context menu integration to Windows Explorer:
 
-- **Right-click on a folder** → "Open in Photo Organizer" - Opens that folder
-- **Right-click on folder background** → "Open in Photo Organizer" - Opens the current folder
+- **Right-click on a folder** → "Open in Photoize" - Opens that folder
+- **Right-click on folder background** → "Open in Photoize" - Opens the current folder
 
 This feature can be enabled/disabled during installation via the "Windows Explorer Integration" feature.
 
