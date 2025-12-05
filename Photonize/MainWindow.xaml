@@ -183,8 +183,7 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource PhotoBorderStyle}"
-                                    Margin="5"
+                            <Border Margin="5"
                                     Padding="5"
                                     ToolTip="{Binding FilePath}"
                                     Cursor="Hand"
