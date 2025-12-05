@@ -29,6 +29,7 @@ public class MainViewModel : INotifyPropertyChanged
     private PhotoItem? _previewPhoto;
     private BitmapImage? _previewImage;
     private bool _hasUnsavedChanges = false;
+    private bool _suppressUnsavedChanges = false;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -79,7 +80,10 @@ public class MainViewModel : INotifyPropertyChanged
             _renamePrefix = value;
             OnPropertyChanged();
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
-            UpdateUnsavedChanges();
+            if (!_suppressUnsavedChanges)
+            {
+                UpdateUnsavedChanges();
+            }
         }
     }
 
@@ -273,6 +277,7 @@ public class MainViewModel : INotifyPropertyChanged
         StatusMessage = "Loading photos...";
         Photos.Clear();
         _selectedPhotos.Clear();
+        _suppressUnsavedChanges = true; // Suppress during load
 
         try
         {
@@ -309,6 +314,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
         finally
         {
+            _suppressUnsavedChanges = false; // Re-enable tracking
             IsLoading = false;
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
         }
