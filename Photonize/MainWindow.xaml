@@ -7,11 +7,7 @@
         Title="Photoize" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
         BorderBrush="#FF2A2A2A"
-        BorderThickness="1"
-        AllowDrop="True"
-        DragEnter="Window_DragEnter"
-        DragOver="Window_DragOver"
-        Drop="Window_Drop">
+        BorderThickness="1">
 
     <Window.Resources>
         <helpers:PhotoDropHandler x:Key="PhotoDropHandler"/>
