@@ -24,6 +24,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="500" MinWidth="200"/>
         </Grid.ColumnDefinitions>
 
         <!-- Main Content Area -->
@@ -256,9 +257,27 @@
             </StatusBar>
         </Grid>
 
+        <!-- GridSplitter -->
+        <GridSplitter Grid.Column="1"
+                      Width="5"
+                      HorizontalAlignment="Stretch"
+                      Background="#FF3E3E42"
+                      Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVisConverter}}"
+                      ShowsPreview="True"
+                      Cursor="SizeWE">
+            <GridSplitter.Style>
+                <Style TargetType="GridSplitter">
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#FF007ACC"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </GridSplitter.Style>
+        </GridSplitter>
+
         <!-- Preview Pane -->
-        <Border Grid.Column="1"
-                Width="500"
+        <Border Grid.Column="2"
                 Background="#FF252526"
                 BorderBrush="#FF3E3E42"
                 BorderThickness="1,0,0,0"
