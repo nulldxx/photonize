@@ -21,6 +21,7 @@ public class MainViewModel : INotifyPropertyChanged
     private double _thumbnailSize = 200;
     private string _statusMessage = "Ready";
     private bool _isLoading;
+    private PhotoItem? _selectedPhoto;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -35,6 +36,7 @@ public class MainViewModel : INotifyPropertyChanged
         ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix));
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
         OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
+        DeletePhotoCommand = new RelayCommand<PhotoItem?>(DeletePhoto, CanDeletePhoto);
 
         LoadSavedSettings();
 
@@ -100,11 +102,23 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public PhotoItem? SelectedPhoto
+    {
+        get => _selectedPhoto;
+        set
+        {
+            _selectedPhoto = value;
+            OnPropertyChanged();
+            ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
+        }
+    }
+
     public ICommand BrowseDirectoryCommand { get; }
     public ICommand LoadPhotosCommand { get; }
     public ICommand ApplyRenameCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand OpenPhotoCommand { get; }
+    public ICommand DeletePhotoCommand { get; }
 
     private void LoadSavedSettings()
     {
@@ -338,6 +352,61 @@ public class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to open photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private bool CanDeletePhoto(PhotoItem? photo)
+    {
+        // Allow delete if we have a parameter (from context menu) or if we have a selected photo (from delete key)
+        return photo != null || SelectedPhoto != null;
+    }
+
+    private void DeletePhoto(PhotoItem? photo)
+    {
+        // Use the parameter if provided (from context menu), otherwise use selected photo (from delete key)
+        var photoToDelete = photo ?? SelectedPhoto;
+
+        if (photoToDelete == null)
+            return;
+
+        var result = MessageBox.Show(
+            $"Are you sure you want to permanently delete this file?\n\n{photoToDelete.FileName}\n\nThis action cannot be undone.",
+            "Confirm Delete",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            // Delete the file from disk
+            if (File.Exists(photoToDelete.FilePath))
+            {
+                File.Delete(photoToDelete.FilePath);
+            }
+
+            // Remove from collection
+            Photos.Remove(photoToDelete);
+
+            // Update display order for remaining photos
+            UpdateDisplayOrder();
+
+            StatusMessage = $"Deleted {photoToDelete.FileName}";
+
+            // Clear selection if we deleted the selected photo
+            if (SelectedPhoto == photoToDelete)
+            {
+                SelectedPhoto = null;
+            }
+
+            // Update command states
+            ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = $"Failed to delete {photoToDelete.FileName}";
         }
     }
 

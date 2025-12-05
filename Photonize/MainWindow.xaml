@@ -17,6 +17,7 @@
     <Window.InputBindings>
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding BrowseDirectoryCommand}"/>
+        <KeyBinding Key="Delete" Command="{Binding DeletePhotoCommand}"/>
     </Window.InputBindings>
 
     <Grid Background="#FF1E1E1E">
@@ -99,19 +100,39 @@
         <GroupBox Header="Photos" Grid.Row="3" Margin="10,5,10,5">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Photos}"
-                              dd:DragDrop.IsDragSource="True"
-                              dd:DragDrop.IsDropTarget="True"
-                              dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
-                              dd:DragDrop.UseDefaultDragAdorner="True"
-                              dd:DragDrop.DefaultDragAdornerOpacity="0.5">
-                    <ItemsControl.ItemsPanel>
+                <ListBox ItemsSource="{Binding Photos}"
+                         SelectedItem="{Binding SelectedPhoto}"
+                         SelectionMode="Single"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         dd:DragDrop.IsDragSource="True"
+                         dd:DragDrop.IsDropTarget="True"
+                         dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
+                         dd:DragDrop.UseDefaultDragAdorner="True"
+                         dd:DragDrop.DefaultDragAdornerOpacity="0.5">
+                    <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal"/>
                         </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
+                    </ListBox.ItemsPanel>
 
-                    <ItemsControl.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+
+                    <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Style="{StaticResource PhotoBorderStyle}"
                                     Margin="5"
@@ -123,6 +144,17 @@
                                                   Command="{Binding DataContext.OpenPhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                   CommandParameter="{Binding}"/>
                                 </Border.InputBindings>
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Delete"
+                                                  Command="{Binding DataContext.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon>
+                                                <TextBlock Text="🗑️" FontSize="14"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
                                 <StackPanel>
                                     <Image Source="{Binding Thumbnail}"
                                            Width="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -137,8 +169,8 @@
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </ScrollViewer>
         </GroupBox>
 
