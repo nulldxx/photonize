@@ -140,7 +140,8 @@
                                     Margin="5"
                                     Padding="5"
                                     ToolTip="{Binding FilePath}"
-                                    Cursor="Hand">
+                                    Cursor="Hand"
+                                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                                 <Border.InputBindings>
                                     <MouseBinding MouseAction="LeftDoubleClick"
                                                   Command="{Binding DataContext.OpenPhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -149,15 +150,15 @@
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Show in Explorer"
-                                                  Command="{Binding DataContext.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  CommandParameter="{Binding}">
+                                                  Command="{Binding PlacementTarget.Tag.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                             <MenuItem.Icon>
                                                 <TextBlock Text="📁" FontSize="14"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
                                         <MenuItem Header="Delete"
-                                                  Command="{Binding DataContext.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  CommandParameter="{Binding}">
+                                                  Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                             <MenuItem.Icon>
                                                 <TextBlock Text="🗑️" FontSize="14"/>
                                             </MenuItem.Icon>
