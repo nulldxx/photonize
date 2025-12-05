@@ -40,9 +40,9 @@ public class PhotoDropHandler : IDropTarget
             if (files != null && files.Length > 0)
             {
                 // Call the ViewModel's import method
-                if (Application.Current.MainWindow?.DataContext is MainViewModel viewModel)
+                if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
                 {
-                    await viewModel.ImportPhotosAsync(files.ToList());
+                    await vm.ImportPhotosAsync(files.ToList());
                 }
             }
             return;
