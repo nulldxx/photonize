@@ -148,6 +148,14 @@
                                 </Border.InputBindings>
                                 <Border.ContextMenu>
                                     <ContextMenu>
+                                        <MenuItem Header="Show in Explorer"
+                                                  Command="{Binding DataContext.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon>
+                                                <TextBlock Text="📁" FontSize="14"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator/>
                                         <MenuItem Header="Delete"
                                                   Command="{Binding DataContext.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                   CommandParameter="{Binding}">

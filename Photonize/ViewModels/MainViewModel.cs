@@ -37,6 +37,7 @@ public class MainViewModel : INotifyPropertyChanged
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
         OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
         DeletePhotoCommand = new RelayCommand<PhotoItem?>(DeletePhoto, CanDeletePhoto);
+        ShowInExplorerCommand = new RelayCommand<PhotoItem>(ShowInExplorer);
 
         LoadSavedSettings();
 
@@ -119,6 +120,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand RefreshCommand { get; }
     public ICommand OpenPhotoCommand { get; }
     public ICommand DeletePhotoCommand { get; }
+    public ICommand ShowInExplorerCommand { get; }
 
     private void LoadSavedSettings()
     {
@@ -352,6 +354,27 @@ public class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to open photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ShowInExplorer(PhotoItem? photo)
+    {
+        if (photo == null || string.IsNullOrEmpty(photo.FilePath) || !File.Exists(photo.FilePath))
+            return;
+
+        try
+        {
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{photo.FilePath}\"",
+                UseShellExecute = true
+            };
+            Process.Start(processStartInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to show in Explorer: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
