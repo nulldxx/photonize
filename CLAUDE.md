@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Photoize is a Windows desktop application built with WPF and .NET 8 that allows users to visually organize and batch-rename photographs. The application uses a strict MVVM architecture with drag-and-drop reordering capabilities.
+Photonize is a Windows desktop application built with WPF and .NET 8 that allows users to visually organize and batch-rename photographs. The application uses a strict MVVM architecture with drag-and-drop reordering capabilities.
 
 ## Common Development Commands
 

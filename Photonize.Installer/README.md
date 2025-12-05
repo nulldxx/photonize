@@ -1,6 +1,6 @@
-# Photoize WiX Installer
+# Photonize WiX Installer
 
-This project creates a Windows Installer (.msi) for the Photoize application.
+This project creates a Windows Installer (.msi) for the Photonize application.
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ msbuild Photonize.Installer.wixproj /p:Configuration=Release /p:Platform=x64
 The installer includes:
 
 - **Installation Location**: `C:\Program Files\Photonize\`
-- **Start Menu Shortcut**: Creates a shortcut in the Start Menu under "Photoize"
+- **Start Menu Shortcut**: Creates a shortcut in the Start Menu under "Photonize"
 - **Desktop Shortcut**: Optional desktop shortcut (user can choose during installation)
 - **Uninstaller**: Available through Windows Settings > Apps & features
 - **Upgrade Support**: Automatically handles upgrades from previous versions
@@ -76,8 +76,8 @@ Update the version in `Product.wxs`:
 
 Edit these defines in `Product.wxs`:
 ```xml
-<?define ProductName="Photoize" ?>
-<?define Manufacturer="Photoize" ?>
+<?define ProductName="Photonize" ?>
+<?define Manufacturer="Photonize" ?>
 ```
 
 ## Troubleshooting

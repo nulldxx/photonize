@@ -4,7 +4,7 @@
         xmlns:dd="urn:gong-wpf-dragdrop"
         xmlns:viewModels="clr-namespace:Photonize.ViewModels"
         xmlns:helpers="clr-namespace:Photonize.Helpers"
-        Title="Photoize" Height="700" Width="1000"
+        Title="Photonize" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
         BorderBrush="#FF2A2A2A"
         BorderThickness="1">
