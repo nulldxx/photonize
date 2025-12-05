@@ -368,7 +368,7 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 FileName = "explorer.exe",
                 Arguments = $"/select,\"{photo.FilePath}\"",
-                UseShellExecute = true
+                UseShellExecute = false
             };
             Process.Start(processStartInfo);
         }
