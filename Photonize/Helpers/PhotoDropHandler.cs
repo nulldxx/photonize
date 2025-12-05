@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 using GongSolutions.Wpf.DragDrop;
 using Photonize.Models;
 using Photonize.ViewModels;
@@ -9,6 +12,12 @@ namespace Photonize.Helpers;
 
 public class PhotoDropHandler : IDropTarget
 {
+    private DispatcherTimer? _autoScrollTimer;
+    private ScrollViewer? _scrollViewer;
+    private double _autoScrollSpeed;
+    private const double ScrollMargin = 50.0; // Distance from edge to trigger scroll
+    private const double MaxScrollSpeed = 10.0; // Maximum scroll speed per tick
+
     public void DragOver(IDropInfo dropInfo)
     {
         // Check if this is an external file drop from Windows Explorer
@@ -32,12 +41,26 @@ public class PhotoDropHandler : IDropTarget
             {
                 dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
                 dropInfo.Effects = DragDropEffects.Move;
+
+                // Handle auto-scrolling when dragging near edges
+                HandleAutoScroll(dropInfo);
             }
+            else
+            {
+                StopAutoScroll();
+            }
+        }
+        else
+        {
+            StopAutoScroll();
         }
     }
 
     public async void Drop(IDropInfo dropInfo)
     {
+        // Stop auto-scrolling when drop occurs
+        StopAutoScroll();
+
         if (dropInfo.Data == null || dropInfo.TargetCollection == null)
             return;
 
@@ -132,5 +155,107 @@ public class PhotoDropHandler : IDropTarget
         {
             viewModel.UpdateDisplayOrder();
         }
+    }
+
+    private void HandleAutoScroll(IDropInfo dropInfo)
+    {
+        // Find the ScrollViewer if we haven't already
+        if (_scrollViewer == null && dropInfo.VisualTarget is DependencyObject visualTarget)
+        {
+            _scrollViewer = FindScrollViewer(visualTarget);
+        }
+
+        if (_scrollViewer == null)
+            return;
+
+        // Get the mouse position relative to the ScrollViewer
+        var mousePosition = dropInfo.DropPosition;
+        var scrollViewerBounds = new Rect(0, 0, _scrollViewer.ActualWidth, _scrollViewer.ActualHeight);
+
+        // Calculate scroll speed based on proximity to edges
+        double newScrollSpeed = 0;
+
+        // Check if near top edge
+        if (mousePosition.Y < ScrollMargin)
+        {
+            // Scroll up - speed increases as we get closer to edge
+            double ratio = 1.0 - (mousePosition.Y / ScrollMargin);
+            newScrollSpeed = -ratio * MaxScrollSpeed;
+        }
+        // Check if near bottom edge
+        else if (mousePosition.Y > (_scrollViewer.ActualHeight - ScrollMargin))
+        {
+            // Scroll down - speed increases as we get closer to edge
+            double distanceFromBottom = _scrollViewer.ActualHeight - mousePosition.Y;
+            double ratio = 1.0 - (distanceFromBottom / ScrollMargin);
+            newScrollSpeed = ratio * MaxScrollSpeed;
+        }
+        else
+        {
+            // Not near any edge, stop scrolling
+            StopAutoScroll();
+            return;
+        }
+
+        _autoScrollSpeed = newScrollSpeed;
+
+        // Start the timer if not already running
+        if (_autoScrollTimer == null)
+        {
+            _autoScrollTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(20) // ~50 FPS
+            };
+            _autoScrollTimer.Tick += OnAutoScrollTick;
+            _autoScrollTimer.Start();
+        }
+    }
+
+    private void OnAutoScrollTick(object? sender, EventArgs e)
+    {
+        if (_scrollViewer == null)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        // Scroll the viewer
+        double newOffset = _scrollViewer.VerticalOffset + _autoScrollSpeed;
+        _scrollViewer.ScrollToVerticalOffset(newOffset);
+    }
+
+    private void StopAutoScroll()
+    {
+        if (_autoScrollTimer != null)
+        {
+            _autoScrollTimer.Stop();
+            _autoScrollTimer.Tick -= OnAutoScrollTick;
+            _autoScrollTimer = null;
+        }
+        _autoScrollSpeed = 0;
+    }
+
+    private ScrollViewer? FindScrollViewer(DependencyObject? element)
+    {
+        if (element == null)
+            return null;
+
+        if (element is ScrollViewer scrollViewer)
+            return scrollViewer;
+
+        // Walk up the visual tree
+        DependencyObject? parent = VisualTreeHelper.GetParent(element);
+        if (parent != null)
+            return FindScrollViewer(parent);
+
+        // If not found in visual tree, try logical tree
+        if (element is FrameworkElement frameworkElement)
+        {
+            parent = frameworkElement.Parent;
+            if (parent != null)
+                return FindScrollViewer(parent);
+        }
+
+        return null;
     }
 }
