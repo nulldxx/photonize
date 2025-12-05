@@ -1,109 +1,86 @@
-# Photoize
+# Photonize
 
-A Windows desktop application for organizing and renaming photographs with visual thumbnail preview and drag-and-drop reordering.
+**Automatically organize and rename large photo collections with ease.**
+
+Photonize is a Windows desktop application that makes it simple to organize hundreds or thousands of photos. Visually reorder your photos by dragging thumbnails, then automatically rename them all at once with sequential numbering. Perfect for photographers, digital archivists, or anyone managing large photo collections.
+
+![Photonize Screenshot](screenshot.png)
+
+## Why Photonize?
+
+When you have hundreds of photos from a vacation, event, or photo shoot, getting them organized can be tedious. Photonize solves this by letting you:
+
+- **See all your photos at once** - Browse thumbnails of entire folders
+- **Drag to reorder** - Visually arrange photos in the order you want
+- **Rename in one click** - Automatically rename all photos with sequential numbering (vacation-00001.jpg, vacation-00002.jpg, etc.)
+- **Work quickly** - Process large photo sets in minutes, not hours
 
 ## Features
 
-- **Visual thumbnail browser** - Browse photos in a grid with adjustable thumbnail sizes (100-400px)
-- **Drag-and-drop reordering** - Rearrange photos by dragging thumbnails to change the rename order
-- **Smart renaming** - Rename files following the pattern: `prefix-00001.jpg`, `prefix-00002.jpg`, etc.
-- **Path selection** - Type or browse to select the directory containing your photos
-- **Settings persistence** - Automatically remembers your last directory and preferences
-- **Keyboard shortcuts** - F5 to refresh, Ctrl+O to browse
-- **Safe rename operations** - Uses temporary files to avoid conflicts during batch rename
+- 📸 **Visual Organization** - See all photos as thumbnails and drag them to reorder
+- 🔄 **Batch Rename** - Rename entire photo collections automatically with sequential numbers
+- 🖼️ **Preview Pane** - View full-size previews of selected photos
+- 💾 **Safe Operations** - Smart renaming algorithm prevents file conflicts and data loss
+- 🎯 **Auto-Detection** - Automatically detects existing naming patterns
+- 🔍 **Explorer Integration** - Right-click folders in Windows Explorer to open directly
+- 🌙 **Dark Theme** - Easy-on-the-eyes dark interface
+- 📏 **Adjustable Thumbnails** - Resize thumbnails from 100px to 400px
 
-## Requirements
+## Download & Install
 
-- Windows 10 or later
-- .NET 8 Runtime (will be prompted to install if missing)
+### System Requirements
 
-## Building from Source
+- **Operating System**: Windows 10 or later (64-bit)
+- **.NET Runtime**: .NET 8.0 Desktop Runtime - [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
+- **Disk Space**: ~50 MB
 
-### Prerequisites
-- .NET 8 SDK
-- Visual Studio 2022 (or VS Code with C# extension)
+### Installation
 
-### Build Instructions
+1. Download the latest installer from the [Releases page](https://github.com/yourusername/photonize/releases)
+2. Run `PhotonizeInstaller-vX.X.X-x64.msi`
+3. Follow the installation wizard
+4. Launch Photonize from the Start Menu or Desktop shortcut
 
-**Using Visual Studio:**
-1. Open `Photonize.sln` in Visual Studio 2022
-2. Press F5 to build and run
+The installer includes:
+- Desktop shortcut (optional)
+- Start Menu shortcut
+- Windows Explorer context menu integration (optional)
 
-**Using command line:**
-```bash
-cd Photonize
-dotnet restore
-dotnet build -c Release
-```
+## Quick Start
 
-### Run the Application
+### Method 1: Using Windows Explorer (Fastest)
 
-```bash
-cd Photonize
-dotnet run
-```
+1. Right-click any folder containing photos in Windows Explorer
+2. Select **"Open in Photonize"**
+3. Photos load automatically
 
-Or build and run the executable:
+### Method 2: Using the Application
 
-```bash
-dotnet publish -c Release -r win-x64 --self-contained
-```
+1. Launch Photonize
+2. Click **"Browse..."** or type a folder path
+3. Click **"Load Photos"**
 
-The executable will be in: `Photonize/bin/Release/net8.0-windows/win-x64/publish/Photonize.exe`
+### Organizing and Renaming
 
-### Building the Installer
-
-To create a Windows Installer (.msi):
-
-**Prerequisites:**
-- Install WiX Toolset v3.11+ from https://wixtoolset.org/releases/
-
-**Build Steps:**
-1. Open `Photonize.sln` in Visual Studio 2022
-2. Set configuration to **Release|x64**
-3. Build the `Photonize.Installer` project
-4. Find the installer at: `Photonize.Installer\bin\x64\Release\Photonize.msi`
-
-See `Photonize.Installer/README.md` for detailed instructions.
-
-## Usage
-
-### Quick Start from Windows Explorer
-After installation, you can right-click on any folder in Windows Explorer and select **"Open in Photoize"** to quickly organize photos in that folder.
-
-### Manual Usage
-
-1. **Select Directory**
-   - Type the path in the directory textbox, or
-   - Click "Browse..." to select a folder containing photos, or
-   - Right-click a folder in Windows Explorer and choose "Open in Photoize"
-   - Click "Load Photos" to load thumbnails
-
-2. **Adjust Thumbnail Size**
-   - Use the slider to resize thumbnails between 100-400px for comfortable viewing
-
-3. **Reorder Photos**
-   - Click and drag thumbnails to rearrange them in your desired order
-   - The rename operation will use this order (left-to-right, top-to-bottom)
-
-4. **Enter Rename Prefix**
-   - Type a prefix in the "Rename Prefix" textbox (e.g., "vacation", "photos")
-   - Files will be renamed to: `prefix-00001.jpg`, `prefix-00002.jpg`, etc.
-
+1. **Reorder Photos**
+   - Drag and drop thumbnails to arrange them in your desired sequence
+   - Order is left-to-right, top-to-bottom
+   
+2. **Set a Prefix**
+   - Type a prefix in the "Rename Prefix" box (e.g., "vacation", "wedding", "photos")
+   - Photonize auto-detects common prefixes if files are already named
+   
+3. **Adjust Thumbnail Size** (Optional)
+   - Use the slider to make thumbnails larger or smaller for easier viewing
+   
+4. **Preview Photos** (Optional)
+   - Click the "Preview" button to open a preview pane
+   - Double-click any photo to open it in your default image viewer
+   
 5. **Apply Rename**
-   - Click "Apply Rename" button
-   - Confirm the operation in the dialog
-   - Files are renamed safely on disk
-
-### Command Line Usage
-
-You can also launch Photoize from the command line with a directory:
-
-```bash
-Photonize.exe -d "C:\Path\To\Photos"
-# or
-Photonize.exe --directory "C:\Path\To\Photos"
-```
+   - Click **"Apply Rename"**
+   - Confirm the operation
+   - All photos are renamed: `prefix-00001.jpg`, `prefix-00002.jpg`, `prefix-00003.jpg`, etc.
 
 ## Supported Image Formats
 
@@ -113,85 +90,89 @@ Photonize.exe --directory "C:\Path\To\Photos"
 - GIF (.gif)
 - TIFF (.tif, .tiff)
 
-## Technical Details
-
-### Architecture
-- **Framework**: WPF with .NET 8
-- **Pattern**: MVVM (Model-View-ViewModel)
-- **Drag-and-Drop**: GongSolutions.Wpf.DragDrop library
-- **Settings**: JSON file stored in `%APPDATA%/Photonize/settings.json`
-
-### Project Structure
-```
-Photonize/
-├── Models/              # Data models (PhotoItem)
-├── ViewModels/          # Business logic (MainViewModel)
-├── Services/            # Core services (ThumbnailGenerator, FileRenamer, SettingsService)
-├── Helpers/             # Utility classes (PhotoDropHandler)
-├── MainWindow.xaml      # Main UI layout
-└── App.xaml             # Application entry point
-
-Photonize.Installer/
-├── Product.wxs          # WiX installer definition
-├── License.rtf          # License agreement
-└── Photonize.ico   # Application icon
-```
-
-### Rename Logic
-
-The rename algorithm (ported from the Python `auto-rename` script) works as follows:
-
-1. Photos are sorted by their `DisplayOrder` (set by drag-and-drop position)
-2. Each photo is assigned a new name: `{prefix}-{number:05d}{extension}`
-3. A two-pass rename strategy prevents file conflicts:
-   - First pass: Rename all files to temporary names
-   - Second pass: Rename from temporary names to final names
-4. All operations are atomic to prevent data loss
-
 ## Keyboard Shortcuts
 
-- **F5** - Refresh/reload photos from current directory
-- **Ctrl+O** - Open browse directory dialog
+- **F5** - Refresh photos from current directory
+- **Ctrl+O** - Browse for a new directory
+- **Delete** - Delete selected photo(s)
 
-## Windows Explorer Integration
+## Tips & Tricks
 
-The installer adds context menu integration to Windows Explorer:
+### Working with Large Photo Sets
 
-- **Right-click on a folder** → "Open in Photoize" - Opens that folder
-- **Right-click on folder background** → "Open in Photoize" - Opens the current folder
+- Start with smaller thumbnail sizes to see more photos at once
+- Use the auto-detected prefix if your files are already partially organized
+- The preview pane can be resized by dragging the divider
 
-This feature can be enabled/disabled during installation via the "Windows Explorer Integration" feature.
+### Organizing by Date or Event
 
-## Settings
+1. Sort photos by date in Windows Explorer first
+2. Load them into Photonize
+3. Fine-tune the order by dragging specific photos
+4. Use a descriptive prefix like "2024-12-hawaii" or "wedding-ceremony"
 
-Settings are automatically saved to: `%APPDATA%/Photonize/settings.json`
+### Multiple Photo Sessions
 
-Persisted settings include:
-- Last opened directory path
-- Last used thumbnail size
-- Last used rename prefix
+- Load one folder at a time
+- Use different prefixes for different sessions (e.g., "day1", "day2")
+- Photonize remembers your last directory and settings
 
 ## Troubleshooting
 
-### Photos not loading
-- Check that the directory exists and is accessible
-- Ensure the directory contains supported image formats
-- Check file permissions
+**Photos won't load?**
+- Check that the folder contains supported image formats (JPG, PNG, BMP, GIF, TIFF)
+- Verify you have permission to read the folder
 
-### Rename fails
-- Ensure no files are open in other applications
-- Check that you have write permissions in the directory
-- Verify the prefix doesn't contain invalid filename characters
-- Make sure target filenames don't conflict with existing files outside the photo set
+**Can't rename files?**
+- Close any programs that might have the photos open (image viewers, editors)
+- Check that you have write permission for the folder
+- Make sure your prefix doesn't contain invalid characters (< > : " / \ | ? *)
 
-### Drag-and-drop not working
-- Try closing and reopening the application
-- Ensure you're dragging from one thumbnail to another position
+**Drag and drop not working?**
+- Click on a photo thumbnail first to select it
+- Drag from the middle of the thumbnail
+- Try restarting the application if issues persist
+
+**Preview pane shows "No image selected"?**
+- Click on a photo thumbnail to select it
+- The preview updates automatically when you select different photos
+
+## Command Line Usage
+
+You can launch Photonize with a specific folder:
+
+```bash
+Photonize.exe -d "C:\Path\To\Photos"
+```
+
+Or:
+
+```bash
+Photonize.exe --directory "C:\Path\To\Photos"
+```
+
+## Privacy & Data
+
+- Photonize works entirely on your local computer
+- No data is sent to the internet
+- Settings are stored locally in `%APPDATA%\Photonize\settings.json`
+- No telemetry or tracking
+
+## Uninstalling
+
+Use Windows "Add or Remove Programs":
+1. Open Windows Settings
+2. Go to Apps → Installed apps
+3. Find "Photonize" and click Uninstall
 
 ## License
 
-See LICENSE file in the repository root.
+See LICENSE file for details.
 
-## Similar Projects
+## Support
 
-This application's rename functionality is based on the `auto-rename` Python script located at `~/dot-files/scripts/auto-rename`, adapted for interactive use with a graphical interface.
+For bug reports or feature requests, please visit the [Issues page](https://github.com/yourusername/photonize/issues).
+
+---
+
+**Note**: This application performs file rename operations. While it uses safe algorithms to prevent data loss, it's always a good idea to have backups of important photos.
