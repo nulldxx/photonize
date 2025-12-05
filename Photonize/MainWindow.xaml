@@ -178,6 +178,14 @@
                                                 <TextBlock Text="📁" FontSize="14"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
+                                        <MenuItem Header="Export WebP"
+                                                  Command="{Binding PlacementTarget.Tag.ExportWebPCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                            <MenuItem.Icon>
+                                                <TextBlock Text="🖼️" FontSize="14"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator/>
                                         <MenuItem Header="Delete"
                                                   Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">

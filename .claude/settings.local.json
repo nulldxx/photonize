@@ -7,7 +7,8 @@
       "Bash(cat:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(dotnet add package:*)"
     ],
     "deny": [],
     "ask": []
