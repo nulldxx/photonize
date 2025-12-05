@@ -9,7 +9,7 @@ public class ThumbnailGenerator
 {
     private static readonly string[] SupportedExtensions =
     {
-        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".tif"
+        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".tif", ".webp"
     };
 
     public static bool IsImageFile(string filePath)
