@@ -207,8 +207,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             RenamePrefix = settings.LastPrefix;
         }
-        _isPreviewVisible = settings.IsPreviewVisible;
-        OnPropertyChanged(nameof(IsPreviewVisible));
     }
 
     private void SaveSettings()
