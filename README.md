@@ -1,6 +1,6 @@
 # Photonize
 
-**Automatically organize and rename large photo collections with ease.**
+**Automatically order and rename large photo collections, no databases, just filesystem**
 
 Photonize is a Windows desktop application that makes it simple to organize hundreds or thousands of photos. Visually reorder your photos by dragging thumbnails, then automatically rename them all at once with sequential numbering. Perfect for photographers, digital archivists, or anyone managing large photo collections.
 
