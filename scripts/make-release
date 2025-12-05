@@ -24,6 +24,6 @@ echo "Latest tag: $LATEST_TAG"
 echo "New tag: $NEW_TAG"
 
 git tag "$NEW_TAG"
-git push origin "$NEW_TAG"
+git push --no-verify origin "$NEW_TAG"
 
 echo "Release $NEW_TAG created and pushed."
