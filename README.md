@@ -20,8 +20,10 @@ When you have hundreds of photos from a vacation, event, or photo shoot, getting
 ## Features
 
 - 📸 **Visual Organization** - See all photos as thumbnails and drag them to reorder
+- 📁 **Folder Navigation** - Browse subfolders directly in the app, double-click to navigate, drag photos into folders
 - 🔄 **Batch Rename** - Rename entire photo collections automatically with sequential numbers
 - 🖼️ **Preview Pane** - View full-size previews of selected photos
+- 🌐 **WebP Export** - Export photos to WebP format for efficient web publishing
 - 💾 **Safe Operations** - Smart renaming algorithm prevents file conflicts and data loss
 - 🎯 **Auto-Detection** - Automatically detects existing naming patterns
 - 🔍 **Explorer Integration** - Right-click folders in Windows Explorer to open directly
@@ -59,28 +61,38 @@ The installer includes:
 ### Method 2: Using the Application
 
 1. Launch Photonize
-2. Click **"Browse..."** or type a folder path
-3. Click **"Load Photos"**
+2. Click **"Browse..."** or type a folder path and press Enter
+3. Photos load automatically
 
 ### Organizing and Renaming
 
-1. **Reorder Photos**
+1. **Navigate Folders**
+   - Folders appear at the top with folder icons
+   - Double-click any folder to navigate into it
+   - Click the ".." folder to go back to the parent directory
+   - Drag photos onto folders to move them
+
+2. **Reorder Photos**
    - Drag and drop thumbnails to arrange them in your desired sequence
    - Order is left-to-right, top-to-bottom
-   
-2. **Set a Prefix**
+
+3. **Set a Prefix**
    - Type a prefix in the "Rename Prefix" box (e.g., "vacation", "wedding", "photos")
    - Photonize auto-detects common prefixes if files are already named
-   
-3. **Adjust Thumbnail Size** (Optional)
+
+4. **Adjust Thumbnail Size** (Optional)
    - Use the slider to make thumbnails larger or smaller for easier viewing
-   
-4. **Preview Photos** (Optional)
-   - Click the "Preview" button to open a preview pane
+
+5. **Preview Photos** (Optional)
+   - Click the eye icon (👁️) next to the thumbnail slider to open a preview pane
    - Double-click any photo to open it in your default image viewer
-   
-5. **Apply Rename**
-   - Click **"Apply Rename"**
+
+6. **Export to WebP** (Optional)
+   - Right-click photos and select "Export WebP"
+   - Creates optimized WebP versions in a "webp" subfolder
+
+7. **Apply Rename**
+   - Click **"✓ Apply"** (enabled when you have pending changes)
    - Confirm the operation
    - All photos are renamed: `prefix-00001.jpg`, `prefix-00002.jpg`, `prefix-00003.jpg`, etc.
 
@@ -88,6 +100,7 @@ The installer includes:
 
 - JPEG (.jpg, .jpeg)
 - PNG (.png)
+- WebP (.webp)
 - BMP (.bmp)
 - GIF (.gif)
 - TIFF (.tif, .tiff)
@@ -106,6 +119,13 @@ The installer includes:
 - Use the auto-detected prefix if your files are already partially organized
 - The preview pane can be resized by dragging the divider
 
+### Organizing Photos into Folders
+
+- Create subfolders for different categories or events
+- Drag photos onto folder icons to move them into that folder
+- Drag photos onto the ".." folder to move them to the parent directory
+- Navigate into folders to continue organizing within them
+
 ### Organizing by Date or Event
 
 1. Sort photos by date in Windows Explorer first
@@ -117,13 +137,15 @@ The installer includes:
 
 - Load one folder at a time
 - Use different prefixes for different sessions (e.g., "day1", "day2")
+- Create subfolders for each session and drag photos to organize them
 - Photonize remembers your last directory and settings
 
 ## Troubleshooting
 
 **Photos won't load?**
-- Check that the folder contains supported image formats (JPG, PNG, BMP, GIF, TIFF)
+- Check that the folder contains supported image formats (JPG, PNG, WebP, BMP, GIF, TIFF)
 - Verify you have permission to read the folder
+- Press F5 or click the refresh icon (↻) to reload the current directory
 
 **Can't rename files?**
 - Close any programs that might have the photos open (image viewers, editors)
