@@ -68,10 +68,19 @@ public class MainViewModel : INotifyPropertyChanged
         get => _directoryPath;
         set
         {
+            if (_directoryPath == value)
+                return;
+
             _directoryPath = value;
             OnPropertyChanged();
             ((RelayCommand)LoadPhotosCommand).RaiseCanExecuteChanged();
             ((RelayCommand)RefreshCommand).RaiseCanExecuteChanged();
+
+            // Auto-load photos when directory path changes to a valid directory
+            if (!string.IsNullOrEmpty(value) && Directory.Exists(value))
+            {
+                _ = LoadPhotosAsync();
+            }
         }
     }
 
@@ -265,7 +274,7 @@ public class MainViewModel : INotifyPropertyChanged
             if (!string.IsNullOrEmpty(path))
             {
                 DirectoryPath = path;
-                _ = LoadPhotosAsync();
+                // Photos will be automatically loaded by the DirectoryPath setter
             }
         }
     }
@@ -531,7 +540,7 @@ public class MainViewModel : INotifyPropertyChanged
             if (Directory.Exists(photo.FilePath))
             {
                 DirectoryPath = photo.FilePath;
-                _ = LoadPhotosAsync();
+                // Photos will be automatically loaded by the DirectoryPath setter
             }
             return;
         }

@@ -48,10 +48,12 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBox Grid.Column="0"
-                         Text="{Binding DirectoryPath, UpdateSourceTrigger=PropertyChanged}"
+                         x:Name="DirectoryPathTextBox"
+                         Text="{Binding DirectoryPath, UpdateSourceTrigger=LostFocus}"
                          VerticalContentAlignment="Center"
                          Padding="5"
-                         FontSize="14"/>
+                         FontSize="14"
+                         PreviewKeyDown="DirectoryPathTextBox_PreviewKeyDown"/>
 
                 <Button Grid.Column="1"
                         Content="Browse..."

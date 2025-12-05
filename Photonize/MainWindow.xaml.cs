@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Photonize.Models;
@@ -46,15 +47,8 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        // Load photos from directory if available (either from command line or saved settings)
-        if (DataContext is MainViewModel viewModel)
-        {
-            if (!string.IsNullOrEmpty(viewModel.DirectoryPath) &&
-                System.IO.Directory.Exists(viewModel.DirectoryPath))
-            {
-                viewModel.LoadPhotosCommand.Execute(null);
-            }
-        }
+        // Photos are now automatically loaded when DirectoryPath is set in the ViewModel
+        // No need to manually trigger loading here
     }
 
     private void PhotoListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -97,6 +91,25 @@ public partial class MainWindow : Window
             scrollViewer.ScrollToVerticalOffset(offset);
 
             // Mark as handled to prevent the event from bubbling
+            e.Handled = true;
+        }
+    }
+
+    private void DirectoryPathTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // When Enter is pressed, commit the binding and move focus away
+        if (e.Key == Key.Enter)
+        {
+            if (sender is TextBox textBox)
+            {
+                // Force the binding to update
+                var bindingExpression = textBox.GetBindingExpression(TextBox.TextProperty);
+                bindingExpression?.UpdateSource();
+
+                // Move focus away from the TextBox to prevent further editing
+                Keyboard.ClearFocus();
+            }
+
             e.Handled = true;
         }
     }
