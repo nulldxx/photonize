@@ -87,6 +87,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void PhotoScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // Handle mouse wheel scrolling even during drag operations
+        if (sender is ScrollViewer scrollViewer)
+        {
+            // Calculate scroll amount (negative delta = scroll down)
+            double offset = scrollViewer.VerticalOffset - (e.Delta / 3.0);
+            scrollViewer.ScrollToVerticalOffset(offset);
+
+            // Mark as handled to prevent the event from bubbling
+            e.Handled = true;
+        }
+    }
+
     private ScrollViewer? FindParentScrollViewer(DependencyObject child)
     {
         var parent = VisualTreeHelper.GetParent(child);

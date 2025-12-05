@@ -107,7 +107,9 @@
         <!-- Photos Grid -->
         <GroupBox Header="Photos" Grid.Row="3" Margin="10,5,10,5">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto">
+                          VerticalScrollBarVisibility="Auto"
+                          x:Name="PhotoScrollViewer"
+                          PreviewMouseWheel="PhotoScrollViewer_PreviewMouseWheel">
                 <ListBox ItemsSource="{Binding Photos}"
                          SelectionMode="Extended"
                          Background="Transparent"
