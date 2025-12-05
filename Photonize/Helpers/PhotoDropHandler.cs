@@ -166,49 +166,70 @@ public class PhotoDropHandler : IDropTarget
             _scrollViewer = FindScrollViewer(visualTarget);
         }
 
-        if (_scrollViewer == null)
+        if (_scrollViewer == null || dropInfo.VisualTarget == null)
             return;
 
-        // Get the actual mouse position relative to the ScrollViewer
-        Point mousePosition = Mouse.GetPosition(_scrollViewer);
-
-        // Calculate scroll speed based on proximity to edges
-        double newScrollSpeed = 0;
-
-        // Check if near top edge
-        if (mousePosition.Y >= 0 && mousePosition.Y < ScrollMargin)
+        try
         {
-            // Scroll up - speed increases as we get closer to edge
-            double ratio = 1.0 - (mousePosition.Y / ScrollMargin);
-            newScrollSpeed = -ratio * MaxScrollSpeed;
-        }
-        // Check if near bottom edge
-        else if (mousePosition.Y > (_scrollViewer.ActualHeight - ScrollMargin) &&
-                 mousePosition.Y <= _scrollViewer.ActualHeight)
-        {
-            // Scroll down - speed increases as we get closer to edge
-            double distanceFromBottom = _scrollViewer.ActualHeight - mousePosition.Y;
-            double ratio = 1.0 - (distanceFromBottom / ScrollMargin);
-            newScrollSpeed = ratio * MaxScrollSpeed;
-        }
-        else
-        {
-            // Not near any edge, stop scrolling
-            StopAutoScroll();
-            return;
-        }
+            // Get mouse position relative to the drop target, then transform to ScrollViewer coordinates
+            Point mousePositionInTarget = dropInfo.DropPosition;
+            Point mousePosition;
 
-        _autoScrollSpeed = newScrollSpeed;
-
-        // Start the timer if not already running
-        if (_autoScrollTimer == null)
-        {
-            _autoScrollTimer = new DispatcherTimer
+            if (dropInfo.VisualTarget is UIElement targetElement)
             {
-                Interval = TimeSpan.FromMilliseconds(20) // ~50 FPS
-            };
-            _autoScrollTimer.Tick += OnAutoScrollTick;
-            _autoScrollTimer.Start();
+                // Transform the position from the target element to the ScrollViewer
+                GeneralTransform transform = targetElement.TransformToVisual(_scrollViewer);
+                mousePosition = transform.Transform(mousePositionInTarget);
+            }
+            else
+            {
+                // Fallback to direct mouse position
+                mousePosition = Mouse.GetPosition(_scrollViewer);
+            }
+
+            // Calculate scroll speed based on proximity to edges
+            double newScrollSpeed = 0;
+
+            // Check if near top edge
+            if (mousePosition.Y >= 0 && mousePosition.Y < ScrollMargin)
+            {
+                // Scroll up - speed increases as we get closer to edge
+                double ratio = 1.0 - (mousePosition.Y / ScrollMargin);
+                newScrollSpeed = -ratio * MaxScrollSpeed;
+            }
+            // Check if near bottom edge
+            else if (mousePosition.Y > (_scrollViewer.ActualHeight - ScrollMargin) &&
+                     mousePosition.Y <= _scrollViewer.ActualHeight)
+            {
+                // Scroll down - speed increases as we get closer to edge
+                double distanceFromBottom = _scrollViewer.ActualHeight - mousePosition.Y;
+                double ratio = 1.0 - (distanceFromBottom / ScrollMargin);
+                newScrollSpeed = ratio * MaxScrollSpeed;
+            }
+            else
+            {
+                // Not near any edge, stop scrolling
+                StopAutoScroll();
+                return;
+            }
+
+            _autoScrollSpeed = newScrollSpeed;
+
+            // Start the timer if not already running
+            if (_autoScrollTimer == null)
+            {
+                _autoScrollTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(20) // ~50 FPS
+                };
+                _autoScrollTimer.Tick += OnAutoScrollTick;
+                _autoScrollTimer.Start();
+            }
+        }
+        catch
+        {
+            // If coordinate transformation fails, stop scrolling
+            StopAutoScroll();
         }
     }
 
