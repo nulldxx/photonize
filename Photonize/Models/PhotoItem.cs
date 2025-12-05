@@ -11,6 +11,7 @@ public class PhotoItem : INotifyPropertyChanged
     private string _fileName = string.Empty;
     private BitmapImage? _thumbnail;
     private int _displayOrder;
+    private bool _isFolder;
 
     public string FilePath
     {
@@ -52,7 +53,17 @@ public class PhotoItem : INotifyPropertyChanged
         }
     }
 
-    public string Extension => Path.GetExtension(FilePath);
+    public bool IsFolder
+    {
+        get => _isFolder;
+        set
+        {
+            _isFolder = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string Extension => IsFolder ? string.Empty : Path.GetExtension(FilePath);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

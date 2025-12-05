@@ -44,7 +44,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         BrowseDirectoryCommand = new RelayCommand(BrowseDirectory);
         LoadPhotosCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
-        ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix));
+        ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Any(p => !p.IsFolder) && !string.IsNullOrEmpty(RenamePrefix));
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
         OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
         DeletePhotoCommand = new RelayCommand<PhotoItem?>(DeletePhoto, CanDeletePhoto);
@@ -286,6 +286,28 @@ public class MainViewModel : INotifyPropertyChanged
 
         try
         {
+            int displayOrder = 0;
+
+            // Load subfolders first
+            var subfolders = Directory.GetDirectories(DirectoryPath)
+                .OrderBy(d => d)
+                .ToList();
+
+            foreach (var subfolder in subfolders)
+            {
+                var folderItem = new PhotoItem
+                {
+                    FilePath = subfolder,
+                    FileName = Path.GetFileName(subfolder),
+                    DisplayOrder = displayOrder++,
+                    IsFolder = true,
+                    Thumbnail = _thumbnailGenerator.GenerateFolderThumbnail((int)ThumbnailSize)
+                };
+
+                Photos.Add(folderItem);
+            }
+
+            // Load image files
             var imageFiles = await _thumbnailGenerator.GetImageFilesAsync(DirectoryPath);
 
             for (int i = 0; i < imageFiles.Count; i++)
@@ -295,7 +317,8 @@ public class MainViewModel : INotifyPropertyChanged
                 {
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
-                    DisplayOrder = i
+                    DisplayOrder = displayOrder++,
+                    IsFolder = false
                 };
 
                 // Load thumbnail asynchronously
@@ -305,10 +328,10 @@ public class MainViewModel : INotifyPropertyChanged
                 Photos.Add(photoItem);
             }
 
-            // Detect and set common prefix
+            // Detect and set common prefix (only from photos, not folders)
             DetectCommonPrefix();
 
-            StatusMessage = $"Loaded {Photos.Count} photo(s)";
+            StatusMessage = $"Loaded {subfolders.Count} folder(s) and {imageFiles.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
             // Don't mark as unsaved changes on initial load
@@ -327,7 +350,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task ApplyRenameAsync()
     {
-        if (Photos.Count == 0)
+        var photoItems = Photos.Where(p => !p.IsFolder).ToList();
+        if (photoItems.Count == 0)
         {
             MessageBox.Show("No photos to rename.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -343,7 +367,7 @@ public class MainViewModel : INotifyPropertyChanged
         if (!FilesAlreadyUsePrefix())
         {
             var result = MessageBox.Show(
-                $"This will rename {Photos.Count} file(s) using the pattern:\n{RenamePrefix}-00001, {RenamePrefix}-00002, etc.\n\nDo you want to continue?",
+                $"This will rename {photoItems.Count} file(s) using the pattern:\n{RenamePrefix}-00001, {RenamePrefix}-00002, etc.\n\nDo you want to continue?",
                 "Confirm Rename",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -355,7 +379,7 @@ public class MainViewModel : INotifyPropertyChanged
         IsLoading = true;
         StatusMessage = "Renaming files...";
 
-        var (success, message) = await _fileRenamer.RenameFilesAsync(Photos.ToList(), RenamePrefix);
+        var (success, message) = await _fileRenamer.RenameFilesAsync(photoItems, RenamePrefix);
 
         StatusMessage = message;
         IsLoading = false;
@@ -386,19 +410,22 @@ public class MainViewModel : INotifyPropertyChanged
     private void UpdateUnsavedChanges()
     {
         // Mark as having unsaved changes if we can apply rename (photos loaded + prefix set)
-        HasUnsavedChanges = Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix);
+        HasUnsavedChanges = Photos.Any(p => !p.IsFolder) && !string.IsNullOrEmpty(RenamePrefix);
     }
 
     private void DetectCommonPrefix()
     {
-        if (Photos.Count == 0)
+        // Only detect prefix from photos, not folders
+        var photoItems = Photos.Where(p => !p.IsFolder).ToList();
+
+        if (photoItems.Count == 0)
         {
             RenamePrefix = string.Empty;
             return;
         }
 
         // Get filenames without extensions
-        var names = Photos.Select(p => Path.GetFileNameWithoutExtension(p.FileName)).ToList();
+        var names = photoItems.Select(p => Path.GetFileNameWithoutExtension(p.FileName)).ToList();
 
         if (names.Count == 1)
         {
@@ -424,11 +451,12 @@ public class MainViewModel : INotifyPropertyChanged
 
     private bool FilesAlreadyUsePrefix()
     {
-        if (Photos.Count == 0 || string.IsNullOrWhiteSpace(RenamePrefix))
+        var photoItems = Photos.Where(p => !p.IsFolder).ToList();
+        if (photoItems.Count == 0 || string.IsNullOrWhiteSpace(RenamePrefix))
             return false;
 
         // Check if all files follow the pattern: {RenamePrefix}-{number}{extension}
-        foreach (var photo in Photos)
+        foreach (var photo in photoItems)
         {
             var nameWithoutExtension = Path.GetFileNameWithoutExtension(photo.FileName);
 
@@ -478,7 +506,22 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void OpenPhoto(PhotoItem? photo)
     {
-        if (photo == null || string.IsNullOrEmpty(photo.FilePath) || !File.Exists(photo.FilePath))
+        if (photo == null || string.IsNullOrEmpty(photo.FilePath))
+            return;
+
+        // If it's a folder, navigate into it
+        if (photo.IsFolder)
+        {
+            if (Directory.Exists(photo.FilePath))
+            {
+                DirectoryPath = photo.FilePath;
+                _ = LoadPhotosAsync();
+            }
+            return;
+        }
+
+        // Otherwise, open the photo file
+        if (!File.Exists(photo.FilePath))
             return;
 
         try
@@ -498,7 +541,13 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void ShowInExplorer(PhotoItem? photo)
     {
-        if (photo == null || string.IsNullOrEmpty(photo.FilePath) || !File.Exists(photo.FilePath))
+        if (photo == null || string.IsNullOrEmpty(photo.FilePath))
+            return;
+
+        // Check if it's a folder or file and that it exists
+        if (photo.IsFolder && !Directory.Exists(photo.FilePath))
+            return;
+        if (!photo.IsFolder && !File.Exists(photo.FilePath))
             return;
 
         try
@@ -528,18 +577,18 @@ public class MainViewModel : INotifyPropertyChanged
         // Determine which photos to delete
         List<PhotoItem> photosToDelete = new List<PhotoItem>();
 
-        // If there are selected photos in the list, delete all of them
+        // If there are selected photos in the list, delete all of them (excluding folders)
         if (_selectedPhotos.Count > 0)
         {
-            photosToDelete.AddRange(_selectedPhotos);
+            photosToDelete.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
         }
         // Otherwise delete the single photo from context menu (fallback for right-click without selection)
-        else if (photo != null)
+        else if (photo != null && !photo.IsFolder)
         {
             photosToDelete.Add(photo);
         }
         // Final fallback to SelectedPhoto property (legacy support)
-        else if (SelectedPhoto != null)
+        else if (SelectedPhoto != null && !SelectedPhoto.IsFolder)
         {
             photosToDelete.Add(SelectedPhoto);
         }
@@ -642,13 +691,13 @@ public class MainViewModel : INotifyPropertyChanged
         // Determine which photos to export
         List<PhotoItem> photosToExport = new List<PhotoItem>();
 
-        // If there are selected photos in the list, export all of them
+        // If there are selected photos in the list, export all of them (excluding folders)
         if (_selectedPhotos.Count > 0)
         {
-            photosToExport.AddRange(_selectedPhotos);
+            photosToExport.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
         }
         // Otherwise export the single photo from context menu (fallback for right-click without selection)
-        else if (photo != null)
+        else if (photo != null && !photo.IsFolder)
         {
             photosToExport.Add(photo);
         }

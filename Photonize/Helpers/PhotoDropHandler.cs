@@ -32,11 +32,12 @@ public class PhotoDropHandler : IDropTarget
         // Handle internal photo reordering (single or multiple items)
         if (dropInfo.Data != null && dropInfo.TargetCollection != null)
         {
-            // Check if we're dragging PhotoItem(s)
-            bool isPhotoItem = dropInfo.Data is PhotoItem;
+            // Check if we're dragging PhotoItem(s) and ensure they're not folders
+            bool isPhotoItem = dropInfo.Data is PhotoItem photo && !photo.IsFolder;
             bool isPhotoCollection = dropInfo.Data is IEnumerable enumerable &&
                                       enumerable.Cast<object>().Any() &&
-                                      enumerable.Cast<object>().First() is PhotoItem;
+                                      enumerable.Cast<object>().First() is PhotoItem &&
+                                      !enumerable.Cast<PhotoItem>().Any(p => p.IsFolder);
 
             if (isPhotoItem || isPhotoCollection)
             {
@@ -91,7 +92,7 @@ public class PhotoDropHandler : IDropTarget
         // Handle multiple selected items
         if (dropInfo.Data is IEnumerable enumerable && !(dropInfo.Data is string))
         {
-            var itemsToMove = enumerable.Cast<PhotoItem>().ToList();
+            var itemsToMove = enumerable.Cast<PhotoItem>().Where(p => !p.IsFolder).ToList();
             if (itemsToMove.Count == 0)
                 return;
 
@@ -126,7 +127,7 @@ public class PhotoDropHandler : IDropTarget
             }
         }
         // Handle single item
-        else if (dropInfo.Data is PhotoItem itemToMove)
+        else if (dropInfo.Data is PhotoItem itemToMove && !itemToMove.IsFolder)
         {
             // Find current position of the item
             var oldIndex = targetCollection.IndexOf(itemToMove);

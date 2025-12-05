@@ -1,4 +1,6 @@
 using System.IO;
+using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Photonize.Services;
@@ -92,5 +94,52 @@ public class ThumbnailGenerator
                 return new List<string>();
             }
         });
+    }
+
+    public BitmapImage GenerateFolderThumbnail(int size)
+    {
+        // Create a visual representation of a folder
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            // Draw folder background (main body)
+            var folderBrush = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Yellow/gold color
+            var folderPen = new Pen(new SolidColorBrush(Color.FromRgb(200, 150, 0)), 2);
+
+            // Folder tab (top part)
+            var tabRect = new Rect(size * 0.1, size * 0.2, size * 0.4, size * 0.15);
+            context.DrawRoundedRectangle(folderBrush, folderPen, tabRect, 3, 3);
+
+            // Folder body (main part)
+            var bodyRect = new Rect(size * 0.1, size * 0.3, size * 0.8, size * 0.5);
+            context.DrawRoundedRectangle(folderBrush, folderPen, bodyRect, 5, 5);
+
+            // Draw a darker overlay for 3D effect
+            var overlayBrush = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
+            var overlayRect = new Rect(size * 0.1, size * 0.55, size * 0.8, size * 0.25);
+            context.DrawRectangle(overlayBrush, null, overlayRect);
+        }
+
+        // Render to bitmap
+        var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+
+        // Convert to BitmapImage
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        stream.Position = 0;
+
+        var bitmapImage = new BitmapImage();
+        bitmapImage.BeginInit();
+        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+        bitmapImage.StreamSource = stream;
+        bitmapImage.EndInit();
+        bitmapImage.Freeze();
+
+        return bitmapImage;
     }
 }
