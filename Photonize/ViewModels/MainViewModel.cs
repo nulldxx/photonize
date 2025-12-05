@@ -268,7 +268,6 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (success)
         {
-            MessageBox.Show(message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             SaveSettings();
         }
         else
@@ -590,7 +589,6 @@ public class MainViewModel : INotifyPropertyChanged
                 }
 
                 StatusMessage = message;
-                MessageBox.Show(message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             }
             else
