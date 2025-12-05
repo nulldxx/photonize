@@ -39,8 +39,16 @@ public class PhotoImporter
                 return (false, "Target directory does not exist.", new List<PhotoItem>());
 
             // Filter out files that are already in the target directory
+            // Also deduplicate source files (in case the same file is listed multiple times)
+            var normalizedTargetDir = Path.GetFullPath(targetDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var filesToImport = sourceFiles
-                .Where(f => Path.GetDirectoryName(Path.GetFullPath(f)) != Path.GetFullPath(targetDirectory))
+                .Select(f => Path.GetFullPath(f))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(f =>
+                {
+                    var fileDir = Path.GetDirectoryName(f)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    return !string.Equals(fileDir, normalizedTargetDir, StringComparison.OrdinalIgnoreCase);
+                })
                 .ToList();
 
             if (filesToImport.Count == 0)
@@ -170,11 +178,19 @@ public class PhotoImporter
             // Check if a new file goes at this position
             if (newIdx < insertPositions.Count && finalIdx == insertPositions[newIdx])
             {
+                if (newIdx >= newFiles.Count)
+                {
+                    throw new InvalidOperationException($"Index out of range: newIdx={newIdx}, newFiles.Count={newFiles.Count}");
+                }
                 operations.Add((newFiles[newIdx], true, finalIdx));
                 newIdx++;
             }
             else
             {
+                if (oldIdx >= sortedExisting.Count)
+                {
+                    throw new InvalidOperationException($"Index out of range: oldIdx={oldIdx}, sortedExisting.Count={sortedExisting.Count}");
+                }
                 operations.Add((sortedExisting[oldIdx].FilePath, false, finalIdx));
                 oldIdx++;
             }
