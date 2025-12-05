@@ -70,6 +70,12 @@
               Source="$(var.Photonize.TargetDir)GongSolutions.WPF.DragDrop.dll"
               KeyPath="yes" />
       </Component>
+
+      <Component Id="SixLaborsImageSharp" Guid="{C2D3E4F5-A6B7-8C9D-0E1F-2A3B4C5D6E7F}">
+        <File Id="SixLaborsImageSharpDll"
+              Source="$(var.Photonize.TargetDir)SixLabors.ImageSharp.dll"
+              KeyPath="yes" />
+      </Component>
     </DirectoryRef>
 
     <!-- Start Menu Shortcut -->
@@ -151,6 +157,7 @@
       <ComponentRef Id="NewtonsoftJson" />
       <ComponentRef Id="CommunityToolkitMvvm" />
       <ComponentRef Id="GongWpfDragDrop" />
+      <ComponentRef Id="SixLaborsImageSharp" />
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
 

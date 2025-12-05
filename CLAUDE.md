@@ -69,9 +69,12 @@ This prevents issues when reordering files where target names might conflict wit
 - All commands use CanExecute to enable/disable UI buttons based on state
 
 ## Key NuGet Dependencies
-- `CommunityToolkit.Mvvm` (8.2.2) - MVVM helpers (though custom RelayCommand is currently used)
-- `gong-wpf-dragdrop` (3.2.1) - Drag-and-drop framework for ItemsControl
-- `Newtonsoft.Json` (13.0.3) - Settings serialization
+- `CommunityToolkit.Mvvm` (8.4.0) - MVVM helpers (though custom RelayCommand is currently used)
+- `gong-wpf-dragdrop` (4.0.0) - Drag-and-drop framework for ItemsControl
+- `Newtonsoft.Json` (13.0.4) - Settings serialization
+- `SixLabors.ImageSharp` (3.1.12) - Image processing and WebP export
+
+**IMPORTANT**: When adding new NuGet packages, you **must** also update the WiX installer (`Photonize.Installer/Product.wxs`) to include the new DLL files. See the "Installer Configuration" section below.
 
 ## Supported Image Formats
 JPG, JPEG, PNG, WebP, BMP, GIF, TIFF - defined in `ThumbnailGenerator.SupportedExtensions`
@@ -110,6 +113,50 @@ When modifying FileRenamer:
 - Check for conflicts with existing files NOT in the rename set
 - Maintain atomic two-pass rename to prevent data loss
 - Handle exceptions at service layer and return tuple results `(bool Success, string Message)`
+
+## Installer Configuration
+
+### Adding NuGet Package Dependencies to the Installer
+
+The WiX installer (`Photonize.Installer/Product.wxs`) manually lists each DLL file to include. When you add a new NuGet package, you **must** update the installer:
+
+1. **Add a new Component** in the `DirectoryRef Id="INSTALLFOLDER"` section:
+   ```xml
+   <Component Id="YourPackageName" Guid="{NEW-GUID-HERE}">
+     <File Id="YourPackageNameDll"
+           Source="$(var.Photonize.TargetDir)YourPackage.dll"
+           KeyPath="yes" />
+   </Component>
+   ```
+   - Generate a new GUID using `uuidgen` or an online GUID generator
+   - Use the exact DLL filename from the NuGet package
+
+2. **Add a ComponentRef** to the `ProductFeature` feature:
+   ```xml
+   <Feature Id="ProductFeature" Title="Photonize" Level="1">
+     <!-- ... existing components ... -->
+     <ComponentRef Id="YourPackageName" />
+   </Feature>
+   ```
+
+3. **Find DLL names** by checking the publish output:
+   ```bash
+   dotnet publish Photonize/Photonize.csproj -c Release -o temp
+   ls temp/*.dll
+   ```
+
+### Common Issue: "Library not found" errors after installation
+
+If the application works in Visual Studio but fails after installation with errors like "could not load library" or "assembly not found":
+
+1. The installer is missing a required DLL
+2. Check what DLLs are in the publish directory but not in Product.wxs
+3. Add the missing Component and ComponentRef entries
+4. Rebuild the installer
+
+### Future Improvement: Automated File Harvesting
+
+The current installer manually lists files. A better approach would be to use WiX Heat.exe to automatically harvest all files from the publish directory. This would prevent missing dependency issues but requires changes to the build process.
 
 ## Release Process
 
