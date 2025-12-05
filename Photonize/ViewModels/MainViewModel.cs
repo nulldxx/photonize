@@ -288,7 +288,23 @@ public class MainViewModel : INotifyPropertyChanged
         {
             int displayOrder = 0;
 
-            // Load subfolders first
+            // Add parent directory navigation if not at root
+            var parentDirectory = Directory.GetParent(DirectoryPath)?.FullName;
+            if (!string.IsNullOrEmpty(parentDirectory))
+            {
+                var parentItem = new PhotoItem
+                {
+                    FilePath = parentDirectory,
+                    FileName = "..",
+                    DisplayOrder = displayOrder++,
+                    IsFolder = true,
+                    Thumbnail = _thumbnailGenerator.GenerateFolderThumbnail((int)ThumbnailSize)
+                };
+
+                Photos.Add(parentItem);
+            }
+
+            // Load subfolders
             var subfolders = Directory.GetDirectories(DirectoryPath)
                 .OrderBy(d => d)
                 .ToList();
