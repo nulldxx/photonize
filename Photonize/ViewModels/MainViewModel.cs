@@ -79,12 +79,7 @@ public class MainViewModel : INotifyPropertyChanged
             _renamePrefix = value;
             OnPropertyChanged();
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
-            
-            // Mark as having unsaved changes if prefix is set and photos are loaded
-            if (Photos.Count > 0 && !string.IsNullOrEmpty(value))
-            {
-                HasUnsavedChanges = true;
-            }
+            UpdateUnsavedChanges();
         }
     }
 
@@ -306,12 +301,7 @@ public class MainViewModel : INotifyPropertyChanged
             StatusMessage = $"Loaded {Photos.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
-            
-            // Mark as having unsaved changes if photos are loaded with a prefix
-            if (Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix))
-            {
-                HasUnsavedChanges = true;
-            }
+            UpdateUnsavedChanges();
         }
         catch (Exception ex)
         {
@@ -379,12 +369,13 @@ public class MainViewModel : INotifyPropertyChanged
 
         // Notify that the collection state has changed
         ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
-        
-        // Mark as having unsaved changes when order is changed
-        if (Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix))
-        {
-            HasUnsavedChanges = true;
-        }
+        UpdateUnsavedChanges();
+    }
+
+    private void UpdateUnsavedChanges()
+    {
+        // Mark as having unsaved changes if we can apply rename (photos loaded + prefix set)
+        HasUnsavedChanges = Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix);
     }
 
     private void DetectCommonPrefix()
