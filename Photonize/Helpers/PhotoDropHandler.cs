@@ -99,9 +99,9 @@ public class PhotoDropHandler : IDropTarget
             // Get the photos being dragged
             List<PhotoItem> photosToMove = new List<PhotoItem>();
 
-            if (dropInfo.Data is IEnumerable enumerable && !(dropInfo.Data is string))
+            if (dropInfo.Data is IEnumerable draggedItems && !(dropInfo.Data is string))
             {
-                photosToMove = enumerable.Cast<PhotoItem>().Where(p => !p.IsFolder).ToList();
+                photosToMove = draggedItems.Cast<PhotoItem>().Where(p => !p.IsFolder).ToList();
             }
             else if (dropInfo.Data is PhotoItem singlePhoto && !singlePhoto.IsFolder)
             {
