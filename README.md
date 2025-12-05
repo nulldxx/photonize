@@ -1,4 +1,4 @@
-# Photonize
+# Photoize
 
 **Automatically organize and rename large photo collections with ease.**
 
