@@ -302,7 +302,7 @@
 
                 <!-- Preview Image -->
                 <Grid Grid.Row="1">
-                    <Image Source="{Binding PreviewPhoto.FilePath}"
+                    <Image Source="{Binding PreviewImage}"
                            Stretch="Uniform"
                            Margin="10"
                            VerticalAlignment="Center"

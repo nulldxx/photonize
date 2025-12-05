@@ -45,6 +45,33 @@ public class ThumbnailGenerator
         });
     }
 
+    public async Task<BitmapImage?> GeneratePreviewAsync(string filePath)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                    return null;
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
+                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze(); // Make it cross-thread accessible
+
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading preview for {filePath}: {ex.Message}");
+                return null;
+            }
+        });
+    }
+
     public async Task<List<string>> GetImageFilesAsync(string directoryPath)
     {
         return await Task.Run(() =>

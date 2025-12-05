@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using Photonize.Models;
 using Photonize.Services;
 
@@ -26,6 +27,7 @@ public class MainViewModel : INotifyPropertyChanged
     private List<PhotoItem> _selectedPhotos = new List<PhotoItem>();
     private bool _isPreviewVisible = false;
     private PhotoItem? _previewPhoto;
+    private BitmapImage? _previewImage;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -142,6 +144,36 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _previewPhoto = value;
             OnPropertyChanged();
+            _ = LoadPreviewImageAsync();
+        }
+    }
+
+    public BitmapImage? PreviewImage
+    {
+        get => _previewImage;
+        set
+        {
+            _previewImage = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private async Task LoadPreviewImageAsync()
+    {
+        if (_previewPhoto == null)
+        {
+            PreviewImage = null;
+            return;
+        }
+
+        try
+        {
+            PreviewImage = await _thumbnailGenerator.GeneratePreviewAsync(_previewPhoto.FilePath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading preview image: {ex.Message}");
+            PreviewImage = null;
         }
     }
 
