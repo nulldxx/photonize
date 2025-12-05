@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -33,6 +34,7 @@ public class MainViewModel : INotifyPropertyChanged
         LoadPhotosCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
         ApplyRenameCommand = new RelayCommand(async () => await ApplyRenameAsync(), () => Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix));
         RefreshCommand = new RelayCommand(async () => await LoadPhotosAsync(), () => !string.IsNullOrEmpty(DirectoryPath));
+        OpenPhotoCommand = new RelayCommand<PhotoItem>(OpenPhoto);
 
         LoadSavedSettings();
 
@@ -102,6 +104,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand LoadPhotosCommand { get; }
     public ICommand ApplyRenameCommand { get; }
     public ICommand RefreshCommand { get; }
+    public ICommand OpenPhotoCommand { get; }
 
     private void LoadSavedSettings()
     {
@@ -318,6 +321,26 @@ public class MainViewModel : INotifyPropertyChanged
         return str.Substring(0, endIndex + 1);
     }
 
+    private void OpenPhoto(PhotoItem? photo)
+    {
+        if (photo == null || string.IsNullOrEmpty(photo.FilePath) || !File.Exists(photo.FilePath))
+            return;
+
+        try
+        {
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = photo.FilePath,
+                UseShellExecute = true
+            };
+            Process.Start(processStartInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to open photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -340,6 +363,41 @@ public class RelayCommand : ICommand
     public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
 
     public void Execute(object? parameter) => _execute();
+
+    public event EventHandler? CanExecuteChanged;
+
+    public void RaiseCanExecuteChanged()
+    {
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+public class RelayCommand<T> : ICommand
+{
+    private readonly Action<T?> _execute;
+    private readonly Func<T?, bool>? _canExecute;
+
+    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+    {
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
+    }
+
+    public bool CanExecute(object? parameter)
+    {
+        if (_canExecute == null)
+            return true;
+
+        if (parameter == null && typeof(T).IsValueType)
+            return false;
+
+        return _canExecute((T?)parameter);
+    }
+
+    public void Execute(object? parameter)
+    {
+        _execute((T?)parameter);
+    }
 
     public event EventHandler? CanExecuteChanged;
 

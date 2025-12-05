@@ -116,7 +116,13 @@
                             <Border Style="{StaticResource PhotoBorderStyle}"
                                     Margin="5"
                                     Padding="5"
-                                    ToolTip="{Binding FilePath}">
+                                    ToolTip="{Binding FilePath}"
+                                    Cursor="Hand">
+                                <Border.InputBindings>
+                                    <MouseBinding MouseAction="LeftDoubleClick"
+                                                  Command="{Binding DataContext.OpenPhotoCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}"/>
+                                </Border.InputBindings>
                                 <StackPanel>
                                     <Image Source="{Binding Thumbnail}"
                                            Width="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
