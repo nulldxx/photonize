@@ -105,6 +105,8 @@
                          SelectionMode="Single"
                          Background="Transparent"
                          BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          dd:DragDrop.IsDragSource="True"
                          dd:DragDrop.IsDropTarget="True"
                          dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
