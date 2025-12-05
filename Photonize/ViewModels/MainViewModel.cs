@@ -184,6 +184,9 @@ public class MainViewModel : INotifyPropertyChanged
                 Photos.Add(photoItem);
             }
 
+            // Detect and set common prefix
+            DetectCommonPrefix();
+
             StatusMessage = $"Loaded {Photos.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
@@ -251,6 +254,68 @@ public class MainViewModel : INotifyPropertyChanged
 
         // Notify that the collection state has changed
         ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+    }
+
+    private void DetectCommonPrefix()
+    {
+        if (Photos.Count == 0)
+        {
+            RenamePrefix = string.Empty;
+            return;
+        }
+
+        // Get filenames without extensions
+        var names = Photos.Select(p => Path.GetFileNameWithoutExtension(p.FileName)).ToList();
+
+        if (names.Count == 1)
+        {
+            // Single file: use entire name without extension as prefix
+            RenamePrefix = TrimTrailingNumbersAndSeparators(names[0]);
+            return;
+        }
+
+        // Find the longest common prefix
+        string commonPrefix = names[0];
+        for (int i = 1; i < names.Count; i++)
+        {
+            commonPrefix = GetCommonPrefix(commonPrefix, names[i]);
+            if (string.IsNullOrEmpty(commonPrefix))
+                break;
+        }
+
+        // Trim the prefix to end at a sensible boundary (separator or before trailing numbers)
+        commonPrefix = TrimTrailingNumbersAndSeparators(commonPrefix);
+
+        RenamePrefix = commonPrefix;
+    }
+
+    private static string GetCommonPrefix(string str1, string str2)
+    {
+        int minLength = Math.Min(str1.Length, str2.Length);
+        int i = 0;
+        while (i < minLength && str1[i] == str2[i])
+        {
+            i++;
+        }
+        return str1.Substring(0, i);
+    }
+
+    private static string TrimTrailingNumbersAndSeparators(string str)
+    {
+        if (string.IsNullOrEmpty(str))
+            return str;
+
+        // Trim trailing whitespace first
+        str = str.TrimEnd();
+
+        // Remove trailing numbers and common separators (-, _, space)
+        int endIndex = str.Length - 1;
+        while (endIndex >= 0 && (char.IsDigit(str[endIndex]) || str[endIndex] == '-' || str[endIndex] == '_' || str[endIndex] == ' '))
+        {
+            endIndex--;
+        }
+
+        return str.Substring(0, endIndex + 1);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
