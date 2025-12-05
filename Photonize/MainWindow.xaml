@@ -63,11 +63,13 @@
                         FontSize="14"/>
 
                 <Button Grid.Column="2"
-                        Content="Load Photos"
+                        Content="↻"
                         Command="{Binding LoadPhotosCommand}"
-                        Padding="15,5"
+                        Padding="10,5"
                         Margin="5,0,0,0"
-                        FontSize="14"/>
+                        FontSize="20"
+                        ToolTip="Refresh (F5)"
+                        MinWidth="40"/>
             </Grid>
         </GroupBox>
 
