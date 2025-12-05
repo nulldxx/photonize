@@ -426,19 +426,20 @@ public class MainViewModel : INotifyPropertyChanged
         // Determine which photos to delete
         List<PhotoItem> photosToDelete = new List<PhotoItem>();
 
-        // If there are multiple selected photos, delete all of them
-        if (_selectedPhotos.Count > 1)
+        // If there are selected photos in the list, delete all of them
+        if (_selectedPhotos.Count > 0)
         {
             photosToDelete.AddRange(_selectedPhotos);
         }
-        // Otherwise delete the single photo (from context menu or selected photo)
-        else
+        // Otherwise delete the single photo from context menu (fallback for right-click without selection)
+        else if (photo != null)
         {
-            var singlePhoto = photo ?? SelectedPhoto;
-            if (singlePhoto != null)
-            {
-                photosToDelete.Add(singlePhoto);
-            }
+            photosToDelete.Add(photo);
+        }
+        // Final fallback to SelectedPhoto property (legacy support)
+        else if (SelectedPhoto != null)
+        {
+            photosToDelete.Add(SelectedPhoto);
         }
 
         if (photosToDelete.Count == 0)
