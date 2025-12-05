@@ -128,9 +128,12 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _isPreviewVisible = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(PreviewColumnWidth));
             SaveSettings();
         }
     }
+
+    public GridLength PreviewColumnWidth => IsPreviewVisible ? new GridLength(500) : new GridLength(0);
 
     public PhotoItem? PreviewPhoto
     {

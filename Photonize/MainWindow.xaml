@@ -24,7 +24,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="500" MinWidth="200"/>
+            <ColumnDefinition Width="{Binding PreviewColumnWidth}" MinWidth="0"/>
         </Grid.ColumnDefinitions>
 
         <!-- Main Content Area -->
