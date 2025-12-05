@@ -28,7 +28,7 @@ public class ThumbnailGenerator
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
                 bitmap.DecodePixelWidth = maxSize;
                 bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
                 bitmap.EndInit();

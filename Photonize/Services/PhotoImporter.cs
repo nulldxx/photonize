@@ -28,7 +28,8 @@ public class PhotoImporter
         List<PhotoItem> existingPhotos,
         string targetDirectory,
         string prefix,
-        ImportMode mode)
+        ImportMode mode,
+        int thumbnailSize = 200)
     {
         try
         {
@@ -105,7 +106,7 @@ public class PhotoImporter
                 };
 
                 // Load thumbnail asynchronously
-                var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(finalPath, 200);
+                var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(finalPath, thumbnailSize);
                 photoItem.Thumbnail = thumbnail;
 
                 updatedPhotos.Add(photoItem);

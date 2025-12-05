@@ -576,7 +576,8 @@ public class MainViewModel : INotifyPropertyChanged
                 Photos.ToList(),
                 DirectoryPath,
                 RenamePrefix,
-                dialog.SelectedMode);
+                dialog.SelectedMode,
+                (int)ThumbnailSize);
 
             if (success)
             {
