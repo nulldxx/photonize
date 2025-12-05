@@ -1,0 +1,59 @@
+<Window x:Class="Photonize.Views.ImportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Import Photos" Height="200" Width="450"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        BorderBrush="#FF2A2A2A"
+        BorderThickness="1">
+
+    <Grid Background="#FF1E1E1E">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Message -->
+        <Border Grid.Row="0" Margin="20">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Append to existing set or distribute evenly?"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Foreground="#FFF1F1F1"
+                           Margin="0,0,0,10"/>
+                <TextBlock x:Name="FileCountText"
+                           FontSize="13"
+                           TextAlignment="Center"
+                           Foreground="#FFAAAAAA"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="1" Margin="20,0,20,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    Content="Append"
+                    Click="AppendButton_Click"
+                    Padding="15,10"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    ToolTip="Add new photos to the end of the existing set"/>
+
+            <Button Grid.Column="2"
+                    Content="Distribute Evenly"
+                    Click="DistributeButton_Click"
+                    Padding="15,10"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    ToolTip="Interleave new photos evenly among existing photos"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -15,6 +15,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ThumbnailGenerator _thumbnailGenerator;
     private readonly FileRenamer _fileRenamer;
     private readonly SettingsService _settingsService;
+    private readonly PhotoImporter _photoImporter;
 
     private string _directoryPath = string.Empty;
     private string _renamePrefix = string.Empty;
@@ -28,6 +29,7 @@ public class MainViewModel : INotifyPropertyChanged
         _thumbnailGenerator = new ThumbnailGenerator();
         _fileRenamer = new FileRenamer();
         _settingsService = new SettingsService();
+        _photoImporter = new PhotoImporter();
 
         Photos = new ObservableCollection<PhotoItem>();
 
@@ -458,6 +460,87 @@ public class MainViewModel : INotifyPropertyChanged
         {
             MessageBox.Show($"Failed to delete photo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             StatusMessage = $"Failed to delete {photoToDelete.FileName}";
+        }
+    }
+
+    public async Task ImportPhotosAsync(List<string> filesToImport)
+    {
+        if (string.IsNullOrEmpty(DirectoryPath) || !Directory.Exists(DirectoryPath))
+        {
+            MessageBox.Show("Please select a target directory first.", "No Directory", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(RenamePrefix))
+        {
+            MessageBox.Show("Please enter a rename prefix first.", "No Prefix", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (filesToImport.Count == 0)
+        {
+            return;
+        }
+
+        // Filter for supported image files
+        var supportedFiles = filesToImport
+            .Where(f => ThumbnailGenerator.IsImageFile(f))
+            .ToList();
+
+        if (supportedFiles.Count == 0)
+        {
+            MessageBox.Show("No supported image files found in the selection.", "No Images", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Show dialog to choose import mode
+        var dialog = new Photonize.Views.ImportDialog(Photos.Count, supportedFiles.Count);
+        dialog.Owner = Application.Current.MainWindow;
+
+        if (dialog.ShowDialog() != true)
+        {
+            return; // User cancelled
+        }
+
+        IsLoading = true;
+        StatusMessage = "Importing photos...";
+
+        try
+        {
+            var (success, message, updatedPhotos) = await _photoImporter.ImportPhotosAsync(
+                supportedFiles,
+                Photos.ToList(),
+                DirectoryPath,
+                RenamePrefix,
+                dialog.SelectedMode);
+
+            if (success)
+            {
+                // Replace the entire Photos collection with the updated list
+                Photos.Clear();
+                foreach (var photo in updatedPhotos.OrderBy(p => p.DisplayOrder))
+                {
+                    Photos.Add(photo);
+                }
+
+                StatusMessage = message;
+                MessageBox.Show(message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+            }
+            else
+            {
+                StatusMessage = message;
+                MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error importing photos: {ex.Message}";
+            MessageBox.Show($"Error importing photos: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
