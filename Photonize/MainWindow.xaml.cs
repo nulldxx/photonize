@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,8 +21,27 @@ public partial class MainWindow : Window
 
         // Subscribe to events
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
         PhotoListBox.SelectionChanged += PhotoListBox_SelectionChanged;
         PhotoListBox.PreviewMouseWheel += PhotoListBox_PreviewMouseWheel;
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && viewModel.HasUnsavedChanges)
+        {
+            var result = MessageBox.Show(
+                "You have loaded photos and set a rename prefix but haven't applied the changes.\n\n" +
+                "Are you sure you want to quit without applying the rename?",
+                "Unsaved Changes",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.No)
+            {
+                e.Cancel = true; // Cancel the closing
+            }
+        }
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)

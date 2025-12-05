@@ -28,6 +28,7 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isPreviewVisible = false;
     private PhotoItem? _previewPhoto;
     private BitmapImage? _previewImage;
+    private bool _hasUnsavedChanges = false;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -78,6 +79,12 @@ public class MainViewModel : INotifyPropertyChanged
             _renamePrefix = value;
             OnPropertyChanged();
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+            
+            // Mark as having unsaved changes if prefix is set and photos are loaded
+            if (Photos.Count > 0 && !string.IsNullOrEmpty(value))
+            {
+                HasUnsavedChanges = true;
+            }
         }
     }
 
@@ -136,6 +143,16 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     public GridLength PreviewColumnWidth => IsPreviewVisible ? new GridLength(500) : new GridLength(0);
+
+    public bool HasUnsavedChanges
+    {
+        get => _hasUnsavedChanges;
+        set
+        {
+            _hasUnsavedChanges = value;
+            OnPropertyChanged();
+        }
+    }
 
     public PhotoItem? PreviewPhoto
     {
@@ -289,6 +306,12 @@ public class MainViewModel : INotifyPropertyChanged
             StatusMessage = $"Loaded {Photos.Count} photo(s)";
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
+            
+            // Mark as having unsaved changes if photos are loaded with a prefix
+            if (Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix))
+            {
+                HasUnsavedChanges = true;
+            }
         }
         catch (Exception ex)
         {
@@ -339,6 +362,7 @@ public class MainViewModel : INotifyPropertyChanged
         if (success)
         {
             SaveSettings();
+            HasUnsavedChanges = false; // Clear unsaved changes after successful rename
         }
         else
         {
@@ -355,6 +379,12 @@ public class MainViewModel : INotifyPropertyChanged
 
         // Notify that the collection state has changed
         ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+        
+        // Mark as having unsaved changes when order is changed
+        if (Photos.Count > 0 && !string.IsNullOrEmpty(RenamePrefix))
+        {
+            HasUnsavedChanges = true;
+        }
     }
 
     private void DetectCommonPrefix()
