@@ -9,12 +9,23 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Debug: Show what arguments were received
-        MessageBox.Show(
-            $"Received {e.Args.Length} argument(s):\n\n{string.Join("\n", e.Args)}",
-            "Debug - Command Line Arguments",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        // Debug: Always show this to confirm app launched
+        if (e.Args.Length == 0)
+        {
+            MessageBox.Show(
+                "Application launched with NO arguments.",
+                "Debug - No Arguments",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        else
+        {
+            MessageBox.Show(
+                $"Received {e.Args.Length} argument(s):\n\n{string.Join("\n", e.Args)}",
+                "Debug - Command Line Arguments",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
 
         // Parse command line arguments
         string? initialDirectory = null;
