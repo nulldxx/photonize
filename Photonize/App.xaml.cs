@@ -9,6 +9,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Debug: Show what arguments were received
+        MessageBox.Show(
+            $"Received {e.Args.Length} argument(s):\n\n{string.Join("\n", e.Args)}",
+            "Debug - Command Line Arguments",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+
         // Parse command line arguments
         string? initialDirectory = null;
         List<string>? filesToExport = null;
