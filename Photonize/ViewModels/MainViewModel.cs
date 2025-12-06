@@ -52,12 +52,17 @@ public class MainViewModel : INotifyPropertyChanged
         TogglePreviewCommand = new RelayCommand(TogglePreview);
         ExportWebPCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToWebPAsync(photo), CanExportWebP);
 
-        LoadSavedSettings();
-
-        // Override with command line directory if provided
+        // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
         {
+            // Load settings but don't set DirectoryPath from settings
+            LoadSavedSettings(skipDirectoryPath: true);
             DirectoryPath = initialDirectory;
+        }
+        else
+        {
+            // No command line argument, load all saved settings including directory
+            LoadSavedSettings(skipDirectoryPath: false);
         }
     }
 
@@ -232,18 +237,24 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand TogglePreviewCommand { get; }
     public ICommand ExportWebPCommand { get; }
 
-    private void LoadSavedSettings()
+    private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
         var settings = _settingsService.LoadSettings();
-        if (!string.IsNullOrEmpty(settings.LastDirectoryPath) && Directory.Exists(settings.LastDirectoryPath))
+
+        // Only load directory path from settings if not skipped (i.e., no command line arg)
+        if (!skipDirectoryPath && !string.IsNullOrEmpty(settings.LastDirectoryPath) && Directory.Exists(settings.LastDirectoryPath))
         {
             DirectoryPath = settings.LastDirectoryPath;
         }
+
         ThumbnailSize = settings.LastThumbnailSize;
         if (!string.IsNullOrEmpty(settings.LastPrefix))
         {
             RenamePrefix = settings.LastPrefix;
         }
+
+        // Restore preview visibility state
+        IsPreviewVisible = settings.IsPreviewVisible;
     }
 
     private void SaveSettings()
