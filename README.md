@@ -54,9 +54,16 @@ The installer includes:
 
 ### Method 1: Using Windows Explorer (Fastest)
 
+**For organizing photos:**
 1. Right-click any folder containing photos in Windows Explorer
 2. Select **"Open in Photonize"**
 3. Photos load automatically
+
+**For quick WebP export:**
+1. Select one or more image files in Windows Explorer
+2. Right-click and select **"Export to WebP"**
+3. Photonize opens and immediately converts selected files to WebP format
+4. Output saved to "WebP" subfolder in the same location
 
 ### Method 2: Using the Application
 

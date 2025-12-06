@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - **WebP Export**: Export selected photos to WebP format with configurable quality settings
+- **Explorer Context Menu for Images**: Right-click on image files in Windows Explorer and select "Export to WebP" for immediate batch conversion to WebP format
 - **Folder Navigation**: Browse folders directly within the app - double-click to enter folders, use ".." to go back to parent
 - **Folder Thumbnails**: Subfolders now display with folder icons for easy identification
 - **Drag-and-Drop to Folders**: Move photos into subfolders or parent directory by dragging and dropping them onto folder items

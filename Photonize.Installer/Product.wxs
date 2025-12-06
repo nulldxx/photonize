@@ -149,6 +149,24 @@
                        Value="1"
                        KeyPath="yes"/>
       </Component>
+
+      <!-- Right-click on image files (multi-select supported) -->
+      <Component Id="ImageFileContextMenu" Guid="{D3E4F5A6-B7C8-9D0E-1F2A-3B4C5D6E7F8A}">
+        <!-- Register for common image file types using SystemFileAssociations -->
+        <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP">
+          <RegistryValue Type="string" Value="Export to WebP" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />
+        </RegistryKey>
+        <RegistryValue Root="HKCU"
+                       Key="Software\Photonize"
+                       Name="imageFileContextMenu"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+      </Component>
     </DirectoryRef>
 
     <!-- Features -->
@@ -166,9 +184,10 @@
     </Feature>
 
     <Feature Id="ExplorerIntegrationFeature" Title="Windows Explorer Integration" Level="1"
-             Description="Adds 'Open in Photonize' to the right-click context menu in Windows Explorer">
+             Description="Adds 'Open in Photonize' and 'Export to WebP' to the right-click context menu in Windows Explorer">
       <ComponentRef Id="FolderContextMenu" />
       <ComponentRef Id="FolderBackgroundContextMenu" />
+      <ComponentRef Id="ImageFileContextMenu" />
     </Feature>
 
     <!-- UI -->

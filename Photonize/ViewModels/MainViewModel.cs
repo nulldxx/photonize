@@ -887,6 +887,73 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public async Task ExportFilesDirectlyAsync(List<string> filePaths)
+    {
+        if (filePaths == null || filePaths.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            // Filter for supported image files only
+            var supportedFiles = filePaths
+                .Where(f => ThumbnailGenerator.IsImageFile(f) && File.Exists(f))
+                .ToList();
+
+            if (supportedFiles.Count == 0)
+            {
+                MessageBox.Show("No supported image files found in the selection.", "No Images", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Determine output directory (use the directory of the first file)
+            string outputDirectory = Path.GetDirectoryName(supportedFiles[0]) ?? Directory.GetCurrentDirectory();
+
+            // Convert file paths to PhotoItem objects
+            var photosToExport = supportedFiles.Select(filePath => new PhotoItem
+            {
+                FilePath = filePath,
+                FileName = Path.GetFileName(filePath),
+                IsFolder = false
+            }).ToList();
+
+            IsLoading = true;
+            StatusMessage = $"Exporting {photosToExport.Count} file(s) to WebP...";
+
+            // Export to WebP (no overwrite callback - always create new files)
+            var (success, message) = await _webpExporter.ExportToWebPAsync(
+                photosToExport,
+                outputDirectory,
+                overwriteCallback: null);
+
+            StatusMessage = message;
+
+            if (success)
+            {
+                var webpFolder = Path.Combine(outputDirectory, "WebP");
+                MessageBox.Show(
+                    $"{message}\n\nOutput folder:\n{webpFolder}",
+                    "Export Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error during export: {ex.Message}";
+            MessageBox.Show($"Error during export: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public async Task ImportPhotosAsync(List<string> filesToImport)
     {
         if (string.IsNullOrEmpty(DirectoryPath) || !Directory.Exists(DirectoryPath))

@@ -12,7 +12,7 @@ namespace Photonize;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(string? initialDirectory = null)
+    public MainWindow(string? initialDirectory = null, List<string>? filesToExport = null)
     {
         InitializeComponent();
 
@@ -25,6 +25,12 @@ public partial class MainWindow : Window
         Closing += MainWindow_Closing;
         PhotoListBox.SelectionChanged += PhotoListBox_SelectionChanged;
         PhotoListBox.PreviewMouseWheel += PhotoListBox_PreviewMouseWheel;
+
+        // If files were provided for export, trigger export after window loads
+        if (filesToExport != null && filesToExport.Count > 0)
+        {
+            Loaded += async (s, e) => await viewModel.ExportFilesDirectlyAsync(filesToExport);
+        }
     }
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
