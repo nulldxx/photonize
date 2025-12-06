@@ -152,15 +152,36 @@
 
       <!-- Right-click on image files (multi-select supported) -->
       <Component Id="ImageFileContextMenu" Guid="{D3E4F5A6-B7C8-9D0E-1F2A-3B4C5D6E7F8A}">
-        <!-- Register for common image file types using SystemFileAssociations -->
-        <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP">
+        <!-- Register for .jpg files -->
+        <RegistryKey Root="HKCR" Key=".jpg\shell\PhotonizeExportWebP">
           <RegistryValue Type="string" Value="Export to WebP" />
           <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
           <RegistryValue Name="MultiSelectModel" Type="string" Value="Player" />
         </RegistryKey>
-        <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP\command">
+        <RegistryKey Root="HKCR" Key=".jpg\shell\PhotonizeExportWebP\command">
           <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />
         </RegistryKey>
+
+        <!-- Register for .jpeg files -->
+        <RegistryKey Root="HKCR" Key=".jpeg\shell\PhotonizeExportWebP">
+          <RegistryValue Type="string" Value="Export to WebP" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
+          <RegistryValue Name="MultiSelectModel" Type="string" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key=".jpeg\shell\PhotonizeExportWebP\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />
+        </RegistryKey>
+
+        <!-- Register for .png files -->
+        <RegistryKey Root="HKCR" Key=".png\shell\PhotonizeExportWebP">
+          <RegistryValue Type="string" Value="Export to WebP" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
+          <RegistryValue Name="MultiSelectModel" Type="string" Value="Player" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key=".png\shell\PhotonizeExportWebP\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />
+        </RegistryKey>
+
         <RegistryValue Root="HKCU"
                        Key="Software\Photonize"
                        Name="imageFileContextMenu"
