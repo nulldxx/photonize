@@ -891,15 +891,11 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (filePaths == null || filePaths.Count == 0)
         {
-            MessageBox.Show("No files provided to export.", "Debug", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         try
         {
-            // Debug: Show received files
-            MessageBox.Show($"Received {filePaths.Count} file(s):\n\n{string.Join("\n", filePaths.Take(5))}", "Debug - Files Received", MessageBoxButton.OK, MessageBoxImage.Information);
-
             // Filter for supported image files only
             var supportedFiles = filePaths
                 .Where(f => ThumbnailGenerator.IsImageFile(f) && File.Exists(f))
@@ -907,7 +903,7 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (supportedFiles.Count == 0)
             {
-                MessageBox.Show($"No supported image files found.\n\nReceived {filePaths.Count} path(s), but none were valid image files.\n\nFirst path: {filePaths.FirstOrDefault()}", "No Images", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("No supported image files found in the selection.", "No Images", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
