@@ -156,6 +156,7 @@
         <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP">
           <RegistryValue Type="string" Value="Export to WebP" />
           <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
+          <RegistryValue Name="MultiSelectModel" Type="string" Value="Player" />
         </RegistryKey>
         <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP\command">
           <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />

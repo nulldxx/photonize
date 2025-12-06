@@ -19,7 +19,7 @@ public partial class App : Application
             {
                 initialDirectory = e.Args[i + 1];
             }
-            else if ((e.Args[i] == "-e" || e.Args[i] == "--export-webp") && i + 1 < e.Args.Length)
+            else if (e.Args[i] == "-e" || e.Args[i] == "--export-webp")
             {
                 // Collect all remaining arguments as file paths
                 filesToExport = new List<string>();
