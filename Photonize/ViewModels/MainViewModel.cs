@@ -932,6 +932,10 @@ public class MainViewModel : INotifyPropertyChanged
             if (success)
             {
                 var webpFolder = Path.Combine(outputDirectory, "WebP");
+
+                // Load the output directory to show the exported files
+                DirectoryPath = outputDirectory;
+
                 MessageBox.Show(
                     $"{message}\n\nOutput folder:\n{webpFolder}",
                     "Export Complete",
