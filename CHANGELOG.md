@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- **Explorer Context Menu for Images**: Right-click on image files in Windows Explorer and select "Export to WebP" for immediate batch conversion to WebP format
+- **Explorer Context Menu for Images**: Right-click on image files in Windows Explorer and select "Export to WebP" for immediate batch conversion to WebP format (Note: selecting multiple files will open one instance per file)
 - **Folder drag-and-drop**: Drag folders into other folders to move them, just like you can with photos
 
 ### Fixed

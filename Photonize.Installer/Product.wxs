@@ -150,16 +150,15 @@
                        KeyPath="yes"/>
       </Component>
 
-      <!-- Right-click on image files (multi-select supported) -->
+      <!-- Right-click on image files -->
       <Component Id="ImageFileContextMenu" Guid="{D3E4F5A6-B7C8-9D0E-1F2A-3B4C5D6E7F8A}">
         <!-- Register for common image file types using SystemFileAssociations -->
         <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP">
           <RegistryValue Type="string" Value="Export to WebP" />
           <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]Photonize.exe,0" />
-          <RegistryValue Name="MultiSelectModel" Type="string" Value="Player" />
         </RegistryKey>
         <RegistryKey Root="HKCR" Key="SystemFileAssociations\image\shell\PhotonizeExportWebP\command">
-          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e %*" />
+          <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]Photonize.exe&quot; -e &quot;%1&quot;" />
         </RegistryKey>
         <RegistryValue Root="HKCU"
                        Key="Software\Photonize"
