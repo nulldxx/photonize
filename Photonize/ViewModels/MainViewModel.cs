@@ -1054,14 +1054,15 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 var webpFolder = Path.Combine(outputDirectory, "WebP");
 
-                // Load the output directory to show the exported files
-                DirectoryPath = outputDirectory;
-
                 MessageBox.Show(
                     $"{message}\n\nOutput folder:\n{webpFolder}",
                     "Export Complete",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
+
+                // Load the output directory AFTER user dismisses the message box
+                // This ensures all files are written and avoids race conditions
+                DirectoryPath = outputDirectory;
             }
             else
             {
