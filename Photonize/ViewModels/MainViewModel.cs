@@ -798,6 +798,127 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public async Task MoveItemsToFolderAsync(List<PhotoItem> itemsToMove, PhotoItem targetFolder)
+    {
+        if (itemsToMove.Count == 0 || targetFolder == null || !targetFolder.IsFolder)
+            return;
+
+        try
+        {
+            string targetPath = targetFolder.FilePath;
+
+            // Validate target directory exists
+            if (!Directory.Exists(targetPath))
+            {
+                MessageBox.Show($"Target folder does not exist: {targetPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            IsLoading = true;
+            StatusMessage = $"Moving {itemsToMove.Count} item(s) to {targetFolder.FileName}...";
+
+            int movedCount = 0;
+            List<string> failedItems = new List<string>();
+
+            foreach (var item in itemsToMove)
+            {
+                try
+                {
+                    string itemName = Path.GetFileName(item.FilePath);
+                    string destinationPath = Path.Combine(targetPath, itemName);
+
+                    if (item.IsFolder)
+                    {
+                        // Moving a folder
+                        if (!Directory.Exists(item.FilePath))
+                            continue;
+
+                        // Check if folder already exists in destination
+                        if (Directory.Exists(destinationPath))
+                        {
+                            var result = MessageBox.Show(
+                                $"Folder '{itemName}' already exists in the target folder.\n\nDo you want to merge the contents?",
+                                "Folder Exists",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+
+                            if (result != MessageBoxResult.Yes)
+                                continue;
+
+                            // Move contents to existing folder (this would require recursive handling)
+                            // For simplicity, we'll just skip for now
+                            failedItems.Add($"{itemName}: Merging folders not yet supported");
+                            continue;
+                        }
+
+                        // Move the folder
+                        Directory.Move(item.FilePath, destinationPath);
+                        movedCount++;
+                    }
+                    else
+                    {
+                        // Moving a file
+                        if (!File.Exists(item.FilePath))
+                            continue;
+
+                        // Check if file already exists in destination
+                        if (File.Exists(destinationPath))
+                        {
+                            var result = MessageBox.Show(
+                                $"File '{itemName}' already exists in the target folder.\n\nDo you want to overwrite it?",
+                                "File Exists",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+
+                            if (result != MessageBoxResult.Yes)
+                                continue;
+                        }
+
+                        // Move the file
+                        File.Move(item.FilePath, destinationPath, overwrite: true);
+                        movedCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedItems.Add($"{item.FileName}: {ex.Message}");
+                }
+            }
+
+            // Refresh the current directory view
+            await LoadPhotosAsync();
+
+            // Update status message
+            if (movedCount == 1)
+            {
+                StatusMessage = $"Moved {itemsToMove[0].FileName} to {targetFolder.FileName}";
+            }
+            else
+            {
+                StatusMessage = $"Moved {movedCount} item(s) to {targetFolder.FileName}";
+            }
+
+            // Show errors if any items failed to move
+            if (failedItems.Count > 0)
+            {
+                MessageBox.Show(
+                    $"Failed to move {failedItems.Count} item(s):\n\n{string.Join("\n", failedItems)}",
+                    "Move Errors",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to move items: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = $"Failed to move items";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public async Task MovePhotosToFolderAsync(List<PhotoItem> photosToMove, PhotoItem targetFolder)
     {
         if (photosToMove.Count == 0 || targetFolder == null || !targetFolder.IsFolder)

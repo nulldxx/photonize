@@ -29,34 +29,64 @@ public class PhotoDropHandler : IDropTarget
             return;
         }
 
-        // Handle internal photo reordering (single or multiple items)
+        // Handle internal photo/folder dragging (single or multiple items)
         if (dropInfo.Data != null && dropInfo.TargetCollection != null)
         {
-            // Check if we're dragging PhotoItem(s) and ensure they're not folders
-            bool isPhotoItem = dropInfo.Data is PhotoItem photo && !photo.IsFolder;
+            // Check if we're dragging PhotoItem(s) - can be photos or folders
+            bool isPhotoItem = dropInfo.Data is PhotoItem;
             bool isPhotoCollection = dropInfo.Data is IEnumerable enumerable &&
                                       enumerable.Cast<object>().Any() &&
-                                      enumerable.Cast<object>().First() is PhotoItem &&
-                                      !enumerable.Cast<PhotoItem>().Any(p => p.IsFolder);
+                                      enumerable.Cast<object>().First() is PhotoItem;
 
             if (isPhotoItem || isPhotoCollection)
             {
                 // Check if we're dropping on a folder
                 if (dropInfo.TargetItem is PhotoItem targetItem && targetItem.IsFolder)
                 {
-                    // Show highlight adorner when dropping on folders
-                    dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
-                    dropInfo.Effects = DragDropEffects.Move;
+                    // Don't allow dropping a folder onto itself
+                    bool isDroppingOnSelf = false;
+                    if (dropInfo.Data is PhotoItem singleItem)
+                    {
+                        isDroppingOnSelf = singleItem.FilePath == targetItem.FilePath;
+                    }
+
+                    if (!isDroppingOnSelf)
+                    {
+                        // Show highlight adorner when dropping on folders
+                        dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+                        dropInfo.Effects = DragDropEffects.Move;
+                        HandleAutoScroll(dropInfo);
+                    }
+                    else
+                    {
+                        StopAutoScroll();
+                    }
                 }
                 else
                 {
-                    // Show insert adorner for reordering between items
-                    dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
-                    dropInfo.Effects = DragDropEffects.Move;
-                }
+                    // Only allow reordering for photos, not folders
+                    bool canReorder = false;
+                    if (dropInfo.Data is PhotoItem photo)
+                    {
+                        canReorder = !photo.IsFolder;
+                    }
+                    else if (dropInfo.Data is IEnumerable items)
+                    {
+                        canReorder = !items.Cast<PhotoItem>().Any(p => p.IsFolder);
+                    }
 
-                // Handle auto-scrolling when dragging near edges
-                HandleAutoScroll(dropInfo);
+                    if (canReorder)
+                    {
+                        // Show insert adorner for reordering between items
+                        dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
+                        dropInfo.Effects = DragDropEffects.Move;
+                        HandleAutoScroll(dropInfo);
+                    }
+                    else
+                    {
+                        StopAutoScroll();
+                    }
+                }
             }
             else
             {
@@ -93,27 +123,30 @@ public class PhotoDropHandler : IDropTarget
             return;
         }
 
-        // Check if we're dropping on a folder - handle file move
+        // Check if we're dropping on a folder - handle file/folder move
         if (dropInfo.TargetItem is PhotoItem targetFolder && targetFolder.IsFolder)
         {
-            // Get the photos being dragged
-            List<PhotoItem> photosToMove = new List<PhotoItem>();
+            // Get the items being dragged (can be photos or folders)
+            List<PhotoItem> itemsToMove = new List<PhotoItem>();
 
             if (dropInfo.Data is IEnumerable draggedItems && !(dropInfo.Data is string))
             {
-                photosToMove = draggedItems.Cast<PhotoItem>().Where(p => !p.IsFolder).ToList();
+                itemsToMove = draggedItems.Cast<PhotoItem>().ToList();
             }
-            else if (dropInfo.Data is PhotoItem singlePhoto && !singlePhoto.IsFolder)
+            else if (dropInfo.Data is PhotoItem singleItem)
             {
-                photosToMove.Add(singlePhoto);
+                itemsToMove.Add(singleItem);
             }
 
-            if (photosToMove.Count > 0)
+            // Filter out the target folder itself (can't move a folder into itself)
+            itemsToMove = itemsToMove.Where(item => item.FilePath != targetFolder.FilePath).ToList();
+
+            if (itemsToMove.Count > 0)
             {
                 // Call the ViewModel's move method
                 if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
                 {
-                    await vm.MovePhotosToFolderAsync(photosToMove, targetFolder);
+                    await vm.MoveItemsToFolderAsync(itemsToMove, targetFolder);
                 }
             }
             return;
