@@ -208,6 +208,12 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void UpdateSelectedPhotos(IEnumerable<PhotoItem> selectedItems)
     {
+        // Ignore selection updates while loading to prevent stale PhotoItem references
+        if (IsLoading)
+        {
+            return;
+        }
+
         _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
         ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
@@ -288,10 +294,15 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        // Clear selected photos FIRST, before clearing Photos collection
+        // This prevents SelectionChanged events from repopulating with stale PhotoItem references
+        _selectedPhotos.Clear();
+        SelectedPhoto = null;
+        PreviewPhoto = null;
+
         IsLoading = true;
         StatusMessage = "Loading photos...";
         Photos.Clear();
-        _selectedPhotos.Clear();
         _suppressUnsavedChanges = true; // Suppress during load
 
         try

@@ -27,8 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Preview toggle button moved next to Thumbnail Size slider for better UI organization
 
 ### Fixed
+- **Selection state bug**: Fixed issue where selected photos from previously viewed folders would persist when switching directories, causing operations like WebP export to include wrong files
 - Improved folder filtering to prevent folders from being included in reordering operations
 - Fixed context menu appearing inappropriately on folder items
+- **Installer missing dependencies**: Added SixLabors.ImageSharp.dll to installer package to fix WebP export functionality
 
 ## [0.1.4] - Previous Release
 
