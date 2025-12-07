@@ -23,6 +23,7 @@ When you have hundreds of photos from a vacation, event, or photo shoot, getting
 - 📁 **Folder Navigation** - Browse subfolders directly in the app, double-click to navigate, drag photos into folders
 - 🔄 **Batch Rename** - Rename entire photo collections automatically with sequential numbers
 - 🖼️ **Preview Pane** - View full-size previews of selected photos
+- ⚖️ **Image Compare** - Select two photos and compare them side-by-side with an interactive A/B slider
 - 🌐 **WebP Export** - Export photos to WebP format for efficient web publishing
 - 💾 **Safe Operations** - Smart renaming algorithm prevents file conflicts and data loss
 - 🎯 **Auto-Detection** - Automatically detects existing naming patterns
@@ -98,7 +99,15 @@ The installer includes:
    - Right-click photos and select "Export WebP"
    - Creates optimized WebP versions in a "webp" subfolder
 
-7. **Apply Rename**
+7. **Compare Images** (Optional)
+   - Select exactly two photos (use Ctrl+Click to select multiple)
+   - Right-click and select "Image Compare"
+   - A new window opens showing both images overlaid
+   - Hover your mouse over the image to reveal an interactive vertical divider
+   - Move your mouse left and right to compare the images side-by-side
+   - Press ESC or click "✕ Close" to exit the comparison view
+
+8. **Apply Rename**
    - Click **"✓ Apply"** (enabled when you have pending changes)
    - Confirm the operation
    - All photos are renamed: `prefix-00001.jpg`, `prefix-00002.jpg`, `prefix-00003.jpg`, etc.
@@ -119,6 +128,14 @@ The installer includes:
 - **Delete** - Delete selected photo(s)
 
 ## Tips & Tricks
+
+### Comparing Similar Photos
+
+- Use Image Compare to choose between nearly identical shots
+- Perfect for comparing different exposures, filters, or edits of the same scene
+- Select two photos, right-click, choose "Image Compare"
+- Move your mouse across the image to reveal differences
+- Great for before/after comparisons or picking the best shot from a burst
 
 ### Working with Large Photo Sets
 
