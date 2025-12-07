@@ -1,0 +1,97 @@
+<Window x:Class="Photonize.Views.CompareWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:Photonize.Views"
+        Title="Image Compare"
+        Height="800"
+        Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF1E1E1E"
+        BorderBrush="#FF2A2A2A"
+        BorderThickness="1">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CloseCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0"
+                Background="#FF2D2D30"
+                BorderBrush="#FF3E3E42"
+                BorderThickness="0,0,0,1"
+                Padding="15,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Image Comparison - Hover to compare"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#FFF1F1F1"
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="✕ Close"
+                        Click="CloseButton_Click"
+                        Padding="15,5"
+                        FontSize="14"
+                        Background="#FF3E3E42"
+                        Foreground="#FFF1F1F1"
+                        BorderBrush="#FF555555"
+                        BorderThickness="1">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="3"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#FF007ACC"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Image Compare Control -->
+        <views:ImageCompareControl x:Name="CompareControl"
+                                   Grid.Row="1"
+                                   Margin="0"/>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2"
+                   Background="#FF2D2D30"
+                   BorderBrush="#FF3E3E42"
+                   BorderThickness="0,1,0,0">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText"
+                           Text="Move your mouse over the image to compare"
+                           FontSize="12"
+                           Foreground="#FFF1F1F1"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

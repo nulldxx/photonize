@@ -51,6 +51,7 @@ public class MainViewModel : INotifyPropertyChanged
         ShowInExplorerCommand = new RelayCommand<PhotoItem>(ShowInExplorer);
         TogglePreviewCommand = new RelayCommand(TogglePreview);
         ExportWebPCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToWebPAsync(photo), CanExportWebP);
+        CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -222,6 +223,7 @@ public class MainViewModel : INotifyPropertyChanged
         _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
         ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
 
         // Update preview photo to the first selected item
         PreviewPhoto = _selectedPhotos.FirstOrDefault();
@@ -236,6 +238,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ShowInExplorerCommand { get; }
     public ICommand TogglePreviewCommand { get; }
     public ICommand ExportWebPCommand { get; }
+    public ICommand CompareImagesCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -732,6 +735,25 @@ public class MainViewModel : INotifyPropertyChanged
     {
         // Allow export if we have a parameter (from context menu) or if we have selected photos
         return photo != null || _selectedPhotos.Count > 0;
+    }
+
+    private bool CanCompareImages()
+    {
+        // Only allow comparison when exactly 2 non-folder photos are selected
+        return _selectedPhotos.Count(p => !p.IsFolder) == 2;
+    }
+
+    private void CompareImages()
+    {
+        var photosToCompare = _selectedPhotos.Where(p => !p.IsFolder).Take(2).ToList();
+
+        if (photosToCompare.Count != 2)
+            return;
+
+        // Create and show the compare window
+        var compareWindow = new Photonize.Views.CompareWindow(photosToCompare[0], photosToCompare[1]);
+        compareWindow.Owner = Application.Current.MainWindow;
+        compareWindow.Show();
     }
 
     private async Task ExportToWebPAsync(PhotoItem? photo)
