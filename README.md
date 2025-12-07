@@ -6,7 +6,7 @@ Photonize is a Windows desktop application that makes it simple to organize hund
 
 Grab the latest windows installer <a href="https://github.com/benstaniford/photonize/releases">here</a>.
 
-<img width="1950" height="1268" alt="image" src="https://github.com/user-attachments/assets/a5d1fdcf-2042-4969-8e25-10325a4f89e7" />
+<img width="1672" height="1197" alt="image" src="https://github.com/user-attachments/assets/97ae089f-5f9c-40ae-8f1c-5986911eec5e" />
 
 ## Why Photonize?
 
