@@ -18,6 +18,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly SettingsService _settingsService;
     private readonly PhotoImporter _photoImporter;
     private readonly WebPExporter _webpExporter;
+    private readonly ImageExporter _imageExporter;
 
     private string _directoryPath = string.Empty;
     private string _renamePrefix = string.Empty;
@@ -39,6 +40,7 @@ public class MainViewModel : INotifyPropertyChanged
         _settingsService = new SettingsService();
         _photoImporter = new PhotoImporter();
         _webpExporter = new WebPExporter();
+        _imageExporter = new ImageExporter();
 
         Photos = new ObservableCollection<PhotoItem>();
 
@@ -51,6 +53,8 @@ public class MainViewModel : INotifyPropertyChanged
         ShowInExplorerCommand = new RelayCommand<PhotoItem>(ShowInExplorer);
         TogglePreviewCommand = new RelayCommand(TogglePreview);
         ExportWebPCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToWebPAsync(photo), CanExportWebP);
+        ExportPNGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPNGAsync(photo), CanExportImage);
+        ExportJPGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToJPGAsync(photo), CanExportImage);
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
 
         // If a command line directory is provided, use it instead of loading saved settings
@@ -223,6 +227,8 @@ public class MainViewModel : INotifyPropertyChanged
         _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
         ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
         ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
 
         // Update preview photo to the first selected item
@@ -238,6 +244,8 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ShowInExplorerCommand { get; }
     public ICommand TogglePreviewCommand { get; }
     public ICommand ExportWebPCommand { get; }
+    public ICommand ExportPNGCommand { get; }
+    public ICommand ExportJPGCommand { get; }
     public ICommand CompareImagesCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
@@ -723,6 +731,8 @@ public class MainViewModel : INotifyPropertyChanged
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
+            ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
+            ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -732,6 +742,12 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     private bool CanExportWebP(PhotoItem? photo)
+    {
+        // Allow export if we have a parameter (from context menu) or if we have selected photos
+        return photo != null || _selectedPhotos.Count > 0;
+    }
+
+    private bool CanExportImage(PhotoItem? photo)
     {
         // Allow export if we have a parameter (from context menu) or if we have selected photos
         return photo != null || _selectedPhotos.Count > 0;
@@ -824,6 +840,92 @@ public class MainViewModel : INotifyPropertyChanged
         {
             StatusMessage = $"Error exporting to WebP: {ex.Message}";
             MessageBox.Show($"Error exporting to WebP: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportToPNGAsync(PhotoItem? photo)
+    {
+        await ExportToFormatAsync(photo, ImageFormat.PNG);
+    }
+
+    private async Task ExportToJPGAsync(PhotoItem? photo)
+    {
+        await ExportToFormatAsync(photo, ImageFormat.JPG);
+    }
+
+    private async Task ExportToFormatAsync(PhotoItem? photo, ImageFormat format)
+    {
+        // Determine which photos to export
+        List<PhotoItem> photosToExport = new List<PhotoItem>();
+
+        // If there are selected photos in the list, export all of them (excluding folders)
+        if (_selectedPhotos.Count > 0)
+        {
+            photosToExport.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
+        }
+        // Otherwise export the single photo from context menu (fallback for right-click without selection)
+        else if (photo != null && !photo.IsFolder)
+        {
+            photosToExport.Add(photo);
+        }
+
+        if (photosToExport.Count == 0)
+            return;
+
+        IsLoading = true;
+        StatusMessage = $"Exporting to {format}...";
+
+        try
+        {
+            // Check for existing files and ask about overwriting
+            Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+            {
+                string message;
+                if (existingFiles.Count == 1)
+                {
+                    message = $"The file '{existingFiles[0]}' already exists in the {format} folder.\n\nDo you want to overwrite it?";
+                }
+                else
+                {
+                    message = $"{existingFiles.Count} files already exist in the {format} folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                              (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                              "\n\nDo you want to overwrite them?";
+                }
+
+                var result = MessageBox.Show(
+                    message,
+                    "Confirm Overwrite",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                return result == MessageBoxResult.Yes;
+            };
+
+            var (success, message) = await _imageExporter.ExportToFormatAsync(
+                photosToExport,
+                DirectoryPath,
+                format,
+                overwriteCallback);
+
+            StatusMessage = message;
+
+            if (success)
+            {
+                MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error exporting to {format}: {ex.Message}";
+            MessageBox.Show($"Error exporting to {format}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
