@@ -8,18 +8,22 @@ struct PreviewPane: View {
         VStack(spacing: 0) {
             if let photo = viewModel.previewPhoto, !photo.isFolder {
                 // Image preview
-                ScrollView([.horizontal, .vertical]) {
+                ZStack {
+                    Color.black
+
                     if let image = previewImage {
-                        Image(nsImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
+                        GeometryReader { geometry in
+                            Image(nsImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                        }
                     } else {
                         ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
 
                 Divider()
 
