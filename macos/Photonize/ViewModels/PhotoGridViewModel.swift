@@ -190,14 +190,29 @@ class PhotoGridViewModel: ObservableObject {
 
         guard !photosToDelete.isEmpty else { return }
 
+        // Check if we can use Trash (fails on network drives)
+        let canUseTrash = await checkIfCanUseTrash(for: photosToDelete.first!)
+
         let message: String
-        if photosToDelete.count == 1 {
-            message = "Are you sure you want to permanently delete this file?\n\n\(photosToDelete[0].fileName)\n\nThis action cannot be undone."
+        let title: String
+
+        if canUseTrash {
+            title = "Move to Trash"
+            if photosToDelete.count == 1 {
+                message = "Are you sure you want to move this file to Trash?\n\n\(photosToDelete[0].fileName)"
+            } else {
+                message = "Are you sure you want to move \(photosToDelete.count) files to Trash?"
+            }
         } else {
-            message = "Are you sure you want to permanently delete \(photosToDelete.count) files?\n\nThis action cannot be undone."
+            title = "Permanently Delete"
+            if photosToDelete.count == 1 {
+                message = "This file is on a network drive where Trash is not available.\n\nAre you sure you want to PERMANENTLY delete this file?\n\n\(photosToDelete[0].fileName)\n\nThis action cannot be undone."
+            } else {
+                message = "These files are on a network drive where Trash is not available.\n\nAre you sure you want to PERMANENTLY delete \(photosToDelete.count) files?\n\nThis action cannot be undone."
+            }
         }
 
-        let confirmed = await showConfirmation(title: "Confirm Delete", message: message)
+        let confirmed = await showConfirmation(title: title, message: message)
         guard confirmed else { return }
 
         var deletedCount = 0
@@ -205,7 +220,14 @@ class PhotoGridViewModel: ObservableObject {
 
         for photo in photosToDelete {
             do {
-                try FileManager.default.trashItem(at: photo.filePath, resultingItemURL: nil)
+                if canUseTrash {
+                    // Try to move to Trash
+                    try FileManager.default.trashItem(at: photo.filePath, resultingItemURL: nil)
+                } else {
+                    // Permanently delete
+                    try FileManager.default.removeItem(at: photo.filePath)
+                }
+
                 if let index = photos.firstIndex(where: { $0.id == photo.id }) {
                     photos.remove(at: index)
                 }
@@ -218,9 +240,9 @@ class PhotoGridViewModel: ObservableObject {
         updateDisplayOrder()
 
         if deletedCount == 1 {
-            statusMessage = "Deleted \(photosToDelete[0].fileName)"
+            statusMessage = canUseTrash ? "Moved \(photosToDelete[0].fileName) to Trash" : "Deleted \(photosToDelete[0].fileName)"
         } else {
-            statusMessage = "Deleted \(deletedCount) file(s)"
+            statusMessage = canUseTrash ? "Moved \(deletedCount) file(s) to Trash" : "Deleted \(deletedCount) file(s)"
         }
 
         if !failedFiles.isEmpty {
@@ -231,6 +253,21 @@ class PhotoGridViewModel: ObservableObject {
         }
 
         selectedPhotos.removeAll()
+    }
+
+    private func checkIfCanUseTrash(for photo: PhotoItem) async -> Bool {
+        do {
+            // Try to get the trash URL for this volume
+            let volumeURL = photo.filePath.deletingLastPathComponent()
+            _ = try FileManager.default.url(for: .trashDirectory,
+                                           in: .userDomainMask,
+                                           appropriateFor: volumeURL,
+                                           create: false)
+            return true
+        } catch {
+            // Trash is not available (likely network drive)
+            return false
+        }
     }
 
     func openPhoto(_ photo: PhotoItem) {
