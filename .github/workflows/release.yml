@@ -1,4 +1,4 @@
-name: Build and Release Photonize
+name: Build and Release
 
 on:
   push:
@@ -7,21 +7,22 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v1.0.0)'
+        description: 'Version to release (e.g., v0.1.5)'
         required: true
         type: string
 
 permissions:
   contents: write
   actions: read
+  packages: write
 
 jobs:
-  build-and-release:
+  build-windows:
     runs-on: windows-latest
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,18 +63,18 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.NUMERIC_VERSION }}"
           $wxsPath = "Photonize.Installer/Product.wxs"
-          
+
           Write-Host "Updating Product.wxs with version: $version"
-          
+
           # Read the current content
           $content = Get-Content $wxsPath -Raw
-          
+
           # Update the version define at the top of the file
           $content = $content -replace '(?<=<\?define ProductVersion=")[\d\.]*(?=" \?>)', $version
-          
+
           # Write back to file
           Set-Content $wxsPath -Value $content -NoNewline
-          
+
           Write-Host "✓ Product.wxs updated"
           Write-Host "Updated version line:"
           Get-Content $wxsPath | Select-String "define ProductVersion"
@@ -86,6 +87,7 @@ jobs:
 
       - name: Publish Photonize Application
         run: dotnet publish Photonize/Photonize.csproj -c Release -o Photonize/bin/Release/net8.0-windows/publish --no-build
+
       - name: Build WiX Installer
         run: |
           $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
@@ -100,20 +102,20 @@ jobs:
       - name: Verify and rename MSI file
         run: |
           $version = "${{ steps.version.outputs.NUMERIC_VERSION }}"
-          
+
           Write-Host "Looking for MSI files..."
           Write-Host "Contents of Photonize.Installer directory:"
           Get-ChildItem Photonize.Installer -Recurse -ErrorAction SilentlyContinue | Where-Object {$_.Extension -eq ".msi"} | Format-Table FullName, Length
-          
+
           # Handle MSI file
           $originalPath = "Photonize.Installer/bin/x64/Release/Photonize.msi"
           $newFileName = "PhotonizeInstaller-v$version-x64.msi"
-          
+
           if (Test-Path $originalPath) {
             Write-Host "✓ MSI file found: $originalPath"
             $size = (Get-Item $originalPath).Length
             Write-Host "✓ MSI size: $([math]::Round($size / 1MB, 2)) MB"
-            
+
             # Copy to root with new name
             Copy-Item -Path $originalPath -Destination $newFileName
             Write-Host "✓ MSI copied to root directory as: $newFileName"
@@ -122,89 +124,210 @@ jobs:
             exit 1
           }
 
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: photonize-windows
+          path: PhotonizeInstaller-v${{ steps.version.outputs.NUMERIC_VERSION }}-x64.msi
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${{ github.ref_name }}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          fi
+          NUMERIC_VERSION=$(echo "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}" | sed 's/^v//')
+          echo "NUMERIC_VERSION=$NUMERIC_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in project
+        run: |
+          cd macos
+          # Update the marketing version in the project file
+          sed -i '' 's/MARKETING_VERSION = 0.1.0;/MARKETING_VERSION = ${{ steps.version.outputs.NUMERIC_VERSION }};/g' Photonize.xcodeproj/project.pbxproj
+
+      - name: Build macOS app (Intel only)
+        run: |
+          cd macos
+          xcodebuild -project Photonize.xcodeproj \
+            -scheme Photonize \
+            -configuration Release \
+            -arch x86_64 \
+            -derivedDataPath build \
+            build
+
+          # Copy the built app
+          cp -R build/Build/Products/Release/Photonize.app ./
+
+      - name: Create DMG
+        run: |
+          cd macos
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-contents
+          cp -R Photonize.app dmg-contents/
+
+          # Create symlink to Applications folder
+          ln -s /Applications dmg-contents/Applications
+
+          # Create DMG
+          hdiutil create -volname "Photonize ${{ steps.version.outputs.NUMERIC_VERSION }}" \
+            -srcfolder dmg-contents \
+            -ov -format UDZO \
+            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: photonize-macos
+          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${{ github.ref_name }}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          fi
+          NUMERIC_VERSION=$(echo "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}" | sed 's/^v//')
+          echo "NUMERIC_VERSION=$NUMERIC_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
       - name: Generate release notes
         id: release_notes
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $numericVersion = "${{ steps.version.outputs.NUMERIC_VERSION }}"
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          NUMERIC_VERSION="${{ steps.version.outputs.NUMERIC_VERSION }}"
 
-          Write-Host "Extracting release notes from CHANGELOG.md..."
+          echo "Extracting release notes from CHANGELOG.md..."
 
           # Read CHANGELOG.md
-          if (-not (Test-Path "CHANGELOG.md")) {
-            Write-Host "✗ CHANGELOG.md not found!"
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "✗ CHANGELOG.md not found!"
             exit 1
-          }
-
-          $changelogContent = Get-Content "CHANGELOG.md" -Raw
+          fi
 
           # Extract the Unreleased section
-          if ($changelogContent -match '(?s)## \[Unreleased\](.*?)(?=## \[|$)') {
-            $unreleasedSection = $matches[1].Trim()
-            Write-Host "✓ Found Unreleased section"
-          } else {
-            Write-Host "✗ Could not find [Unreleased] section in CHANGELOG.md"
+          sed -n '/## \[Unreleased\]/,/## \[/p' CHANGELOG.md | sed '1d;$d' > unreleased_section.md
+
+          if [ ! -s unreleased_section.md ]; then
+            echo "✗ Could not find [Unreleased] section in CHANGELOG.md or it's empty"
             exit 1
-          }
+          fi
 
           # Build release notes with header and installation instructions
-          $releaseNotes = @"
-          # Photonize $version
+          cat > release_notes.md << EOF
+          # Photonize $VERSION
 
-          $unreleasedSection
+          $(cat unreleased_section.md)
 
           ## Downloads
 
           ### Windows Installer
-          - **PhotonizeInstaller-v$numericVersion-x64.msi** - Windows MSI installer (64-bit)
+          - **PhotonizeInstaller-v${NUMERIC_VERSION}-x64.msi** - Windows MSI installer (64-bit)
+
+          ### macOS Installer
+          - **Photonize-${NUMERIC_VERSION}-intel.dmg** - macOS application (Intel Macs)
 
           ## Installation
-          1. Download ``PhotonizeInstaller-v$numericVersion-x64.msi``
+
+          ### Windows
+          1. Download \`PhotonizeInstaller-v${NUMERIC_VERSION}-x64.msi\`
           2. Run the MSI installer
           3. The application will be installed to Program Files
           4. Desktop and Start Menu shortcuts will be created
           5. Right-click context menu integration will be available in Windows Explorer
 
+          ### macOS
+          1. Download \`Photonize-${NUMERIC_VERSION}-intel.dmg\`
+          2. Open the DMG
+          3. Drag Photonize.app to your Applications folder
+          4. Launch Photonize from Applications
+
           ## System Requirements
 
+          ### Windows
           - **Operating System**: Windows 10 or later (64-bit)
           - **.NET Runtime**: .NET 8.0 Runtime (Desktop) - [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
           - **Disk Space**: ~50 MB
 
-          "@
+          ### macOS
+          - **Operating System**: macOS 13.0 (Ventura) or later
+          - **Architecture**: Intel-based Mac
+          - **Disk Space**: ~30 MB
 
-          Set-Content -Path "release_notes.md" -Value $releaseNotes
-          Write-Host "✓ Release notes generated from CHANGELOG.md"
+          ## Supported Image Formats
+
+          JPG, JPEG, PNG, BMP, GIF, TIFF, WebP, HEIC, HEIF
+          EOF
+
+          echo "✓ Release notes generated from CHANGELOG.md"
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          
-          Write-Host "Creating release for tag: $version"
-          
-          # Check if release already exists
-          if (gh release view "$version" 2>$null) {
-            Write-Host "Release $version already exists, will add artifacts to it..."
-          } else {
-            # Create the release
-            Write-Host "Creating GitHub release..."
-            gh release create "$version" --title "Photonize $version" --notes-file "release_notes.md" --latest
-          }
-          
-          Write-Host "✓ GitHub release ready"
+          VERSION="${{ steps.version.outputs.VERSION }}"
 
-      - name: Upload MSI Installer
+          echo "Creating release for tag: $VERSION"
+
+          # Check if release already exists
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists, will add artifacts to it..."
+          else
+            # Create the release
+            echo "Creating GitHub release..."
+            gh release create "$VERSION" \
+              --title "Photonize $VERSION" \
+              --notes-file "release_notes.md" \
+              --latest
+          fi
+
+          echo "✓ GitHub release ready"
+
+      - name: Upload Windows MSI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $numericVersion = "${{ steps.version.outputs.NUMERIC_VERSION }}"
-          
-          # Upload MSI
-          $msiFile = "PhotonizeInstaller-v$numericVersion-x64.msi"
-          Write-Host "Uploading MSI installer to release..."
-          gh release upload $version $msiFile --clobber
-          Write-Host "✓ MSI installer uploaded successfully"
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          NUMERIC_VERSION="${{ steps.version.outputs.NUMERIC_VERSION }}"
+
+          WINDOWS_ASSET="artifacts/photonize-windows/PhotonizeInstaller-v${NUMERIC_VERSION}-x64.msi"
+
+          echo "Uploading Windows MSI to release..."
+          gh release upload "$VERSION" "$WINDOWS_ASSET" --clobber
+          echo "✓ Windows MSI uploaded successfully"
+
+      - name: Upload macOS DMG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          NUMERIC_VERSION="${{ steps.version.outputs.NUMERIC_VERSION }}"
+
+          MACOS_ASSET="artifacts/photonize-macos/Photonize-${NUMERIC_VERSION}-intel.dmg"
+
+          echo "Uploading macOS DMG to release..."
+          gh release upload "$VERSION" "$MACOS_ASSET" --clobber
+          echo "✓ macOS DMG uploaded successfully"
