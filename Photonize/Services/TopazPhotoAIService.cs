@@ -100,12 +100,16 @@ public class TopazPhotoAIService
         {
             var tpaiExePath = GetTopazExePath();
             var outputFolder = Path.Combine(directoryPath, "TopazUpscaled");
+            var tempFolder = Path.Combine(Path.GetTempPath(), $"Photonize_Topaz_{Guid.NewGuid():N}");
 
             // Create output folder if it doesn't exist
             if (!Directory.Exists(outputFolder))
             {
                 Directory.CreateDirectory(outputFolder);
             }
+
+            // Create temp folder for intermediate files
+            Directory.CreateDirectory(tempFolder);
 
             // Check for existing WebP files (final output format)
             var existingFiles = new List<string>();
@@ -139,8 +143,10 @@ public class TopazPhotoAIService
             int totalPhotos = photos.Count;
             List<string> failedFiles = new List<string>();
 
-            await Task.Run(() =>
+            try
             {
+                await Task.Run(() =>
+                {
                 for (int i = 0; i < photos.Count; i++)
                 {
                     // Check for cancellation
@@ -175,8 +181,9 @@ public class TopazPhotoAIService
                         };
 
                         // Add arguments individually - this is safer than building a string
+                        // Write to temp folder instead of network folder
                         processStartInfo.ArgumentList.Add("--output");
-                        processStartInfo.ArgumentList.Add(outputFolder);
+                        processStartInfo.ArgumentList.Add(tempFolder);
 
                         // Preserve the original format
                         var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
@@ -191,9 +198,9 @@ public class TopazPhotoAIService
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
-                        // Determine expected intermediate output file path (Topaz output in original format)
+                        // Determine expected intermediate output file path (Topaz output in temp folder)
                         var intermediateFileName = Path.GetFileName(photo.FilePath);
-                        var intermediateFilePath = Path.Combine(outputFolder, intermediateFileName);
+                        var intermediateFilePath = Path.Combine(tempFolder, intermediateFileName);
 
                         // Determine final WebP output file path
                         var webpFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FilePath);
@@ -288,7 +295,23 @@ public class TopazPhotoAIService
                         failedFiles.Add($"{photo.FileName}: {ex.Message}");
                     }
                 }
-            }, cancellationToken);
+                }, cancellationToken);
+            }
+            finally
+            {
+                // Clean up temp folder
+                try
+                {
+                    if (Directory.Exists(tempFolder))
+                    {
+                        Directory.Delete(tempFolder, recursive: true);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup errors - temp folder will be cleaned up by OS eventually
+                }
+            }
 
             // Report final progress
             progress?.Report((processedCount, totalPhotos, "Complete"));
