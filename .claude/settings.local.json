@@ -10,7 +10,10 @@
       "Bash(dotnet build:*)",
       "Bash(dotnet add package:*)",
       "Bash(git tag:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,98 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., v0.1.0 or 0.1.0)'
+        required: false
+        default: 'dev-build'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # Remove 'v' prefix if present
+          NUMERIC_VERSION=$(echo "$VERSION" | sed 's/^v//')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "NUMERIC_VERSION=$NUMERIC_VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $NUMERIC_VERSION"
+
+      - name: Update version in project
+        run: |
+          cd macos
+          # Update the marketing version in the project file
+          sed -i '' 's/MARKETING_VERSION = 0.1.0;/MARKETING_VERSION = ${{ steps.version.outputs.NUMERIC_VERSION }};/g' Photonize.xcodeproj/project.pbxproj
+          echo "Updated project version to ${{ steps.version.outputs.NUMERIC_VERSION }}"
+
+      - name: Build macOS app (Intel only)
+        run: |
+          cd macos
+          echo "Building Photonize for Intel..."
+          xcodebuild -project Photonize.xcodeproj \
+            -scheme Photonize \
+            -configuration Release \
+            -arch x86_64 \
+            -derivedDataPath build \
+            build
+
+          # Copy the built app
+          cp -R build/Build/Products/Release/Photonize.app ./
+          echo "✓ Build completed successfully"
+
+      - name: Create DMG
+        run: |
+          cd macos
+          echo "Creating DMG installer..."
+
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-contents
+          cp -R Photonize.app dmg-contents/
+
+          # Create symlink to Applications folder
+          ln -s /Applications dmg-contents/Applications
+
+          # Create DMG
+          hdiutil create -volname "Photonize ${{ steps.version.outputs.NUMERIC_VERSION }}" \
+            -srcfolder dmg-contents \
+            -ov -format UDZO \
+            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+
+          echo "✓ DMG created: Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: photonize-macos-${{ steps.version.outputs.NUMERIC_VERSION }}
+          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **macOS app built successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.NUMERIC_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Architecture:** Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 The DMG file has been uploaded as an artifact and will be available for 30 days." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the artifact from this workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. Extract the ZIP file to get the DMG" >> $GITHUB_STEP_SUMMARY
+          echo "3. Open the DMG file" >> $GITHUB_STEP_SUMMARY
+          echo "4. Drag Photonize.app to the Applications folder" >> $GITHUB_STEP_SUMMARY
+          echo "5. Launch Photonize from Applications" >> $GITHUB_STEP_SUMMARY
