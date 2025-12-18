@@ -135,19 +135,43 @@ public class TopazPhotoAIService
                 {
                     try
                     {
-                        // Build command line arguments for tpai.exe
-                        // Using autopilot (no custom settings) - just specify output and format
-                        var arguments = $"--output \"{outputFolder}\" --compression 2 --showSettings \"{photo.FilePath}\"";
+                        // Validate input file exists
+                        if (!File.Exists(photo.FilePath))
+                        {
+                            failedFiles.Add($"{photo.FileName}: Input file not found");
+                            continue;
+                        }
 
+                        // Build command line arguments for tpai.exe using ArgumentList
+                        // This handles quoting automatically and avoids string formatting issues
                         var processStartInfo = new ProcessStartInfo
                         {
                             FileName = tpaiExePath,
-                            Arguments = arguments,
+                            WorkingDirectory = TopazInstallPath,  // Set working directory to Topaz folder for DLL dependencies
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
                             CreateNoWindow = true
                         };
+
+                        // Add arguments individually - this is safer than building a string
+                        processStartInfo.ArgumentList.Add("--output");
+                        processStartInfo.ArgumentList.Add(outputFolder);
+                        processStartInfo.ArgumentList.Add("--compression");
+                        processStartInfo.ArgumentList.Add("2");
+
+                        // Preserve the original format
+                        var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(extension))
+                        {
+                            processStartInfo.ArgumentList.Add("--format");
+                            processStartInfo.ArgumentList.Add(extension);
+                        }
+
+                        // Note: --showSettings can be omitted if it causes issues
+                        // processStartInfo.ArgumentList.Add("--showSettings");
+
+                        processStartInfo.ArgumentList.Add(photo.FilePath);
 
                         using (var process = Process.Start(processStartInfo))
                         {
@@ -165,7 +189,14 @@ public class TopazPhotoAIService
 
                             if (process.ExitCode != 0)
                             {
-                                failedFiles.Add($"{photo.FileName}: Topaz Photo AI exited with code {process.ExitCode}. Error: {error}");
+                                // Log more detailed error information
+                                var errorDetails = $"Exit code: {process.ExitCode} (0x{process.ExitCode:X})";
+                                if (!string.IsNullOrEmpty(error))
+                                    errorDetails += $"\nStderr: {error}";
+                                if (!string.IsNullOrEmpty(output))
+                                    errorDetails += $"\nStdout: {output}";
+
+                                failedFiles.Add($"{photo.FileName}: {errorDetails}");
                             }
                             else
                             {
