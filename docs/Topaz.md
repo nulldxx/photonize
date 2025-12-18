@@ -363,25 +363,47 @@ Controlled via `--sharpen` flag.
 
 The current Photonize Windows application uses the following approach:
 
-1. **Autopilot Mode Only**: Uses `--upscale` flag without custom parameters
-   - Topaz automatically chooses 4x scale with High Fidelity V2
-   - Face recovery enabled automatically when faces detected
+1. **Custom 2x Upscale with JSON Settings**: Creates a JSON settings file with:
+   - **2x scale** (instead of autopilot's 4x)
+   - **High Fidelity V2** model
+   - Uses `--override` flag to apply custom settings
+   - Settings file is created temporarily and deleted after processing
 
-2. **Format Preservation**: Uses `--format` to preserve original format (jpg/png/etc)
+2. **Settings JSON Structure**:
+   ```json
+   {
+       "Enhance": {
+           "enabled": true,
+           "category": "Enhance",
+           "locked": false,
+           "model": "High Fidelity V2",
+           "params": {
+               "scale": 2,
+               "mode": "scale",
+               "param1": 0.0,
+               "param2": 0.0,
+               "param3": 0.0
+           }
+       }
+   }
+   ```
 
-3. **Post-Processing**: After Topaz completes:
+3. **Format Preservation**: Uses `--format` to preserve original format (jpg/png/etc)
+
+4. **Post-Processing**: After Topaz completes:
    - Loads the output file using ImageSharp
    - Converts to WebP (quality 90, lossy)
    - Deletes the intermediate Topaz output file
    - Final output: WebP files in `TopazUpscaled` folder
 
-4. **Error Handling**: Ignores exit code, checks if output file was created successfully
+5. **Error Handling**: Ignores exit code, checks if output file was created successfully
 
 This approach gives us:
-- ✅ High-quality upscaling with autopilot intelligence
-- ✅ Automatic face recovery when applicable
+- ✅ **2x upscale** (more practical than autopilot's 4x)
+- ✅ High-quality upscaling with High Fidelity V2 model
 - ✅ WebP output for better file sizes
 - ✅ Reliable operation despite tpai.exe crashes
+- ⚠️ Face recovery and other enhancements are NOT included in custom settings (only upscale)
 
 ## Known Issues
 
@@ -393,9 +415,9 @@ This approach gives us:
    - **Solution**: Convert manually after processing using ImageSharp
    - **Status**: Implemented in Photonize
 
-3. **Custom Settings Not Working**: CLI does not accept custom parameters like `scale=2 model="High Fidelity V2"`
-   - **Solution**: Use autopilot mode instead
-   - **Status**: Photonize uses autopilot mode only
+3. **Custom Settings via Command Line Parameters**: CLI does not accept custom parameters like `scale=2 model="High Fidelity V2"` directly
+   - **Solution**: Create a JSON settings file and use `--override <path-to-json>`
+   - **Status**: Implemented in Photonize - creates temporary JSON file with 2x upscale settings
 
 ## Example Commands
 
@@ -430,17 +452,36 @@ tpai.exe --output "C:\output" --format preserve --upscale input.jpg
 tpai.exe --output "C:\output" --format png --compression 5 --upscale input.jpg
 ```
 
-### Custom settings (EXPERIMENTAL - not recommended)
+### Custom settings with JSON file (WORKING!)
 ```bash
-# WARNING: The CLI for custom settings is experimental and poorly documented
-# Attempting to pass custom scale/model values may cause errors like:
-# "type must be a number but it's a string"
-#
-# This syntax does NOT work:
-# tpai.exe --output "C:\output" --upscale scale=2 model="High Fidelity V2" input.jpg
-#
-# Custom settings likely require JSON file with --override flag (syntax unknown)
+# Create a settings.json file with your desired configuration
+# Example: settings.json
+# {
+#     "Enhance": {
+#         "enabled": true,
+#         "category": "Enhance",
+#         "locked": false,
+#         "model": "High Fidelity V2",
+#         "params": {
+#             "scale": 2,
+#             "mode": "scale",
+#             "param1": 0.0,
+#             "param2": 0.0,
+#             "param3": 0.0
+#         }
+#     }
+# }
+
+# Then use --override flag with the JSON file path
+tpai.exe --output "C:\output" --override "settings.json" input.jpg
 ```
+
+**Important Notes:**
+- The `--override` flag **requires a JSON file path**, not inline parameters
+- This syntax does **NOT** work: `--upscale scale=2 model="High Fidelity V2"`
+- You must create a JSON file and pass its path
+- Settings structure must match the format shown in autopilot examples
+- Photonize automatically creates and manages this JSON file
 
 ### Process multiple files
 ```bash

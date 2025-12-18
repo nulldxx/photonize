@@ -3,6 +3,8 @@ using System.IO;
 using Photonize.Models;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Photonize.Services;
 
@@ -26,6 +28,36 @@ public class TopazPhotoAIService
     private string GetTopazExePath()
     {
         return Path.Combine(TopazInstallPath, TopazExeName);
+    }
+
+    /// <summary>
+    /// Creates a JSON settings file for Topaz Photo AI with 2x upscale
+    /// Based on autopilot defaults but with custom scale
+    /// </summary>
+    private string CreateSettingsFile(string outputFolder)
+    {
+        var settings = new JObject
+        {
+            ["Enhance"] = new JObject
+            {
+                ["enabled"] = true,
+                ["category"] = "Enhance",
+                ["locked"] = false,
+                ["model"] = "High Fidelity V2",
+                ["params"] = new JObject
+                {
+                    ["scale"] = 2,
+                    ["mode"] = "scale",
+                    ["param1"] = 0.0,
+                    ["param2"] = 0.0,
+                    ["param3"] = 0.0
+                }
+            }
+        };
+
+        var settingsPath = Path.Combine(outputFolder, "topaz_settings.json");
+        File.WriteAllText(settingsPath, settings.ToString(Formatting.Indented));
+        return settingsPath;
     }
 
     /// <summary>
@@ -128,6 +160,17 @@ public class TopazPhotoAIService
                 }
             }
 
+            // Create settings file with 2x upscale
+            string? settingsFilePath = null;
+            try
+            {
+                settingsFilePath = CreateSettingsFile(outputFolder);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Failed to create settings file: {ex.Message}");
+            }
+
             // Process each photo
             int processedCount = 0;
             List<string> failedFiles = new List<string>();
@@ -169,10 +212,9 @@ public class TopazPhotoAIService
                             processStartInfo.ArgumentList.Add(extension);
                         }
 
-                        // TODO: Figure out how to properly pass upscale settings
-                        // The --override flag seems to require a JSON file or specific format
-                        // For now, just use autopilot mode
-                        // See docs/Topaz.md for more information
+                        // Use custom settings file with 2x upscale (instead of autopilot's 4x)
+                        processStartInfo.ArgumentList.Add("--override");
+                        processStartInfo.ArgumentList.Add(settingsFilePath);
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
@@ -274,6 +316,19 @@ public class TopazPhotoAIService
                     }
                 }
             });
+
+            // Clean up settings file
+            try
+            {
+                if (settingsFilePath != null && File.Exists(settingsFilePath))
+                {
+                    File.Delete(settingsFilePath);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
 
             // Build result message
             string message;
