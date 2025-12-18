@@ -194,6 +194,32 @@ public class WorkerQueue<TWorkItem> : IDisposable
     }
 
     /// <summary>
+    /// Asynchronously waits for all pending work items to complete
+    /// </summary>
+    /// <param name="timeout">Optional timeout. If null, waits indefinitely.</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if all work completed within the timeout, false otherwise</returns>
+    public async Task<bool> WaitForCompletionAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(WorkerQueue<TWorkItem>));
+
+        var startTime = DateTime.UtcNow;
+        while (!IsIdle)
+        {
+            if (timeout.HasValue && DateTime.UtcNow - startTime > timeout.Value)
+                return false;
+
+            if (cancellationToken.IsCancellationRequested)
+                return false;
+
+            await Task.Delay(50, cancellationToken);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Stops accepting new work and waits for all workers to finish current work
     /// </summary>
     public void Shutdown()

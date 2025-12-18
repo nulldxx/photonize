@@ -197,8 +197,8 @@ public class TopazPhotoAIService
                     }, cancellationToken);
                 }
 
-                // Wait for all work to complete
-                workerQueue.WaitForCompletion();
+                // Wait for all work to complete (async so UI doesn't hang)
+                await workerQueue.WaitForCompletionAsync(cancellationToken: cancellationToken);
             }
             finally
             {
