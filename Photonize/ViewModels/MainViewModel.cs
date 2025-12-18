@@ -3,11 +3,13 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Photonize.Models;
 using Photonize.Services;
+using Photonize.Views;
 
 namespace Photonize.ViewModels;
 
@@ -966,59 +968,87 @@ public class MainViewModel : INotifyPropertyChanged
         if (photosToExport.Count == 0)
             return;
 
-        IsLoading = true;
-        StatusMessage = "Upscaling with Topaz Photo AI...";
+        // Check for existing files and ask about overwriting BEFORE showing progress dialog
+        Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+        {
+            string message;
+            if (existingFiles.Count == 1)
+            {
+                message = $"The file '{existingFiles[0]}' already exists in the TopazUpscaled folder.\n\nDo you want to overwrite it?";
+            }
+            else
+            {
+                message = $"{existingFiles.Count} files already exist in the TopazUpscaled folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                          (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                          "\n\nDo you want to overwrite them?";
+            }
+
+            var result = MessageBox.Show(
+                message,
+                "Confirm Overwrite",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            return result == MessageBoxResult.Yes;
+        };
+
+        // Create progress dialog
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        // Create cancellation token source
+        var cts = new CancellationTokenSource();
+
+        // Handle dialog closing (user clicked X or Cancel)
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        // Create progress reporter
+        var progress = new Progress<(int current, int total, string status)>(p =>
+        {
+            progressDialog.UpdateProgress(p.current, p.total, p.status);
+        });
+
+        // Show the progress dialog non-modally
+        progressDialog.Show();
 
         try
         {
-            // Check for existing files and ask about overwriting
-            Func<List<string>, bool> overwriteCallback = (existingFiles) =>
-            {
-                string message;
-                if (existingFiles.Count == 1)
-                {
-                    message = $"The file '{existingFiles[0]}' already exists in the TopazUpscaled folder.\n\nDo you want to overwrite it?";
-                }
-                else
-                {
-                    message = $"{existingFiles.Count} files already exist in the TopazUpscaled folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
-                              (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                              "\n\nDo you want to overwrite them?";
-                }
-
-                var result = MessageBox.Show(
-                    message,
-                    "Confirm Overwrite",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                return result == MessageBoxResult.Yes;
-            };
-
+            // Run the upscale operation
             var (success, message) = await _topazPhotoAIService.UpscalePhotosAsync(
                 photosToExport,
                 DirectoryPath,
-                overwriteCallback);
+                overwriteCallback,
+                progress,
+                cts.Token);
+
+            // Close the progress dialog
+            progressDialog.Close();
 
             StatusMessage = message;
 
+            // Show result
             if (success)
             {
                 MessageBox.Show(message, "Upscale Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            else
+            else if (!cts.Token.IsCancellationRequested)
             {
                 MessageBox.Show(message, "Upscale Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
+            progressDialog.Close();
             StatusMessage = $"Error upscaling with Topaz Photo AI: {ex.Message}";
             MessageBox.Show($"Error upscaling with Topaz Photo AI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsLoading = false;
         }
     }
 

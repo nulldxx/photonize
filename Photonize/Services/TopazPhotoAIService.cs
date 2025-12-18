@@ -36,11 +36,15 @@ public class TopazPhotoAIService
     /// <param name="photos">List of photos to upscale (can include folders)</param>
     /// <param name="directoryPath">Base directory containing the photos</param>
     /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns true to overwrite.</param>
+    /// <param name="progress">Progress reporter for tracking operation progress</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>Tuple with success status and message</returns>
     public async Task<(bool Success, string Message)> UpscalePhotosAsync(
         List<PhotoItem> photos,
         string directoryPath,
-        Func<List<string>, bool>? overwriteCallback = null)
+        Func<List<string>, bool>? overwriteCallback = null,
+        IProgress<(int current, int total, string status)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (photos == null || photos.Count == 0)
         {
@@ -132,14 +136,25 @@ public class TopazPhotoAIService
 
             // Process each photo
             int processedCount = 0;
+            int totalPhotos = photos.Count;
             List<string> failedFiles = new List<string>();
 
             await Task.Run(() =>
             {
-                foreach (var photo in photos)
+                for (int i = 0; i < photos.Count; i++)
                 {
+                    // Check for cancellation
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    var photo = photos[i];
+
                     try
                     {
+                        // Report progress
+                        progress?.Report((i, totalPhotos, $"Processing {photo.FileName}..."));
                         // Validate input file exists
                         if (!File.Exists(photo.FilePath))
                         {
@@ -273,11 +288,19 @@ public class TopazPhotoAIService
                         failedFiles.Add($"{photo.FileName}: {ex.Message}");
                     }
                 }
-            });
+            }, cancellationToken);
+
+            // Report final progress
+            progress?.Report((processedCount, totalPhotos, "Complete"));
 
             // Build result message
             string message;
-            if (processedCount == photos.Count)
+            if (cancellationToken.IsCancellationRequested)
+            {
+                message = $"Operation cancelled. Processed {processedCount} of {totalPhotos} photo(s).";
+                return (processedCount > 0, message);
+            }
+            else if (processedCount == photos.Count)
             {
                 message = $"Successfully upscaled {processedCount} photo(s) with Topaz Photo AI in '{outputFolder}'";
             }
