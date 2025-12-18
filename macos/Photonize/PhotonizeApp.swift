@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct PhotonizeApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.class) private var appDelegate
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var viewModel = PhotoGridViewModel()
 
     var body: some Scene {

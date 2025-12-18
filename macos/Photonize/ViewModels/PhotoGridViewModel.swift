@@ -169,8 +169,8 @@ class PhotoGridViewModel: ObservableObject {
             // Update photo items with new paths and names
             for (index, oldItem) in photoItems.enumerated() {
                 if let photoIndex = photos.firstIndex(where: { $0.id == oldItem.id }) {
-                    let extension = oldItem.filePath.pathExtension
-                    let newFileName = "\(renamePrefix)-\(String(format: "%05d", index + 1)).\(extension)"
+                    let fileExtension = oldItem.filePath.pathExtension
+                    let newFileName = "\(renamePrefix)-\(String(format: "%05d", index + 1)).\(fileExtension)"
                     let newPath = oldItem.filePath.deletingLastPathComponent().appendingPathComponent(newFileName)
 
                     photos[photoIndex].filePath = newPath
