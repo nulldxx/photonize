@@ -11,8 +11,6 @@ struct PhotonizeApp: App {
                 .environmentObject(viewModel)
                 .frame(minWidth: 800, minHeight: 600)
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("File") {
@@ -32,6 +30,7 @@ struct PhotonizeApp: App {
                 .disabled(viewModel.directoryPath.isEmpty)
             }
         }
+        .defaultSize(width: 1200, height: 800)
     }
 }
 

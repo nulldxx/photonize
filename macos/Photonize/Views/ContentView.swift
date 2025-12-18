@@ -4,40 +4,37 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Toolbar
-                ToolbarView()
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
+        VStack(spacing: 0) {
+            // Toolbar
+            ToolbarView()
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
 
-                Divider()
+            Divider()
 
-                // Main content
-                HStack(spacing: 0) {
-                    // Photo grid
-                    PhotoGridView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Main content
+            HStack(spacing: 0) {
+                // Photo grid
+                PhotoGridView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    // Preview pane (if visible)
-                    if viewModel.isPreviewVisible {
-                        Divider()
+                // Preview pane (if visible)
+                if viewModel.isPreviewVisible {
+                    Divider()
 
-                        PreviewPane()
-                            .frame(width: 400)
-                    }
+                    PreviewPane()
+                        .frame(width: 400)
                 }
-
-                Divider()
-
-                // Status bar
-                StatusBarView()
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color(NSColor.controlBackgroundColor))
             }
+
+            Divider()
+
+            // Status bar
+            StatusBarView()
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.controlBackgroundColor))
         }
-        .navigationTitle("Photonize")
     }
 }
 
