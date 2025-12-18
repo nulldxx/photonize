@@ -215,6 +215,11 @@
                                                         <MenuItem.Icon>
                                                             <TextBlock Text="🖼️" FontSize="14"/>
                                                         </MenuItem.Icon>
+                                                        <MenuItem Header="PhotoAI Upscale"
+                                                                  Command="{Binding ExportPhotoAICommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                  Visibility="{Binding IsTopazInstalled, Converter={StaticResource BoolToVisConverter}}"/>
+                                                        <Separator Visibility="{Binding IsTopazInstalled, Converter={StaticResource BoolToVisConverter}}"/>
                                                         <MenuItem Header="WebP"
                                                                   Command="{Binding ExportWebPCommand}"
                                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
@@ -244,7 +249,34 @@
                                         </Setter>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsFolder}" Value="True">
-                                                <Setter Property="ContextMenu" Value="{x:Null}"/>
+                                                <Setter Property="ContextMenu">
+                                                    <Setter.Value>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="Show in Explorer"
+                                                                      Command="{Binding PlacementTarget.Tag.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="📁" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      Visibility="{Binding IsTopazInstalled, Converter={StaticResource BoolToVisConverter}}">
+                                                                <MenuItem.Header>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="Export" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    </StackPanel>
+                                                                </MenuItem.Header>
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="🖼️" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                                <MenuItem Header="PhotoAI Upscale Folder"
+                                                                          Command="{Binding ExportPhotoAICommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                            </MenuItem>
+                                                        </ContextMenu>
+                                                    </Setter.Value>
+                                                </Setter>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

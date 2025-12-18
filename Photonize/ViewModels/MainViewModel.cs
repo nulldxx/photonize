@@ -19,6 +19,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly PhotoImporter _photoImporter;
     private readonly WebPExporter _webpExporter;
     private readonly ImageExporter _imageExporter;
+    private readonly TopazPhotoAIService _topazPhotoAIService;
 
     private string _directoryPath = string.Empty;
     private string _renamePrefix = string.Empty;
@@ -41,6 +42,7 @@ public class MainViewModel : INotifyPropertyChanged
         _photoImporter = new PhotoImporter();
         _webpExporter = new WebPExporter();
         _imageExporter = new ImageExporter();
+        _topazPhotoAIService = new TopazPhotoAIService();
 
         Photos = new ObservableCollection<PhotoItem>();
 
@@ -55,6 +57,7 @@ public class MainViewModel : INotifyPropertyChanged
         ExportWebPCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToWebPAsync(photo), CanExportWebP);
         ExportPNGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPNGAsync(photo), CanExportImage);
         ExportJPGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToJPGAsync(photo), CanExportImage);
+        ExportPhotoAICommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPhotoAIAsync(photo), CanExportPhotoAI);
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
 
         // If a command line directory is provided, use it instead of loading saved settings
@@ -165,6 +168,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     public GridLength PreviewColumnWidth => IsPreviewVisible ? new GridLength(500) : new GridLength(0);
 
+    public bool IsTopazInstalled => _topazPhotoAIService.IsTopazInstalled();
+
     public bool HasUnsavedChanges
     {
         get => _hasUnsavedChanges;
@@ -229,6 +234,7 @@ public class MainViewModel : INotifyPropertyChanged
         ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
         ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
 
         // Update preview photo to the first selected item
@@ -246,6 +252,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ExportWebPCommand { get; }
     public ICommand ExportPNGCommand { get; }
     public ICommand ExportJPGCommand { get; }
+    public ICommand ExportPhotoAICommand { get; }
     public ICommand CompareImagesCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
@@ -733,6 +740,7 @@ public class MainViewModel : INotifyPropertyChanged
             ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
+            ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -751,6 +759,12 @@ public class MainViewModel : INotifyPropertyChanged
     {
         // Allow export if we have a parameter (from context menu) or if we have selected photos
         return photo != null || _selectedPhotos.Count > 0;
+    }
+
+    private bool CanExportPhotoAI(PhotoItem? photo)
+    {
+        // Allow export if Topaz is installed and we have photos
+        return IsTopazInstalled && (photo != null || _selectedPhotos.Count > 0);
     }
 
     private bool CanCompareImages()
@@ -926,6 +940,81 @@ public class MainViewModel : INotifyPropertyChanged
         {
             StatusMessage = $"Error exporting to {format}: {ex.Message}";
             MessageBox.Show($"Error exporting to {format}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportToPhotoAIAsync(PhotoItem? photo)
+    {
+        // Determine which photos/folders to export
+        List<PhotoItem> photosToExport = new List<PhotoItem>();
+
+        // If there are selected photos in the list, export all of them (including folders)
+        if (_selectedPhotos.Count > 0)
+        {
+            photosToExport.AddRange(_selectedPhotos);
+        }
+        // Otherwise export the single photo/folder from context menu (fallback for right-click without selection)
+        else if (photo != null)
+        {
+            photosToExport.Add(photo);
+        }
+
+        if (photosToExport.Count == 0)
+            return;
+
+        IsLoading = true;
+        StatusMessage = "Upscaling with Topaz Photo AI...";
+
+        try
+        {
+            // Check for existing files and ask about overwriting
+            Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+            {
+                string message;
+                if (existingFiles.Count == 1)
+                {
+                    message = $"The file '{existingFiles[0]}' already exists in the TopazUpscaled folder.\n\nDo you want to overwrite it?";
+                }
+                else
+                {
+                    message = $"{existingFiles.Count} files already exist in the TopazUpscaled folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                              (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                              "\n\nDo you want to overwrite them?";
+                }
+
+                var result = MessageBox.Show(
+                    message,
+                    "Confirm Overwrite",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                return result == MessageBoxResult.Yes;
+            };
+
+            var (success, message) = await _topazPhotoAIService.UpscalePhotosAsync(
+                photosToExport,
+                DirectoryPath,
+                overwriteCallback);
+
+            StatusMessage = message;
+
+            if (success)
+            {
+                MessageBox.Show(message, "Upscale Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(message, "Upscale Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error upscaling with Topaz Photo AI: {ex.Message}";
+            MessageBox.Show($"Error upscaling with Topaz Photo AI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
