@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
-    @State private var previewWidth: CGFloat = 400
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,25 +13,16 @@ struct ContentView: View {
             Divider()
 
             // Main content
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Photo grid
+            if viewModel.isPreviewVisible {
+                HSplitView {
                     PhotoGridView()
-                        .frame(width: viewModel.isPreviewVisible ? geometry.size.width - previewWidth : geometry.size.width)
+                        .frame(minWidth: 400)
 
-                    // Preview pane (if visible)
-                    if viewModel.isPreviewVisible {
-                        ResizableDivider(
-                            orientation: .vertical,
-                            size: $previewWidth,
-                            minSize: 300,
-                            maxSize: geometry.size.width - 400
-                        )
-
-                        PreviewPane()
-                            .frame(width: previewWidth)
-                    }
+                    PreviewPane()
+                        .frame(minWidth: 300, idealWidth: 400, maxWidth: .infinity)
                 }
+            } else {
+                PhotoGridView()
             }
 
             Divider()
@@ -42,66 +32,6 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(Color(NSColor.controlBackgroundColor))
-        }
-    }
-}
-
-struct ResizableDivider: View {
-    enum Orientation {
-        case horizontal
-        case vertical
-    }
-
-    let orientation: Orientation
-    @Binding var size: CGFloat
-    let minSize: CGFloat
-    let maxSize: CGFloat
-
-    @State private var isDragging = false
-    @State private var startSize: CGFloat = 0
-
-    var body: some View {
-        ZStack {
-            if orientation == .vertical {
-                Rectangle()
-                    .fill(Color(NSColor.separatorColor))
-                    .frame(width: 1)
-                    .frame(maxHeight: .infinity)
-            } else {
-                Rectangle()
-                    .fill(Color(NSColor.separatorColor))
-                    .frame(height: 1)
-                    .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(width: orientation == .vertical ? 8 : nil, height: orientation == .horizontal ? 8 : nil)
-        .background(isDragging ? Color.blue.opacity(0.1) : Color.clear)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if !isDragging {
-                        isDragging = true
-                        startSize = size
-                    }
-                    if orientation == .vertical {
-                        let newSize = startSize - value.translation.width
-                        size = min(max(newSize, minSize), maxSize)
-                    } else {
-                        let newSize = startSize - value.translation.height
-                        size = min(max(newSize, minSize), maxSize)
-                    }
-                }
-                .onEnded { _ in
-                    isDragging = false
-                }
-        )
-        .onHover { hovering in
-            if hovering {
-                NSCursor.resizeLeftRight.push()
-            } else {
-                NSCursor.pop()
-            }
         }
     }
 }
