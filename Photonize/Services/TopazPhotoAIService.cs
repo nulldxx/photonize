@@ -160,8 +160,6 @@ public class TopazPhotoAIService
                         // Add arguments individually - this is safer than building a string
                         processStartInfo.ArgumentList.Add("--output");
                         processStartInfo.ArgumentList.Add(outputFolder);
-                        processStartInfo.ArgumentList.Add("--compression");
-                        processStartInfo.ArgumentList.Add("2");
 
                         // Preserve the original format
                         var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
@@ -171,15 +169,10 @@ public class TopazPhotoAIService
                             processStartInfo.ArgumentList.Add(extension);
                         }
 
-                        // Upscale settings: 2x with High Fidelity V2 model
-                        // Note: Only specify scale and model. Other params (param1, param2, param3) are undocumented
-                        // and may cause "type must be a number but it's a string" errors
-                        processStartInfo.ArgumentList.Add("--upscale");
-                        processStartInfo.ArgumentList.Add("scale=2");
-                        processStartInfo.ArgumentList.Add("model=High Fidelity V2");
-
-                        // Note: --showSettings can be omitted if it causes issues
-                        // processStartInfo.ArgumentList.Add("--showSettings");
+                        // TODO: Figure out how to properly pass upscale settings
+                        // The --override flag seems to require a JSON file or specific format
+                        // For now, just use autopilot mode
+                        // See docs/Topaz.md for more information
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
