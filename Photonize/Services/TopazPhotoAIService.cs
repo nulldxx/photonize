@@ -99,12 +99,11 @@ public class TopazPhotoAIService
                 Directory.CreateDirectory(outputFolder);
             }
 
-            // Check for existing files (with .webp extension)
+            // Check for existing files
             var existingFiles = new List<string>();
             foreach (var photo in photos)
             {
-                var outputFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FileName);
-                var outputFileName = outputFileNameWithoutExt + ".webp";
+                var outputFileName = Path.GetFileName(photo.FileName);
                 var outputFilePath = Path.Combine(outputFolder, outputFileName);
 
                 if (File.Exists(outputFilePath))
@@ -161,9 +160,13 @@ public class TopazPhotoAIService
                         processStartInfo.ArgumentList.Add("--compression");
                         processStartInfo.ArgumentList.Add("2");
 
-                        // Output as WebP for better compression
-                        processStartInfo.ArgumentList.Add("--format");
-                        processStartInfo.ArgumentList.Add("webp");
+                        // Preserve the original format
+                        var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(extension))
+                        {
+                            processStartInfo.ArgumentList.Add("--format");
+                            processStartInfo.ArgumentList.Add(extension);
+                        }
 
                         // Upscale settings: 2x with High Fidelity V2 model
                         processStartInfo.ArgumentList.Add("--upscale");
@@ -184,9 +187,8 @@ public class TopazPhotoAIService
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
-                        // Determine expected output file path (with .webp extension)
-                        var outputFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FilePath);
-                        var outputFileName = outputFileNameWithoutExt + ".webp";
+                        // Determine expected output file path
+                        var outputFileName = Path.GetFileName(photo.FilePath);
                         var outputFilePath = Path.Combine(outputFolder, outputFileName);
 
                         using (var process = Process.Start(processStartInfo))
