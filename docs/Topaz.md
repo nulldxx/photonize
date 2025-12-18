@@ -363,47 +363,28 @@ Controlled via `--sharpen` flag.
 
 The current Photonize Windows application uses the following approach:
 
-1. **Custom 2x Upscale with JSON Settings**: Creates a JSON settings file with:
-   - **2x scale** (instead of autopilot's 4x)
-   - **High Fidelity V2** model
-   - Uses `--override` flag to apply custom settings
-   - Settings file is created temporarily and deleted after processing
+1. **Autopilot Mode**: Uses `--upscale` flag without custom parameters
+   - Lets Topaz Photo AI automatically analyze each image and choose optimal settings
+   - Users can configure autopilot defaults in the Topaz Photo AI GUI application
+   - Typically chooses 4x scale with High Fidelity V2 model
+   - Automatically enables face recovery when faces are detected
 
-2. **Settings JSON Structure**:
-   ```json
-   {
-       "Enhance": {
-           "enabled": true,
-           "category": "Enhance",
-           "locked": false,
-           "model": "High Fidelity V2",
-           "params": {
-               "scale": 2,
-               "mode": "scale",
-               "param1": 0.0,
-               "param2": 0.0,
-               "param3": 0.0
-           }
-       }
-   }
-   ```
+2. **Format Preservation**: Uses `--format` to preserve original format (jpg/png/etc)
 
-3. **Format Preservation**: Uses `--format` to preserve original format (jpg/png/etc)
-
-4. **Post-Processing**: After Topaz completes:
+3. **Post-Processing**: After Topaz completes:
    - Loads the output file using ImageSharp
    - Converts to WebP (quality 90, lossy)
    - Deletes the intermediate Topaz output file
    - Final output: WebP files in `TopazUpscaled` folder
 
-5. **Error Handling**: Ignores exit code, checks if output file was created successfully
+4. **Error Handling**: Ignores exit code, checks if output file was created successfully
 
 This approach gives us:
-- ✅ **2x upscale** (more practical than autopilot's 4x)
-- ✅ High-quality upscaling with High Fidelity V2 model
+- ✅ Intelligent upscaling using Topaz's AI autopilot
+- ✅ Automatic face recovery when applicable
 - ✅ WebP output for better file sizes
 - ✅ Reliable operation despite tpai.exe crashes
-- ⚠️ Face recovery and other enhancements are NOT included in custom settings (only upscale)
+- ✅ Users can customize autopilot behavior in Topaz Photo AI GUI
 
 ## Known Issues
 
@@ -416,8 +397,8 @@ This approach gives us:
    - **Status**: Implemented in Photonize
 
 3. **Custom Settings via Command Line Parameters**: CLI does not accept custom parameters like `scale=2 model="High Fidelity V2"` directly
-   - **Solution**: Create a JSON settings file and use `--override <path-to-json>`
-   - **Status**: Implemented in Photonize - creates temporary JSON file with 2x upscale settings
+   - **Solution**: Either use `--override <path-to-json>` with a JSON file, or configure autopilot defaults in Topaz Photo AI GUI
+   - **Status**: Photonize uses autopilot mode - users can customize settings in Topaz Photo AI GUI application
 
 ## Example Commands
 
