@@ -302,7 +302,8 @@ public class TopazPhotoAIService
                                     // Check if this is exit code -2 (transient error) and we have retries left
                                     if (lastExitCode == -2 && attempt < maxRetries)
                                     {
-                                        // Will retry on next iteration
+                                        // Will retry on next iteration after a brief delay
+                                        Thread.Sleep(5000);
                                         continue;
                                     }
                                     else
