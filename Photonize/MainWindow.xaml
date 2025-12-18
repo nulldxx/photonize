@@ -205,8 +205,13 @@
                                                             <TextBlock Text="📁" FontSize="14"/>
                                                         </MenuItem.Icon>
                                                     </MenuItem>
-                                                    <MenuItem Header="Export"
-                                                              DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                    <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                        <MenuItem.Header>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="Export" Margin="0,0,8,0"/>
+                                                                <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                        </MenuItem.Header>
                                                         <MenuItem.Icon>
                                                             <TextBlock Text="🖼️" FontSize="14"/>
                                                         </MenuItem.Icon>
