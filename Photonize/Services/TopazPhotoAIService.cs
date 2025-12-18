@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Collections.Concurrent;
 using Photonize.Models;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
@@ -134,179 +135,176 @@ public class TopazPhotoAIService
                 }
             }
 
-            // Process each photo
-            int processedCount = 0;
+            // Process photos in parallel with max 4 concurrent workers
+            int startedCount = 0;
+            int successCount = 0;
             int totalPhotos = photos.Count;
-            List<string> failedFiles = new List<string>();
+            var failedFiles = new ConcurrentBag<string>();
+            var semaphore = new SemaphoreSlim(4, 4); // Max 4 concurrent operations
 
-            await Task.Run(() =>
+            var processingTasks = photos.Select(async (photo, index) =>
             {
-                for (int i = 0; i < photos.Count; i++)
+                await semaphore.WaitAsync(cancellationToken);
+
+                try
                 {
                     // Check for cancellation
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        break;
+                        return;
                     }
 
-                    var photo = photos[i];
-
-                    try
+                    // Validate input file exists
+                    if (!File.Exists(photo.FilePath))
                     {
-                        // Report progress
-                        progress?.Report((i, totalPhotos, $"Processing {photo.FileName}..."));
-                        // Validate input file exists
-                        if (!File.Exists(photo.FilePath))
+                        failedFiles.Add($"{photo.FileName}: Input file not found");
+                        return;
+                    }
+
+                    // Report progress (count how many have started)
+                    var currentCount = Interlocked.Increment(ref startedCount);
+                    progress?.Report((currentCount - 1, totalPhotos, $"Processing {photo.FileName}..."));
+
+                    // Build command line arguments for tpai.exe using ArgumentList
+                    var processStartInfo = new ProcessStartInfo
+                    {
+                        FileName = tpaiExePath,
+                        WorkingDirectory = TopazInstallPath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    };
+
+                    // Add arguments individually
+                    processStartInfo.ArgumentList.Add("--output");
+                    processStartInfo.ArgumentList.Add(outputFolder);
+
+                    // Preserve the original format
+                    var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(extension))
+                    {
+                        processStartInfo.ArgumentList.Add("--format");
+                        processStartInfo.ArgumentList.Add(extension);
+                    }
+
+                    // Use autopilot mode
+                    processStartInfo.ArgumentList.Add("--upscale");
+                    processStartInfo.ArgumentList.Add(photo.FilePath);
+
+                    // Determine expected output paths
+                    var intermediateFileName = Path.GetFileName(photo.FilePath);
+                    var intermediateFilePath = Path.Combine(outputFolder, intermediateFileName);
+                    var webpFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FilePath);
+                    var webpFileName = webpFileNameWithoutExt + ".webp";
+                    var webpFilePath = Path.Combine(outputFolder, webpFileName);
+
+                    using (var process = Process.Start(processStartInfo))
+                    {
+                        if (process == null)
                         {
-                            failedFiles.Add($"{photo.FileName}: Input file not found");
-                            continue;
+                            failedFiles.Add($"{photo.FileName}: Failed to start Topaz Photo AI process");
+                            return;
                         }
 
-                        // Build command line arguments for tpai.exe using ArgumentList
-                        // This handles quoting automatically and avoids string formatting issues
-                        var processStartInfo = new ProcessStartInfo
-                        {
-                            FileName = tpaiExePath,
-                            WorkingDirectory = TopazInstallPath,  // Set working directory to Topaz folder for DLL dependencies
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            CreateNoWindow = true
-                        };
+                        // Read output asynchronously
+                        var outputTask = process.StandardOutput.ReadToEndAsync();
+                        var errorTask = process.StandardError.ReadToEndAsync();
 
-                        // Add arguments individually - this is safer than building a string
-                        processStartInfo.ArgumentList.Add("--output");
-                        processStartInfo.ArgumentList.Add(outputFolder);
-
-                        // Preserve the original format
-                        var extension = Path.GetExtension(photo.FilePath).TrimStart('.').ToLowerInvariant();
-                        if (!string.IsNullOrEmpty(extension))
+                        // Wait for process with timeout (5 minutes per image)
+                        if (!process.WaitForExit(300000))
                         {
-                            processStartInfo.ArgumentList.Add("--format");
-                            processStartInfo.ArgumentList.Add(extension);
+                            process.Kill();
+                            failedFiles.Add($"{photo.FileName}: Process timeout (exceeded 5 minutes)");
+                            return;
                         }
 
-                        // Use autopilot mode - users can configure defaults in Topaz Photo AI GUI
-                        processStartInfo.ArgumentList.Add("--upscale");
+                        var output = await outputTask;
+                        var error = await errorTask;
 
-                        processStartInfo.ArgumentList.Add(photo.FilePath);
-
-                        // Determine expected intermediate output file path (Topaz output in original format)
-                        var intermediateFileName = Path.GetFileName(photo.FilePath);
-                        var intermediateFilePath = Path.Combine(outputFolder, intermediateFileName);
-
-                        // Determine final WebP output file path
-                        var webpFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FilePath);
-                        var webpFileName = webpFileNameWithoutExt + ".webp";
-                        var webpFilePath = Path.Combine(outputFolder, webpFileName);
-
-                        using (var process = Process.Start(processStartInfo))
+                        // Check if output was created (ignore exit code - tpai.exe crashes often)
+                        if (File.Exists(intermediateFilePath))
                         {
-                            if (process == null)
+                            var fileInfo = new FileInfo(intermediateFilePath);
+                            if (fileInfo.Length > 0)
                             {
-                                failedFiles.Add($"{photo.FileName}: Failed to start Topaz Photo AI process");
-                                continue;
-                            }
-
-                            // Read output asynchronously to avoid blocking
-                            var outputTask = process.StandardOutput.ReadToEndAsync();
-                            var errorTask = process.StandardError.ReadToEndAsync();
-
-                            // Wait for process with timeout (5 minutes per image should be plenty)
-                            if (!process.WaitForExit(300000))
-                            {
-                                process.Kill();
-                                failedFiles.Add($"{photo.FileName}: Process timeout (exceeded 5 minutes)");
-                                continue;
-                            }
-
-                            var output = outputTask.Result;
-                            var error = errorTask.Result;
-
-                            // Check if intermediate output file was created successfully (ignore exit code)
-                            // tpai.exe often crashes during exit even after successful processing
-                            if (File.Exists(intermediateFilePath))
-                            {
-                                // Verify the intermediate file has content
-                                var fileInfo = new FileInfo(intermediateFilePath);
-                                if (fileInfo.Length > 0)
+                                // Convert to WebP
+                                try
                                 {
-                                    // Convert to WebP and delete intermediate file
-                                    try
+                                    using (var image = Image.Load(intermediateFilePath))
                                     {
-                                        using (var image = Image.Load(intermediateFilePath))
+                                        var webpEncoder = new WebpEncoder
                                         {
-                                            var webpEncoder = new WebpEncoder
-                                            {
-                                                Quality = 90,
-                                                FileFormat = WebpFileFormatType.Lossy
-                                            };
-                                            image.Save(webpFilePath, webpEncoder);
-                                        }
-
-                                        // Delete the intermediate file
-                                        File.Delete(intermediateFilePath);
-
-                                        // Verify WebP file was created
-                                        if (File.Exists(webpFilePath) && new FileInfo(webpFilePath).Length > 0)
-                                        {
-                                            processedCount++;
-                                        }
-                                        else
-                                        {
-                                            failedFiles.Add($"{photo.FileName}: Failed to create WebP file");
-                                        }
+                                            Quality = 90,
+                                            FileFormat = WebpFileFormatType.Lossy
+                                        };
+                                        await image.SaveAsync(webpFilePath, webpEncoder);
                                     }
-                                    catch (Exception conversionEx)
+
+                                    File.Delete(intermediateFilePath);
+
+                                    if (File.Exists(webpFilePath) && new FileInfo(webpFilePath).Length > 0)
                                     {
-                                        failedFiles.Add($"{photo.FileName}: WebP conversion failed - {conversionEx.Message}");
-                                        // Try to clean up intermediate file if it still exists
-                                        if (File.Exists(intermediateFilePath))
-                                        {
-                                            try { File.Delete(intermediateFilePath); } catch { }
-                                        }
+                                        Interlocked.Increment(ref successCount);
+                                    }
+                                    else
+                                    {
+                                        failedFiles.Add($"{photo.FileName}: Failed to create WebP file");
                                     }
                                 }
-                                else
+                                catch (Exception conversionEx)
                                 {
-                                    failedFiles.Add($"{photo.FileName}: Output file is empty");
+                                    failedFiles.Add($"{photo.FileName}: WebP conversion failed - {conversionEx.Message}");
+                                    if (File.Exists(intermediateFilePath))
+                                    {
+                                        try { File.Delete(intermediateFilePath); } catch { }
+                                    }
                                 }
                             }
                             else
                             {
-                                // Output file wasn't created - this is a real failure
-                                var errorDetails = $"Output file not created. Exit code: {process.ExitCode} (0x{process.ExitCode:X})";
-                                if (!string.IsNullOrEmpty(error))
-                                    errorDetails += $"\nStderr: {error}";
-
-                                failedFiles.Add($"{photo.FileName}: {errorDetails}");
+                                failedFiles.Add($"{photo.FileName}: Output file is empty");
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedFiles.Add($"{photo.FileName}: {ex.Message}");
+                        else
+                        {
+                            var errorDetails = $"Output file not created. Exit code: {process.ExitCode} (0x{process.ExitCode:X})";
+                            if (!string.IsNullOrEmpty(error))
+                                errorDetails += $"\nStderr: {error}";
+                            failedFiles.Add($"{photo.FileName}: {errorDetails}");
+                        }
                     }
                 }
-            }, cancellationToken);
+                catch (Exception ex)
+                {
+                    failedFiles.Add($"{photo.FileName}: {ex.Message}");
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }).ToList();
+
+            // Wait for all tasks to complete
+            await Task.WhenAll(processingTasks);
 
             // Report final progress
-            progress?.Report((processedCount, totalPhotos, "Complete"));
+            progress?.Report((successCount, totalPhotos, "Complete"));
 
             // Build result message
             string message;
             if (cancellationToken.IsCancellationRequested)
             {
-                message = $"Operation cancelled. Processed {processedCount} of {totalPhotos} photo(s).";
-                return (processedCount > 0, message);
+                message = $"Operation cancelled. Processed {successCount} of {totalPhotos} photo(s).";
+                return (successCount > 0, message);
             }
-            else if (processedCount == photos.Count)
+            else if (successCount == photos.Count)
             {
-                message = $"Successfully upscaled {processedCount} photo(s) with Topaz Photo AI in '{outputFolder}'";
+                message = $"Successfully upscaled {successCount} photo(s) with Topaz Photo AI in '{outputFolder}'";
             }
-            else if (processedCount > 0)
+            else if (successCount > 0)
             {
-                message = $"Upscaled {processedCount} of {photos.Count} photo(s). {failedFiles.Count} failed.";
+                message = $"Upscaled {successCount} of {photos.Count} photo(s). {failedFiles.Count} failed.";
                 if (failedFiles.Count > 0)
                 {
                     message += $"\n\nFailed files:\n{string.Join("\n", failedFiles)}";
@@ -317,7 +315,7 @@ public class TopazPhotoAIService
                 message = $"Failed to upscale photos:\n{string.Join("\n", failedFiles)}";
             }
 
-            return (processedCount > 0, message);
+            return (successCount > 0, message);
         }
         catch (Exception ex)
         {
