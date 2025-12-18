@@ -4,11 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Photonize is a Windows desktop application built with WPF and .NET 8 that allows users to visually organize and batch-rename photographs. The application uses a strict MVVM architecture with drag-and-drop reordering capabilities.
+Photonize is a cross-platform desktop application that allows users to visually organize and batch-rename photographs. It's available for both Windows and macOS:
+
+- **Windows**: Built with WPF and .NET 8, using strict MVVM architecture with drag-and-drop reordering
+- **macOS**: Native Cocoa application built with Swift and AppKit, featuring native macOS UI patterns
+
+Both versions share the same core functionality: visual photo organization, drag-and-drop reordering, and intelligent batch renaming with a two-pass atomic rename algorithm.
 
 ## Common Development Commands
 
-### Building and Running
+### Windows Build Commands
+
+#### Building and Running
 ```bash
 # Build the solution
 cd Photonize
@@ -23,17 +30,53 @@ dotnet publish -c Release -r win-x64 --self-contained
 # Output: Photonize/bin/Release/net8.0-windows/win-x64/publish/Photonize.exe
 ```
 
-### Visual Studio
+#### Visual Studio
 ```bash
 # Open the solution
 Photonize.sln
 # Then press F5 to build and run
 ```
 
+### macOS Build Commands
+
+#### Building and Running
+```bash
+# Navigate to macOS project
+cd macos
+
+# Build the app (Intel)
+xcodebuild -project Photonize.xcodeproj \
+  -scheme Photonize \
+  -configuration Release \
+  -arch x86_64 \
+  build
+
+# The built app will be in:
+# build/Build/Products/Release/Photonize.app
+
+# Create DMG installer
+mkdir -p dmg-contents
+cp -R build/Build/Products/Release/Photonize.app dmg-contents/
+ln -s /Applications dmg-contents/Applications
+hdiutil create -volname "Photonize" \
+  -srcfolder dmg-contents \
+  -ov -format UDZO \
+  Photonize.dmg
+```
+
+#### Xcode
+```bash
+# Open the project in Xcode
+open macos/Photonize.xcodeproj
+# Then press Cmd+R to build and run
+```
+
 ## Architecture
 
-### MVVM Pattern
-The application follows strict MVVM separation:
+### Windows Architecture (WPF)
+
+#### MVVM Pattern
+The Windows application follows strict MVVM separation:
 - **Models** (`Models/PhotoItem.cs`) - Data objects with INotifyPropertyChanged for UI binding
 - **ViewModels** (`ViewModels/MainViewModel.cs`) - Business logic, commands, and state management
 - **Views** (`MainWindow.xaml`) - XAML UI with data binding only, minimal code-behind

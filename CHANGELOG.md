@@ -7,9 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS Support**: Photonize is now available as a native macOS application! Download the DMG installer for Intel-based Macs (macOS 13.0 Ventura or later)
 - **Image Compare Tool**: Select exactly two images and choose "Image Compare" from the right-click menu to open an A/B comparison window. Hover your mouse over the image and a vertical divider line appears, allowing you to interactively compare the two images side-by-side by moving the slider left and right
 - **Multi-format Image Export**: Right-click on image files in Windows Explorer and choose from multiple export formats - WebP, JPG, or PNG. Each format provides optimized compression and quality settings for different use cases (Note: selecting multiple files will open one instance per file)
 - **Folder drag-and-drop**: Drag folders into other folders to move them, just like you can with photos
+
+### Changed
+- **Improved Windows Explorer Context Menu**: Redesigned the export submenu with better visual organization, including icons and subheader styling for a more polished and intuitive experience
 
 ### Fixed
 - **Selection state bug**: Fixed issue where selected photos from previously viewed folders would persist when switching directories, causing operations like WebP export to include wrong files
