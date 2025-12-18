@@ -11,6 +11,10 @@ Photonize is a cross-platform desktop application that allows users to visually 
 
 Both versions share the same core functionality: visual photo organization, drag-and-drop reordering, and intelligent batch renaming with a two-pass atomic rename algorithm.
 
+## Additional Documentation
+
+- **[Topaz Photo AI CLI Reference](docs/Topaz.md)**: Command-line interface documentation for Topaz Photo AI integration, including all available parameters, settings structure, and known issues.
+
 ## Common Development Commands
 
 ### Windows Build Commands
