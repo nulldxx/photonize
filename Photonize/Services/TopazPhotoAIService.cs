@@ -168,6 +168,20 @@ public class TopazPhotoAIService
                             processStartInfo.ArgumentList.Add(extension);
                         }
 
+                        // Upscale settings: 2x with High Fidelity V2 model
+                        processStartInfo.ArgumentList.Add("--upscale");
+                        processStartInfo.ArgumentList.Add("scale=2.0");
+                        processStartInfo.ArgumentList.Add("model=High Fidelity V2");
+
+                        // Optional: denoise, deblur, detail parameters (defaults are usually fine)
+                        // processStartInfo.ArgumentList.Add("param1=0.0");  // Minor Denoise
+                        // processStartInfo.ArgumentList.Add("param2=0.0");  // Minor Deblur
+                        // processStartInfo.ArgumentList.Add("param3=0.0");  // Fix Compression
+
+                        // Face Recovery settings - low quality
+                        processStartInfo.ArgumentList.Add("--recover-faces");
+                        processStartInfo.ArgumentList.Add("quality=low");
+
                         // Note: --showSettings can be omitted if it causes issues
                         // processStartInfo.ArgumentList.Add("--showSettings");
 
