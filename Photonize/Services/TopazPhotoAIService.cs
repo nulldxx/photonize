@@ -173,6 +173,10 @@ public class TopazPhotoAIService
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
+                        // Determine expected output file path
+                        var outputFileName = Path.GetFileName(photo.FilePath);
+                        var outputFilePath = Path.Combine(outputFolder, outputFileName);
+
                         using (var process = Process.Start(processStartInfo))
                         {
                             if (process == null)
@@ -181,26 +185,44 @@ public class TopazPhotoAIService
                                 continue;
                             }
 
-                            // Read output
-                            var output = process.StandardOutput.ReadToEnd();
-                            var error = process.StandardError.ReadToEnd();
+                            // Read output asynchronously to avoid blocking
+                            var outputTask = process.StandardOutput.ReadToEndAsync();
+                            var errorTask = process.StandardError.ReadToEndAsync();
 
-                            process.WaitForExit();
-
-                            if (process.ExitCode != 0)
+                            // Wait for process with timeout (5 minutes per image should be plenty)
+                            if (!process.WaitForExit(300000))
                             {
-                                // Log more detailed error information
-                                var errorDetails = $"Exit code: {process.ExitCode} (0x{process.ExitCode:X})";
-                                if (!string.IsNullOrEmpty(error))
-                                    errorDetails += $"\nStderr: {error}";
-                                if (!string.IsNullOrEmpty(output))
-                                    errorDetails += $"\nStdout: {output}";
+                                process.Kill();
+                                failedFiles.Add($"{photo.FileName}: Process timeout (exceeded 5 minutes)");
+                                continue;
+                            }
 
-                                failedFiles.Add($"{photo.FileName}: {errorDetails}");
+                            var output = outputTask.Result;
+                            var error = errorTask.Result;
+
+                            // Check if output file was created successfully (ignore exit code)
+                            // tpai.exe often crashes during exit even after successful processing
+                            if (File.Exists(outputFilePath))
+                            {
+                                // Verify the output file has content
+                                var fileInfo = new FileInfo(outputFilePath);
+                                if (fileInfo.Length > 0)
+                                {
+                                    processedCount++;
+                                }
+                                else
+                                {
+                                    failedFiles.Add($"{photo.FileName}: Output file is empty");
+                                }
                             }
                             else
                             {
-                                processedCount++;
+                                // Output file wasn't created - this is a real failure
+                                var errorDetails = $"Output file not created. Exit code: {process.ExitCode} (0x{process.ExitCode:X})";
+                                if (!string.IsNullOrEmpty(error))
+                                    errorDetails += $"\nStderr: {error}";
+
+                                failedFiles.Add($"{photo.FileName}: {errorDetails}");
                             }
                         }
                     }
