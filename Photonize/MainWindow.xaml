@@ -210,17 +210,15 @@
                                                         <MenuItem.Icon>
                                                             <TextBlock Text="🖼️" FontSize="14"/>
                                                         </MenuItem.Icon>
-                                                        <MenuItem.Items>
-                                                            <MenuItem Header="WebP"
-                                                                      Command="{Binding ExportWebPCommand}"
-                                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                            <MenuItem Header="PNG"
-                                                                      Command="{Binding ExportPNGCommand}"
-                                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                            <MenuItem Header="JPG"
-                                                                      Command="{Binding ExportJPGCommand}"
-                                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                        </MenuItem.Items>
+                                                        <MenuItem Header="WebP"
+                                                                  Command="{Binding ExportWebPCommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                        <MenuItem Header="PNG"
+                                                                  Command="{Binding ExportPNGCommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                        <MenuItem Header="JPG"
+                                                                  Command="{Binding ExportJPGCommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                     </MenuItem>
                                                     <MenuItem Header="Image Compare"
                                                               Command="{Binding PlacementTarget.Tag.CompareImagesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
