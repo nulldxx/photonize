@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 using Photonize.Models;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace Photonize.Services;
 
@@ -99,16 +101,17 @@ public class TopazPhotoAIService
                 Directory.CreateDirectory(outputFolder);
             }
 
-            // Check for existing files
+            // Check for existing WebP files (final output format)
             var existingFiles = new List<string>();
             foreach (var photo in photos)
             {
-                var outputFileName = Path.GetFileName(photo.FileName);
-                var outputFilePath = Path.Combine(outputFolder, outputFileName);
+                var outputFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FileName);
+                var webpFileName = outputFileNameWithoutExt + ".webp";
+                var webpFilePath = Path.Combine(outputFolder, webpFileName);
 
-                if (File.Exists(outputFilePath))
+                if (File.Exists(webpFilePath))
                 {
-                    existingFiles.Add(outputFileName);
+                    existingFiles.Add(webpFileName);
                 }
             }
 
@@ -187,9 +190,14 @@ public class TopazPhotoAIService
 
                         processStartInfo.ArgumentList.Add(photo.FilePath);
 
-                        // Determine expected output file path
-                        var outputFileName = Path.GetFileName(photo.FilePath);
-                        var outputFilePath = Path.Combine(outputFolder, outputFileName);
+                        // Determine expected intermediate output file path (Topaz output in original format)
+                        var intermediateFileName = Path.GetFileName(photo.FilePath);
+                        var intermediateFilePath = Path.Combine(outputFolder, intermediateFileName);
+
+                        // Determine final WebP output file path
+                        var webpFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FilePath);
+                        var webpFileName = webpFileNameWithoutExt + ".webp";
+                        var webpFilePath = Path.Combine(outputFolder, webpFileName);
 
                         using (var process = Process.Start(processStartInfo))
                         {
@@ -214,15 +222,49 @@ public class TopazPhotoAIService
                             var output = outputTask.Result;
                             var error = errorTask.Result;
 
-                            // Check if output file was created successfully (ignore exit code)
+                            // Check if intermediate output file was created successfully (ignore exit code)
                             // tpai.exe often crashes during exit even after successful processing
-                            if (File.Exists(outputFilePath))
+                            if (File.Exists(intermediateFilePath))
                             {
-                                // Verify the output file has content
-                                var fileInfo = new FileInfo(outputFilePath);
+                                // Verify the intermediate file has content
+                                var fileInfo = new FileInfo(intermediateFilePath);
                                 if (fileInfo.Length > 0)
                                 {
-                                    processedCount++;
+                                    // Convert to WebP and delete intermediate file
+                                    try
+                                    {
+                                        using (var image = Image.Load(intermediateFilePath))
+                                        {
+                                            var webpEncoder = new WebpEncoder
+                                            {
+                                                Quality = 90,
+                                                FileFormat = WebpFileFormatType.Lossy
+                                            };
+                                            image.Save(webpFilePath, webpEncoder);
+                                        }
+
+                                        // Delete the intermediate file
+                                        File.Delete(intermediateFilePath);
+
+                                        // Verify WebP file was created
+                                        if (File.Exists(webpFilePath) && new FileInfo(webpFilePath).Length > 0)
+                                        {
+                                            processedCount++;
+                                        }
+                                        else
+                                        {
+                                            failedFiles.Add($"{photo.FileName}: Failed to create WebP file");
+                                        }
+                                    }
+                                    catch (Exception conversionEx)
+                                    {
+                                        failedFiles.Add($"{photo.FileName}: WebP conversion failed - {conversionEx.Message}");
+                                        // Try to clean up intermediate file if it still exists
+                                        if (File.Exists(intermediateFilePath))
+                                        {
+                                            try { File.Delete(intermediateFilePath); } catch { }
+                                        }
+                                    }
                                 }
                                 else
                                 {
