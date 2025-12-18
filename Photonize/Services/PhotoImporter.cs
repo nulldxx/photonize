@@ -67,9 +67,9 @@ public class PhotoImporter
                 fileOperations = CalculateAppendPositions(existingPhotos, filesToImport);
             }
 
-            // Phase 1: Rename existing files to temporary names
+            // Phase 1: Rename existing files to temporary names (skip folders)
             var tempMapping = new Dictionary<string, string>();
-            foreach (var photo in existingPhotos)
+            foreach (var photo in existingPhotos.Where(p => !p.IsFolder))
             {
                 var tempPath = photo.FilePath + ".tmp_import";
                 File.Move(photo.FilePath, tempPath);
@@ -130,8 +130,8 @@ public class PhotoImporter
     {
         var operations = new List<(string, bool, int)>();
 
-        // Add existing photos first
-        var sortedExisting = existingPhotos.OrderBy(p => p.DisplayOrder).ToList();
+        // Add existing photos first (excluding folders)
+        var sortedExisting = existingPhotos.Where(p => !p.IsFolder).OrderBy(p => p.DisplayOrder).ToList();
         for (int i = 0; i < sortedExisting.Count; i++)
         {
             operations.Add((sortedExisting[i].FilePath, false, i));
@@ -155,7 +155,7 @@ public class PhotoImporter
         List<string> newFiles)
     {
         var operations = new List<(string, bool, int)>();
-        var sortedExisting = existingPhotos.OrderBy(p => p.DisplayOrder).ToList();
+        var sortedExisting = existingPhotos.Where(p => !p.IsFolder).OrderBy(p => p.DisplayOrder).ToList();
 
         int oldCount = sortedExisting.Count;
         int newCount = newFiles.Count;
