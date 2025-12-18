@@ -180,8 +180,13 @@ public class WorkerQueueTests
     {
         using var queue = new WorkerQueue<int>(workerCount: 1);
 
-        queue.Enqueue(1, async (item, ct) => await Task.Delay(5000, ct));
+        // Enqueue a long-running task
+        queue.Enqueue(1, async (item, ct) => 
+        {
+            await Task.Delay(2000, ct);
+        });
 
+        // Wait with short timeout - should return false
         var completed = queue.WaitForCompletion(TimeSpan.FromMilliseconds(100));
 
         Assert.False(completed);
@@ -226,27 +231,31 @@ public class WorkerQueueTests
     {
         using var queue = new WorkerQueue<int>(workerCount: 1);
         using var cts = new CancellationTokenSource();
-        var cancelled = false;
+        var exceptionCaught = false;
+        var lockObj = new object();
+
+        queue.WorkItemFailed += (sender, args) =>
+        {
+            lock (lockObj)
+            {
+                if (args.Exception is OperationCanceledException)
+                {
+                    exceptionCaught = true;
+                }
+            }
+        };
 
         queue.Enqueue(1, async (item, ct) =>
         {
-            try
-            {
-                await Task.Delay(5000, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                cancelled = true;
-                throw;
-            }
+            await Task.Delay(5000, ct); // This will throw OperationCanceledException when cancelled
         }, cts.Token);
 
-        Thread.Sleep(100); // Let work start
+        Thread.Sleep(50); // Let work start
         cts.Cancel();
 
         queue.WaitForCompletion(TimeSpan.FromSeconds(2));
 
-        Assert.True(cancelled);
+        Assert.True(exceptionCaught);
     }
 
     [Fact]

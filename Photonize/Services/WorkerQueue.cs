@@ -14,11 +14,27 @@ public class WorkerQueue<TWorkItem> : IDisposable
     private readonly List<Thread> _workers;
     private readonly CancellationTokenSource _shutdownTokenSource;
     private bool _disposed;
+    private int _activeWorkerCount;
+    private readonly object _lockObj = new object();
 
     /// <summary>
     /// Gets the current number of pending work items in the queue
     /// </summary>
     public int PendingCount => _workQueue.Count;
+
+    /// <summary>
+    /// Gets whether all work is complete (no pending items and no active workers)
+    /// </summary>
+    public bool IsIdle
+    {
+        get
+        {
+            lock (_lockObj)
+            {
+                return _workQueue.Count == 0 && _activeWorkerCount == 0;
+            }
+        }
+    }
 
     /// <summary>
     /// Event raised when a work item completes successfully
@@ -104,6 +120,11 @@ public class WorkerQueue<TWorkItem> : IDisposable
                 if (_shutdownTokenSource.Token.IsCancellationRequested)
                     break;
 
+                lock (_lockObj)
+                {
+                    _activeWorkerCount++;
+                }
+
                 try
                 {
                     // Execute the async work and wait for completion
@@ -114,6 +135,13 @@ public class WorkerQueue<TWorkItem> : IDisposable
                 catch (Exception ex)
                 {
                     WorkItemFailed?.Invoke(this, new WorkItemFailedEventArgs(workItem.Item, ex));
+                }
+                finally
+                {
+                    lock (_lockObj)
+                    {
+                        _activeWorkerCount--;
+                    }
                 }
             }
         }
@@ -154,7 +182,7 @@ public class WorkerQueue<TWorkItem> : IDisposable
             throw new ObjectDisposedException(nameof(WorkerQueue<TWorkItem>));
 
         var startTime = DateTime.UtcNow;
-        while (_workQueue.Count > 0)
+        while (!IsIdle)
         {
             if (timeout.HasValue && DateTime.UtcNow - startTime > timeout.Value)
                 return false;
