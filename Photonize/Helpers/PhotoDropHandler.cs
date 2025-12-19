@@ -176,7 +176,31 @@ public class PhotoDropHandler : IDropTarget
             if (itemIndices.Count == 0)
                 return;
 
+            // Calculate the final insert index after removals
+            var finalInsertIndex = insertIndex;
+            foreach (var itemInfo in itemIndices)
+            {
+                if (itemInfo.Index < insertIndex)
+                    finalInsertIndex--;
+            }
+
+            // Check if items are already at the target position
+            // Items are in correct position if they're consecutive starting at finalInsertIndex
+            bool alreadyInPosition = true;
+            for (int i = 0; i < itemIndices.Count; i++)
+            {
+                if (itemIndices[i].Index != finalInsertIndex + i)
+                {
+                    alreadyInPosition = false;
+                    break;
+                }
+            }
+
+            if (alreadyInPosition)
+                return; // No change needed
+
             // Remove all items from their current positions (in reverse order to maintain indices)
+            insertIndex = dropInfo.InsertIndex; // Reset insertIndex
             foreach (var itemInfo in itemIndices.OrderByDescending(x => x.Index))
             {
                 targetCollection.RemoveAt(itemInfo.Index);
@@ -204,18 +228,23 @@ public class PhotoDropHandler : IDropTarget
             if (oldIndex < 0)
                 return;
 
+            // Calculate the final insert index after removal
+            var finalInsertIndex = insertIndex;
+            if (oldIndex < insertIndex)
+                finalInsertIndex--;
+
+            // Check if item is already at the target position
+            if (oldIndex == finalInsertIndex)
+                return; // No change needed
+
             // Remove from old position
             targetCollection.RemoveAt(oldIndex);
 
-            // Adjust insert index if needed
-            if (oldIndex < insertIndex)
-                insertIndex--;
-
             // Insert at new position
-            if (insertIndex >= targetCollection.Count)
+            if (finalInsertIndex >= targetCollection.Count)
                 targetCollection.Add(itemToMove);
             else
-                targetCollection.Insert(insertIndex, itemToMove);
+                targetCollection.Insert(finalInsertIndex, itemToMove);
         }
         else
         {
