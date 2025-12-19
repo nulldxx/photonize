@@ -147,7 +147,8 @@ public class TopazPhotoAIService
             try
             {
                 var staggerDelay = TimeSpan.FromSeconds(3);
-                using var workerQueue = new WorkerQueue<(PhotoItem photo, int index)>(workerCount: 4, staggerDelay: staggerDelay);
+                var workerCount = Math.Max(1, Environment.ProcessorCount);
+                using var workerQueue = new WorkerQueue<(PhotoItem photo, int index)>(workerCount: workerCount, staggerDelay: staggerDelay);
 
                 // Subscribe to completion events
                 workerQueue.WorkItemCompleted += (sender, args) =>
