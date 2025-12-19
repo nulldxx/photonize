@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,6 +8,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>icons\brown-photo-frame\favicon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ProjectFiles\**" />
+    <EmbeddedResource Remove="ProjectFiles\**" />
+    <None Remove="ProjectFiles\**" />
+    <Page Remove="ProjectFiles\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
