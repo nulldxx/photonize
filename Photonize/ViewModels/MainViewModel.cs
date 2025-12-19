@@ -13,7 +13,7 @@ using Photonize.Views;
 
 namespace Photonize.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged
+public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ThumbnailGenerator _thumbnailGenerator;
     private readonly FileRenamer _fileRenamer;
@@ -22,6 +22,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly WebPExporter _webpExporter;
     private readonly ImageExporter _imageExporter;
     private readonly TopazPhotoAIService _topazPhotoAIService;
+    private readonly WorkerQueue<PhotoItem> _thumbnailQueue;
 
     private string _directoryPath = string.Empty;
     private string _renamePrefix = string.Empty;
@@ -45,6 +46,13 @@ public class MainViewModel : INotifyPropertyChanged
         _webpExporter = new WebPExporter();
         _imageExporter = new ImageExporter();
         _topazPhotoAIService = new TopazPhotoAIService();
+
+        // Initialize worker queue for parallel thumbnail loading
+        // Use CPU core count for worker count and 0.2s stagger delay
+        var workerCount = Math.Max(1, Environment.ProcessorCount);
+        _thumbnailQueue = new WorkerQueue<PhotoItem>(
+            workerCount: workerCount,
+            staggerDelay: TimeSpan.FromSeconds(0.2));
 
         Photos = new ObservableCollection<PhotoItem>();
 
@@ -378,6 +386,9 @@ public class MainViewModel : INotifyPropertyChanged
             // Load image files
             var imageFiles = await _thumbnailGenerator.GetImageFilesAsync(DirectoryPath);
 
+            // Create all PhotoItem objects first and add to collection
+            // Thumbnails will be loaded in parallel using the worker queue
+            var photoItems = new List<PhotoItem>();
             for (int i = 0; i < imageFiles.Count; i++)
             {
                 var filePath = imageFiles[i];
@@ -386,15 +397,38 @@ public class MainViewModel : INotifyPropertyChanged
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
                     DisplayOrder = displayOrder++,
-                    IsFolder = false
+                    IsFolder = false,
+                    Thumbnail = null // Thumbnail will be loaded by worker queue
                 };
 
-                // Load thumbnail asynchronously
-                var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(filePath, (int)ThumbnailSize);
-                photoItem.Thumbnail = thumbnail;
-
+                photoItems.Add(photoItem);
                 Photos.Add(photoItem);
             }
+
+            // Enqueue thumbnail loading for all photos in parallel
+            foreach (var photoItem in photoItems)
+            {
+                _thumbnailQueue.Enqueue(photoItem, async (item, ct) =>
+                {
+                    try
+                    {
+                        var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(item.FilePath, (int)ThumbnailSize);
+
+                        // Update thumbnail on UI thread
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            item.Thumbnail = thumbnail;
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error loading thumbnail for {item.FilePath}: {ex.Message}");
+                    }
+                }, CancellationToken.None);
+            }
+
+            // Wait for all thumbnails to complete loading
+            await _thumbnailQueue.WaitForCompletionAsync();
 
             // Detect and set common prefix (only from photos, not folders)
             DetectCommonPrefix();
@@ -1421,6 +1455,11 @@ public class MainViewModel : INotifyPropertyChanged
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void Dispose()
+    {
+        _thumbnailQueue?.Dispose();
     }
 }
 
