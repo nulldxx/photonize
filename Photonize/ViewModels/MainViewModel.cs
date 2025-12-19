@@ -893,8 +893,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            else
+            else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
+                // Only show error if it wasn't a user cancellation
                 MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -991,8 +992,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            else
+            else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
+                // Only show error if it wasn't a user cancellation
                 MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -1109,8 +1111,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 MessageBox.Show(message, "Upscale Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            else if (!cts.Token.IsCancellationRequested)
+            else if (!cts.Token.IsCancellationRequested && !message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
+                // Only show error if it wasn't a user cancellation
                 MessageBox.Show(message, "Upscale Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
