@@ -431,9 +431,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                         ct.ThrowIfCancellationRequested();
 
                         // Update thumbnail on UI thread, but only if the application is still running
+                        // Use BeginInvoke (fire-and-forget) instead of InvokeAsync to avoid blocking during shutdown
                         if (Application.Current != null && !ct.IsCancellationRequested)
                         {
-                            await Application.Current.Dispatcher.InvokeAsync(() =>
+                            Application.Current.Dispatcher.BeginInvoke(() =>
                             {
                                 if (!ct.IsCancellationRequested)
                                 {
