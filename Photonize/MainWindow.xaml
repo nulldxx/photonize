@@ -281,6 +281,14 @@
                                                                           Command="{Binding ExportPhotoAICommand}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                             </MenuItem>
+                                                            <Separator/>
+                                                            <MenuItem Header="Delete"
+                                                                      Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="🗑️" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
                                                         </ContextMenu>
                                                     </Setter.Value>
                                                 </Setter>

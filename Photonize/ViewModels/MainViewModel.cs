@@ -712,37 +712,57 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void DeletePhoto(PhotoItem? photo)
     {
-        // Determine which photos to delete
-        List<PhotoItem> photosToDelete = new List<PhotoItem>();
+        // Determine which items to delete (both files and folders)
+        List<PhotoItem> itemsToDelete = new List<PhotoItem>();
 
-        // If there are selected photos in the list, delete all of them (excluding folders)
+        // If there are selected items in the list, delete all of them
         if (_selectedPhotos.Count > 0)
         {
-            photosToDelete.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
+            itemsToDelete.AddRange(_selectedPhotos);
         }
-        // Otherwise delete the single photo from context menu (fallback for right-click without selection)
-        else if (photo != null && !photo.IsFolder)
+        // Otherwise delete the single item from context menu (fallback for right-click without selection)
+        else if (photo != null)
         {
-            photosToDelete.Add(photo);
+            itemsToDelete.Add(photo);
         }
         // Final fallback to SelectedPhoto property (legacy support)
-        else if (SelectedPhoto != null && !SelectedPhoto.IsFolder)
+        else if (SelectedPhoto != null)
         {
-            photosToDelete.Add(SelectedPhoto);
+            itemsToDelete.Add(SelectedPhoto);
         }
 
-        if (photosToDelete.Count == 0)
+        if (itemsToDelete.Count == 0)
             return;
+
+        // Separate files and folders for appropriate messaging
+        var foldersToDelete = itemsToDelete.Where(p => p.IsFolder).ToList();
+        var filesToDelete = itemsToDelete.Where(p => !p.IsFolder).ToList();
 
         // Show confirmation dialog
         string message;
-        if (photosToDelete.Count == 1)
+        if (itemsToDelete.Count == 1)
         {
-            message = $"Are you sure you want to permanently delete this file?\n\n{photosToDelete[0].FileName}\n\nThis action cannot be undone.";
+            if (itemsToDelete[0].IsFolder)
+            {
+                message = $"Are you sure you want to permanently delete this folder and all its contents?\n\n{itemsToDelete[0].FileName}\n\nThis action cannot be undone.";
+            }
+            else
+            {
+                message = $"Are you sure you want to permanently delete this file?\n\n{itemsToDelete[0].FileName}\n\nThis action cannot be undone.";
+            }
         }
         else
         {
-            message = $"Are you sure you want to permanently delete {photosToDelete.Count} files?\n\nThis action cannot be undone.";
+            var parts = new List<string>();
+            if (foldersToDelete.Count > 0)
+            {
+                parts.Add($"{foldersToDelete.Count} folder(s) and their contents");
+            }
+            if (filesToDelete.Count > 0)
+            {
+                parts.Add($"{filesToDelete.Count} file(s)");
+            }
+            message = $"Are you sure you want to permanently delete {string.Join(" and ", parts)}?\n\nThis action cannot be undone.";
         }
 
         var result = MessageBox.Show(
@@ -757,46 +777,57 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             int deletedCount = 0;
-            List<string> failedFiles = new List<string>();
+            List<string> failedItems = new List<string>();
 
-            foreach (var photoToDelete in photosToDelete)
+            foreach (var itemToDelete in itemsToDelete)
             {
                 try
                 {
-                    // Delete the file from disk
-                    if (File.Exists(photoToDelete.FilePath))
+                    if (itemToDelete.IsFolder)
                     {
-                        File.Delete(photoToDelete.FilePath);
+                        // Delete the folder recursively
+                        if (Directory.Exists(itemToDelete.FilePath))
+                        {
+                            Directory.Delete(itemToDelete.FilePath, recursive: true);
+                        }
+                    }
+                    else
+                    {
+                        // Delete the file
+                        if (File.Exists(itemToDelete.FilePath))
+                        {
+                            File.Delete(itemToDelete.FilePath);
+                        }
                     }
 
                     // Remove from collection
-                    Photos.Remove(photoToDelete);
+                    Photos.Remove(itemToDelete);
                     deletedCount++;
                 }
                 catch (Exception ex)
                 {
-                    failedFiles.Add($"{photoToDelete.FileName}: {ex.Message}");
+                    failedItems.Add($"{itemToDelete.FileName}: {ex.Message}");
                 }
             }
 
-            // Update display order for remaining photos
+            // Update display order for remaining items
             UpdateDisplayOrder();
 
             // Update status message
             if (deletedCount == 1)
             {
-                StatusMessage = $"Deleted {photosToDelete[0].FileName}";
+                StatusMessage = $"Deleted {itemsToDelete[0].FileName}";
             }
             else
             {
-                StatusMessage = $"Deleted {deletedCount} file(s)";
+                StatusMessage = $"Deleted {deletedCount} item(s)";
             }
 
-            // Show errors if any files failed to delete
-            if (failedFiles.Count > 0)
+            // Show errors if any items failed to delete
+            if (failedItems.Count > 0)
             {
                 MessageBox.Show(
-                    $"Failed to delete {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles)}",
+                    $"Failed to delete {failedItems.Count} item(s):\n\n{string.Join("\n", failedItems)}",
                     "Delete Errors",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -816,8 +847,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to delete photos: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = $"Failed to delete photos";
+            MessageBox.Show($"Failed to delete items: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = $"Failed to delete items";
         }
     }
 
