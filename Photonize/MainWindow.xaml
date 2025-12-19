@@ -212,6 +212,12 @@
                                                             <TextBlock Text="📁" FontSize="14"/>
                                                         </MenuItem.Icon>
                                                     </MenuItem>
+                                                    <MenuItem Header="Image Compare"
+                                                              Command="{Binding PlacementTarget.Tag.CompareImagesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                        <MenuItem.Icon>
+                                                            <TextBlock Text="⚖️" FontSize="14"/>
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
                                                     <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                                         <MenuItem.Header>
                                                             <StackPanel Orientation="Horizontal">
@@ -236,12 +242,6 @@
                                                         <MenuItem Header="JPG"
                                                                   Command="{Binding ExportJPGCommand}"
                                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                    </MenuItem>
-                                                    <MenuItem Header="Image Compare"
-                                                              Command="{Binding PlacementTarget.Tag.CompareImagesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
-                                                        <MenuItem.Icon>
-                                                            <TextBlock Text="⚖️" FontSize="14"/>
-                                                        </MenuItem.Icon>
                                                     </MenuItem>
                                                     <Separator/>
                                                     <MenuItem Header="Delete"
