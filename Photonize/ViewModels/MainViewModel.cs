@@ -533,7 +533,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public void UpdateDisplayOrder()
+    public void UpdateDisplayOrder(bool updateUnsavedChanges = true)
     {
         for (int i = 0; i < Photos.Count; i++)
         {
@@ -542,7 +542,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         // Notify that the collection state has changed
         ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
-        UpdateUnsavedChanges();
+
+        if (updateUnsavedChanges)
+        {
+            UpdateUnsavedChanges();
+        }
     }
 
     private void UpdateUnsavedChanges()
@@ -811,7 +815,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             // Update display order for remaining items
-            UpdateDisplayOrder();
+            // Don't mark as unsaved changes since deletion doesn't affect rename operation
+            UpdateDisplayOrder(updateUnsavedChanges: false);
 
             // Update status message
             if (deletedCount == 1)
