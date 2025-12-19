@@ -302,6 +302,7 @@ public class WorkerQueueTests
         var lockObj = new object();
 
         // Queue enough items to ensure all workers start
+        // Work items take 1 second to prevent workers from finishing and stealing items from delayed workers
         for (int i = 0; i < 3; i++)
         {
             queue.Enqueue(i, async (item, ct) =>
@@ -310,7 +311,7 @@ public class WorkerQueueTests
                 {
                     startTimes.Add(DateTime.UtcNow);
                 }
-                await Task.Delay(50, ct);
+                await Task.Delay(1000, ct);
             });
         }
 
@@ -334,28 +335,28 @@ public class WorkerQueueTests
     [Fact]
     public void StaggeredStart_SecondWorkItem_NoDelay()
     {
-        var staggerDelay = TimeSpan.FromMilliseconds(500);
+        var staggerDelay = TimeSpan.FromMilliseconds(300);
         using var queue = new WorkerQueue<int>(workerCount: 2, staggerDelay: staggerDelay);
 
         var processTimes = new List<(int workerId, int itemNumber, DateTime time)>();
         var lockObj = new object();
 
         // Queue 4 items (2 per worker)
+        // Each item takes 600ms to ensure workers don't finish and steal from delayed workers
         for (int i = 0; i < 4; i++)
         {
             var item = i;
             queue.Enqueue(item, async (workItem, ct) =>
             {
-                // Determine which worker this is based on timing
                 lock (lockObj)
                 {
                     processTimes.Add((Thread.CurrentThread.ManagedThreadId, workItem, DateTime.UtcNow));
                 }
-                await Task.Delay(10, ct);
+                await Task.Delay(600, ct);
             });
         }
 
-        queue.WaitForCompletion(TimeSpan.FromSeconds(5));
+        queue.WaitForCompletion(TimeSpan.FromSeconds(10));
 
         Assert.Equal(4, processTimes.Count);
 
@@ -363,16 +364,18 @@ public class WorkerQueueTests
         var workerGroups = processTimes.GroupBy(x => x.workerId).ToList();
         Assert.Equal(2, workerGroups.Count);
 
-        // For each worker that processed 2 items, check that the second item
-        // started immediately after the first (no stagger delay)
-        foreach (var workerGroup in workerGroups.Where(g => g.Count() == 2))
+        // Each worker should process exactly 2 items
+        Assert.All(workerGroups, g => Assert.Equal(2, g.Count()));
+
+        // For each worker, check that the second item started immediately after the first (no stagger delay)
+        foreach (var workerGroup in workerGroups)
         {
             var items = workerGroup.OrderBy(x => x.time).ToList();
             var timeBetween = (items[1].time - items[0].time).TotalMilliseconds;
 
-            // Should be very quick (just the task delay + minimal overhead)
-            // Much less than the 500ms stagger delay
-            Assert.InRange(timeBetween, 0, 100);
+            // Should be ~600ms (the task delay time), not 600ms + 300ms stagger
+            // Allow some overhead but should be well under 800ms
+            Assert.InRange(timeBetween, 550, 750);
         }
     }
 
