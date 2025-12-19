@@ -53,6 +53,7 @@
                          VerticalContentAlignment="Center"
                          Padding="5"
                          FontSize="14"
+                         IsEnabled="{Binding IsNotLoading}"
                          PreviewKeyDown="DirectoryPathTextBox_PreviewKeyDown"/>
 
                 <Button Grid.Column="1"
@@ -60,7 +61,8 @@
                         Command="{Binding BrowseDirectoryCommand}"
                         Padding="15,5"
                         Margin="5,0,0,0"
-                        FontSize="14"/>
+                        FontSize="14"
+                        IsEnabled="{Binding IsNotLoading}"/>
 
                 <Button Grid.Column="2"
                         Content="↻"
@@ -69,7 +71,8 @@
                         Margin="5,0,0,0"
                         FontSize="20"
                         ToolTip="Refresh (F5)"
-                        MinWidth="40"/>
+                        MinWidth="40"
+                        IsEnabled="{Binding IsNotLoading}"/>
             </Grid>
         </GroupBox>
 
@@ -80,6 +83,7 @@
                      Padding="5"
                      Margin="5"
                      FontSize="14"
+                     IsEnabled="{Binding IsNotLoading}"
                      ToolTip="Enter a prefix for renamed files (e.g., 'vacation' will create vacation-00001.jpg, vacation-00002.jpg, etc.)"/>
         </GroupBox>
 
@@ -98,7 +102,8 @@
                         Value="{Binding ThumbnailSize}"
                         TickFrequency="50"
                         IsSnapToTickEnabled="True"
-                        VerticalAlignment="Center"/>
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsNotLoading}"/>
 
                 <TextBlock Grid.Column="1"
                            Text="{Binding ThumbnailSize, StringFormat={}{0:F0} px}"
@@ -115,7 +120,8 @@
                         Margin="10,0,0,0"
                         MinWidth="45"
                         ToolTip="Toggle Preview"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsNotLoading}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                             <Style.Triggers>
@@ -146,6 +152,7 @@
                          dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
                          dd:DragDrop.UseDefaultDragAdorner="True"
                          dd:DragDrop.DefaultDragAdornerOpacity="0.5"
+                         IsEnabled="{Binding IsNotLoading}"
                          x:Name="PhotoListBox">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -309,7 +316,8 @@
                     Margin="10,5,10,5"
                     FontSize="16"
                     FontWeight="Bold"
-                    HorizontalAlignment="Center"/>
+                    HorizontalAlignment="Center"
+                    IsEnabled="{Binding IsNotLoading}"/>
 
             <!-- Status Bar -->
             <StatusBar Grid.Row="5">

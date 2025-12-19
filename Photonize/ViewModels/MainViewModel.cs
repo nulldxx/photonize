@@ -150,8 +150,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             _isLoading = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsNotLoading));
         }
     }
+
+    public bool IsNotLoading => !IsLoading;
 
     public PhotoItem? SelectedPhoto
     {
