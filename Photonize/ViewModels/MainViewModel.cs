@@ -847,27 +847,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             // Check for existing files and ask about overwriting
-            Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+            Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
             {
                 string message;
                 if (existingFiles.Count == 1)
                 {
-                    message = $"The file '{existingFiles[0]}' already exists in the WebP folder.\n\nDo you want to overwrite it?";
+                    message = $"The file '{existingFiles[0]}' already exists in the WebP folder.\n\n" +
+                              "Choose an option:\n" +
+                              "• Yes: Overwrite all existing files\n" +
+                              "• No: Skip existing files\n" +
+                              "• Cancel: Cancel the entire export";
                 }
                 else
                 {
                     message = $"{existingFiles.Count} files already exist in the WebP folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
                               (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                              "\n\nDo you want to overwrite them?";
+                              "\n\nChoose an option:\n" +
+                              "• Yes: Overwrite all existing files\n" +
+                              "• No: Skip existing files\n" +
+                              "• Cancel: Cancel the entire export";
                 }
 
                 var result = MessageBox.Show(
                     message,
-                    "Confirm Overwrite",
-                    MessageBoxButton.YesNo,
+                    "Files Already Exist",
+                    MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Question);
 
-                return result == MessageBoxResult.Yes;
+                return result switch
+                {
+                    MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                    MessageBoxResult.No => OverwriteOption.SkipExisting,
+                    _ => OverwriteOption.Cancel
+                };
             };
 
             var (success, message) = await _webpExporter.ExportToWebPAsync(
@@ -932,27 +944,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             // Check for existing files and ask about overwriting
-            Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+            Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
             {
                 string message;
                 if (existingFiles.Count == 1)
                 {
-                    message = $"The file '{existingFiles[0]}' already exists in the {format} folder.\n\nDo you want to overwrite it?";
+                    message = $"The file '{existingFiles[0]}' already exists in the {format} folder.\n\n" +
+                              "Choose an option:\n" +
+                              "• Yes: Overwrite all existing files\n" +
+                              "• No: Skip existing files\n" +
+                              "• Cancel: Cancel the entire export";
                 }
                 else
                 {
                     message = $"{existingFiles.Count} files already exist in the {format} folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
                               (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                              "\n\nDo you want to overwrite them?";
+                              "\n\nChoose an option:\n" +
+                              "• Yes: Overwrite all existing files\n" +
+                              "• No: Skip existing files\n" +
+                              "• Cancel: Cancel the entire export";
                 }
 
                 var result = MessageBox.Show(
                     message,
-                    "Confirm Overwrite",
-                    MessageBoxButton.YesNo,
+                    "Files Already Exist",
+                    MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Question);
 
-                return result == MessageBoxResult.Yes;
+                return result switch
+                {
+                    MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                    MessageBoxResult.No => OverwriteOption.SkipExisting,
+                    _ => OverwriteOption.Cancel
+                };
             };
 
             var (success, message) = await _imageExporter.ExportToFormatAsync(
@@ -1003,27 +1027,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         // Check for existing files and ask about overwriting BEFORE showing progress dialog
-        Func<List<string>, bool> overwriteCallback = (existingFiles) =>
+        Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
         {
             string message;
             if (existingFiles.Count == 1)
             {
-                message = $"The file '{existingFiles[0]}' already exists in the TopazUpscaled folder.\n\nDo you want to overwrite it?";
+                message = $"The file '{existingFiles[0]}' already exists in the TopazUpscaled folder.\n\n" +
+                          "Choose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire upscale";
             }
             else
             {
                 message = $"{existingFiles.Count} files already exist in the TopazUpscaled folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
                           (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                          "\n\nDo you want to overwrite them?";
+                          "\n\nChoose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire upscale";
             }
 
             var result = MessageBox.Show(
                 message,
-                "Confirm Overwrite",
-                MessageBoxButton.YesNo,
+                "Files Already Exist",
+                MessageBoxButton.YesNoCancel,
                 MessageBoxImage.Question);
 
-            return result == MessageBoxResult.Yes;
+            return result switch
+            {
+                MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                MessageBoxResult.No => OverwriteOption.SkipExisting,
+                _ => OverwriteOption.Cancel
+            };
         };
 
         // Create progress dialog

@@ -35,14 +35,14 @@ public class TopazPhotoAIService
     /// </summary>
     /// <param name="photos">List of photos to upscale (can include folders)</param>
     /// <param name="directoryPath">Base directory containing the photos</param>
-    /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns true to overwrite.</param>
+    /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns OverwriteOption.</param>
     /// <param name="progress">Progress reporter for tracking operation progress</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>Tuple with success status and message</returns>
     public async Task<(bool Success, string Message)> UpscalePhotosAsync(
         List<PhotoItem> photos,
         string directoryPath,
-        Func<List<string>, bool>? overwriteCallback = null,
+        Func<List<string>, OverwriteOption>? overwriteCallback = null,
         IProgress<(int current, int total, string status)>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -126,12 +126,13 @@ public class TopazPhotoAIService
             }
 
             // Ask about overwriting if there are existing files
+            OverwriteOption overwriteOption = OverwriteOption.OverwriteAll;
             if (existingFiles.Count > 0)
             {
                 if (overwriteCallback != null)
                 {
-                    bool shouldOverwrite = overwriteCallback(existingFiles);
-                    if (!shouldOverwrite)
+                    overwriteOption = overwriteCallback(existingFiles);
+                    if (overwriteOption == OverwriteOption.Cancel)
                     {
                         return (false, "Upscale cancelled by user.");
                     }
@@ -140,6 +141,7 @@ public class TopazPhotoAIService
 
             // Process each photo using worker queue with 2 concurrent workers
             int processedCount = 0;
+            int skippedCount = 0;
             int totalPhotos = photos.Count;
             List<string> failedFiles = new List<string>();
             var lockObj = new object();
@@ -185,16 +187,30 @@ public class TopazPhotoAIService
                     var photo = photos[i];
                     var index = i;
 
+                    // Check if we should skip this photo
+                    var outputFileNameWithoutExt = Path.GetFileNameWithoutExtension(photo.FileName);
+                    var webpFileName = outputFileNameWithoutExt + ".webp";
+                    var webpFilePath = Path.Combine(outputFolder, webpFileName);
+
+                    if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(webpFilePath))
+                    {
+                        lock (lockObj)
+                        {
+                            skippedCount++;
+                        }
+                        continue;
+                    }
+
                     workerQueue.Enqueue((photo, index), async (workItem, ct) =>
                     {
                         await ProcessSinglePhotoAsync(
-                            workItem.photo, 
-                            workItem.index, 
+                            workItem.photo,
+                            workItem.index,
                             totalPhotos,
-                            tpaiExePath, 
-                            tempFolder, 
-                            outputFolder, 
-                            progress, 
+                            tpaiExePath,
+                            tempFolder,
+                            outputFolder,
+                            progress,
                             ct);
                     }, cancellationToken);
                 }
@@ -225,16 +241,36 @@ public class TopazPhotoAIService
             string message;
             if (cancellationToken.IsCancellationRequested)
             {
-                message = $"Operation cancelled. Processed {processedCount} of {totalPhotos} photo(s).";
+                var cancelParts = new List<string>();
+                if (processedCount > 0) cancelParts.Add($"{processedCount} processed");
+                if (skippedCount > 0) cancelParts.Add($"{skippedCount} skipped");
+
+                message = $"Operation cancelled: {string.Join(", ", cancelParts)} of {totalPhotos} photo(s).";
                 return (processedCount > 0, message);
             }
             else if (processedCount == photos.Count)
             {
                 message = $"Successfully upscaled {processedCount} photo(s) with Topaz Photo AI in '{outputFolder}'";
             }
-            else if (processedCount > 0)
+            else if (processedCount > 0 || skippedCount > 0)
             {
-                message = $"Upscaled {processedCount} of {photos.Count} photo(s). {failedFiles.Count} failed.";
+                var parts = new List<string>();
+
+                if (processedCount > 0)
+                {
+                    parts.Add($"{processedCount} upscaled");
+                }
+                if (skippedCount > 0)
+                {
+                    parts.Add($"{skippedCount} skipped");
+                }
+                if (failedFiles.Count > 0)
+                {
+                    parts.Add($"{failedFiles.Count} failed");
+                }
+
+                message = $"Upscale complete: {string.Join(", ", parts)} of {photos.Count} photo(s).";
+
                 if (failedFiles.Count > 0)
                 {
                     message += $"\n\nFailed files:\n{string.Join("\n", failedFiles)}";

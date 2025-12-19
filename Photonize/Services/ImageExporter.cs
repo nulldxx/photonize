@@ -14,6 +14,13 @@ public enum ImageFormat
     JPG
 }
 
+public enum OverwriteOption
+{
+    Cancel,
+    OverwriteAll,
+    SkipExisting
+}
+
 public class ImageExporter
 {
     /// <summary>
@@ -22,13 +29,13 @@ public class ImageExporter
     /// <param name="photos">List of photos to export</param>
     /// <param name="directoryPath">Base directory containing the photos</param>
     /// <param name="format">Target image format (WebP, PNG, or JPG)</param>
-    /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns true to overwrite.</param>
+    /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns OverwriteOption.</param>
     /// <returns>Tuple with success status and message</returns>
     public async Task<(bool Success, string Message)> ExportToFormatAsync(
         List<PhotoItem> photos,
         string directoryPath,
         ImageFormat format,
-        Func<List<string>, bool>? overwriteCallback = null)
+        Func<List<string>, OverwriteOption>? overwriteCallback = null)
     {
         if (photos == null || photos.Count == 0)
         {
@@ -74,12 +81,13 @@ public class ImageExporter
             }
 
             // Ask about overwriting if there are existing files
+            OverwriteOption overwriteOption = OverwriteOption.OverwriteAll;
             if (existingFiles.Count > 0)
             {
                 if (overwriteCallback != null)
                 {
-                    bool shouldOverwrite = overwriteCallback(existingFiles);
-                    if (!shouldOverwrite)
+                    overwriteOption = overwriteCallback(existingFiles);
+                    if (overwriteOption == OverwriteOption.Cancel)
                     {
                         return (false, "Export cancelled by user.");
                     }
@@ -88,6 +96,7 @@ public class ImageExporter
 
             // Export photos
             int exportedCount = 0;
+            int skippedCount = 0;
             List<string> failedFiles = new List<string>();
 
             await Task.Run(() =>
@@ -99,6 +108,13 @@ public class ImageExporter
                         var originalFileName = Path.GetFileNameWithoutExtension(photo.FileName);
                         var outputFileName = originalFileName + extension;
                         var outputFilePath = Path.Combine(outputFolder, outputFileName);
+
+                        // Skip if file exists and user chose to skip existing files
+                        if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(outputFilePath))
+                        {
+                            skippedCount++;
+                            continue;
+                        }
 
                         // Load the image using ImageSharp
                         using (var image = Image.Load(photo.FilePath))
@@ -148,9 +164,25 @@ public class ImageExporter
             {
                 message = $"Successfully exported {exportedCount} photo(s) to {format} format in '{outputFolder}'";
             }
-            else if (exportedCount > 0)
+            else if (exportedCount > 0 || skippedCount > 0)
             {
-                message = $"Exported {exportedCount} of {photos.Count} photo(s). {failedFiles.Count} failed.";
+                var parts = new List<string>();
+
+                if (exportedCount > 0)
+                {
+                    parts.Add($"{exportedCount} exported");
+                }
+                if (skippedCount > 0)
+                {
+                    parts.Add($"{skippedCount} skipped");
+                }
+                if (failedFiles.Count > 0)
+                {
+                    parts.Add($"{failedFiles.Count} failed");
+                }
+
+                message = $"Export complete: {string.Join(", ", parts)} of {photos.Count} photo(s).";
+
                 if (failedFiles.Count > 0)
                 {
                     message += $"\n\nFailed files:\n{string.Join("\n", failedFiles)}";
