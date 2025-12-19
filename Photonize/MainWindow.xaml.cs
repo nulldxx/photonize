@@ -25,6 +25,7 @@ public partial class MainWindow : Window
         Closing += MainWindow_Closing;
         PhotoListBox.SelectionChanged += PhotoListBox_SelectionChanged;
         PhotoListBox.PreviewMouseWheel += PhotoListBox_PreviewMouseWheel;
+        PhotoListBox.PreviewKeyDown += PhotoListBox_PreviewKeyDown;
 
         // If files were provided for export, trigger export after window loads
         if (filesToExport != null && filesToExport.Count > 0)
@@ -82,6 +83,28 @@ public partial class MainWindow : Window
                 scrollViewer.ScrollToVerticalOffset(offset);
 
                 // Mark the event as handled to prevent double-scrolling
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void PhotoListBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Intercept Ctrl-A to select only files (not folders)
+        if (e.Key == Key.A && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                // Clear existing selection
+                PhotoListBox.SelectedItems.Clear();
+
+                // Select only non-folder items
+                foreach (var photo in viewModel.Photos.Where(p => !p.IsFolder))
+                {
+                    PhotoListBox.SelectedItems.Add(photo);
+                }
+
+                // Mark the event as handled to prevent default Ctrl-A behavior
                 e.Handled = true;
             }
         }
