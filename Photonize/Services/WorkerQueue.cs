@@ -10,6 +10,7 @@ namespace Photonize.Services;
 public class WorkerQueue<TWorkItem> : IDisposable
 {
     private readonly int _workerCount;
+    private readonly TimeSpan _staggerDelay;
     private readonly BlockingCollection<WorkItem> _workQueue;
     private readonly List<Thread> _workers;
     private readonly CancellationTokenSource _shutdownTokenSource;
@@ -84,12 +85,14 @@ public class WorkerQueue<TWorkItem> : IDisposable
     /// Creates a new worker queue with the specified number of worker threads
     /// </summary>
     /// <param name="workerCount">Number of worker threads (default: 4)</param>
-    public WorkerQueue(int workerCount = 4)
+    /// <param name="staggerDelay">Optional delay between worker starts. Each worker waits (workerIndex * staggerDelay) before processing first item.</param>
+    public WorkerQueue(int workerCount = 4, TimeSpan staggerDelay = default)
     {
         if (workerCount <= 0)
             throw new ArgumentException("Worker count must be greater than zero", nameof(workerCount));
 
         _workerCount = workerCount;
+        _staggerDelay = staggerDelay;
         _workQueue = new BlockingCollection<WorkItem>();
         _workers = new List<Thread>();
         _shutdownTokenSource = new CancellationTokenSource();
@@ -101,7 +104,8 @@ public class WorkerQueue<TWorkItem> : IDisposable
     {
         for (int i = 0; i < _workerCount; i++)
         {
-            var worker = new Thread(WorkerLoop)
+            var workerIndex = i; // Capture for lambda
+            var worker = new Thread(() => WorkerLoop(workerIndex))
             {
                 Name = $"WorkerQueue-{typeof(TWorkItem).Name}-{i}",
                 IsBackground = true
@@ -111,14 +115,27 @@ public class WorkerQueue<TWorkItem> : IDisposable
         }
     }
 
-    private void WorkerLoop()
+    private void WorkerLoop(int workerIndex)
     {
         try
         {
+            var isFirstWorkItem = true;
+
             foreach (var workItem in _workQueue.GetConsumingEnumerable(_shutdownTokenSource.Token))
             {
                 if (_shutdownTokenSource.Token.IsCancellationRequested)
                     break;
+
+                // Apply staggered start delay only for the first work item
+                if (isFirstWorkItem && _staggerDelay > TimeSpan.Zero)
+                {
+                    var delay = _staggerDelay * workerIndex;
+                    if (delay > TimeSpan.Zero)
+                    {
+                        Thread.Sleep(delay);
+                    }
+                    isFirstWorkItem = false;
+                }
 
                 lock (_lockObj)
                 {
@@ -129,7 +146,7 @@ public class WorkerQueue<TWorkItem> : IDisposable
                 {
                     // Execute the async work and wait for completion
                     workItem.WorkFunc(workItem.Item, workItem.CancellationToken).GetAwaiter().GetResult();
-                    
+
                     WorkItemCompleted?.Invoke(this, new WorkItemCompletedEventArgs(workItem.Item));
                 }
                 catch (Exception ex)

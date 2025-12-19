@@ -291,4 +291,153 @@ public class WorkerQueueTests
         // With 4 workers and 8 items, we should see at least 2-4 concurrent
         Assert.InRange(maxConcurrent, 2, 4);
     }
+
+    [Fact]
+    public void StaggeredStart_WithDelay_WorkersStartAtIntervals()
+    {
+        var staggerDelay = TimeSpan.FromMilliseconds(200);
+        using var queue = new WorkerQueue<int>(workerCount: 3, staggerDelay: staggerDelay);
+
+        var startTimes = new List<DateTime>();
+        var lockObj = new object();
+
+        // Queue enough items to ensure all workers start
+        for (int i = 0; i < 3; i++)
+        {
+            queue.Enqueue(i, async (item, ct) =>
+            {
+                lock (lockObj)
+                {
+                    startTimes.Add(DateTime.UtcNow);
+                }
+                await Task.Delay(50, ct);
+            });
+        }
+
+        queue.WaitForCompletion(TimeSpan.FromSeconds(5));
+
+        // Verify we got 3 start times
+        Assert.Equal(3, startTimes.Count);
+
+        // Sort times to get worker 0, 1, 2 start times
+        startTimes.Sort();
+
+        // Worker 1 should start ~200ms after worker 0
+        var delay1 = (startTimes[1] - startTimes[0]).TotalMilliseconds;
+        Assert.InRange(delay1, 150, 300); // Allow some tolerance
+
+        // Worker 2 should start ~400ms after worker 0 (2 * 200ms)
+        var delay2 = (startTimes[2] - startTimes[0]).TotalMilliseconds;
+        Assert.InRange(delay2, 350, 500); // Allow some tolerance
+    }
+
+    [Fact]
+    public void StaggeredStart_SecondWorkItem_NoDelay()
+    {
+        var staggerDelay = TimeSpan.FromMilliseconds(500);
+        using var queue = new WorkerQueue<int>(workerCount: 2, staggerDelay: staggerDelay);
+
+        var processTimes = new List<(int workerId, int itemNumber, DateTime time)>();
+        var lockObj = new object();
+
+        // Queue 4 items (2 per worker)
+        for (int i = 0; i < 4; i++)
+        {
+            var item = i;
+            queue.Enqueue(item, async (workItem, ct) =>
+            {
+                // Determine which worker this is based on timing
+                lock (lockObj)
+                {
+                    processTimes.Add((Thread.CurrentThread.ManagedThreadId, workItem, DateTime.UtcNow));
+                }
+                await Task.Delay(10, ct);
+            });
+        }
+
+        queue.WaitForCompletion(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(4, processTimes.Count);
+
+        // Group by worker ID
+        var workerGroups = processTimes.GroupBy(x => x.workerId).ToList();
+        Assert.Equal(2, workerGroups.Count);
+
+        // For each worker that processed 2 items, check that the second item
+        // started immediately after the first (no stagger delay)
+        foreach (var workerGroup in workerGroups.Where(g => g.Count() == 2))
+        {
+            var items = workerGroup.OrderBy(x => x.time).ToList();
+            var timeBetween = (items[1].time - items[0].time).TotalMilliseconds;
+
+            // Should be very quick (just the task delay + minimal overhead)
+            // Much less than the 500ms stagger delay
+            Assert.InRange(timeBetween, 0, 100);
+        }
+    }
+
+    [Fact]
+    public void StaggeredStart_ZeroDelay_NoStaggering()
+    {
+        using var queue = new WorkerQueue<int>(workerCount: 3, staggerDelay: TimeSpan.Zero);
+
+        var startTimes = new List<DateTime>();
+        var lockObj = new object();
+
+        // Queue enough items to ensure all workers start
+        for (int i = 0; i < 3; i++)
+        {
+            queue.Enqueue(i, async (item, ct) =>
+            {
+                lock (lockObj)
+                {
+                    startTimes.Add(DateTime.UtcNow);
+                }
+                await Task.Delay(50, ct);
+            });
+        }
+
+        queue.WaitForCompletion(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(3, startTimes.Count);
+
+        // All workers should start within a very short time window
+        startTimes.Sort();
+        var totalSpread = (startTimes[2] - startTimes[0]).TotalMilliseconds;
+
+        // Should all start nearly simultaneously (within 50ms)
+        Assert.InRange(totalSpread, 0, 50);
+    }
+
+    [Fact]
+    public void StaggeredStart_DefaultConstructor_NoStaggering()
+    {
+        // Verify default behavior unchanged
+        using var queue = new WorkerQueue<int>(workerCount: 3);
+
+        var startTimes = new List<DateTime>();
+        var lockObj = new object();
+
+        for (int i = 0; i < 3; i++)
+        {
+            queue.Enqueue(i, async (item, ct) =>
+            {
+                lock (lockObj)
+                {
+                    startTimes.Add(DateTime.UtcNow);
+                }
+                await Task.Delay(50, ct);
+            });
+        }
+
+        queue.WaitForCompletion(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(3, startTimes.Count);
+
+        // All workers should start within a very short time window
+        startTimes.Sort();
+        var totalSpread = (startTimes[2] - startTimes[0]).TotalMilliseconds;
+
+        Assert.InRange(totalSpread, 0, 50);
+    }
 }
