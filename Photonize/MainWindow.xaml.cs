@@ -36,18 +36,30 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
-        if (DataContext is MainViewModel viewModel && viewModel.HasUnsavedChanges)
+        if (DataContext is MainViewModel viewModel)
         {
-            var result = MessageBox.Show(
-                "You have loaded photos and set a rename prefix but haven't applied the changes.\n\n" +
-                "Are you sure you want to quit without applying the rename?",
-                "Unsaved Changes",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (result == MessageBoxResult.No)
+            // Check for unsaved changes first
+            if (viewModel.HasUnsavedChanges)
             {
-                e.Cancel = true; // Cancel the closing
+                var result = MessageBox.Show(
+                    "You have loaded photos and set a rename prefix but haven't applied the changes.\n\n" +
+                    "Are you sure you want to quit without applying the rename?",
+                    "Unsaved Changes",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.No)
+                {
+                    e.Cancel = true; // Cancel the closing
+                    return;
+                }
+            }
+
+            // If we're actually closing (not cancelled), dispose the ViewModel
+            // This will cancel any background thumbnail loading operations
+            if (!e.Cancel)
+            {
+                viewModel.Dispose();
             }
         }
     }

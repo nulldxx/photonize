@@ -23,6 +23,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly ImageExporter _imageExporter;
     private readonly TopazPhotoAIService _topazPhotoAIService;
     private readonly WorkerQueue<PhotoItem> _thumbnailQueue;
+    private CancellationTokenSource? _thumbnailLoadCancellation;
 
     private string _directoryPath = string.Empty;
     private string _renamePrefix = string.Empty;
@@ -336,6 +337,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        // Cancel any existing thumbnail loading operations
+        _thumbnailLoadCancellation?.Cancel();
+        _thumbnailLoadCancellation?.Dispose();
+        _thumbnailLoadCancellation = new CancellationTokenSource();
+
         // Clear selected photos FIRST, before clearing Photos collection
         // This prevents SelectionChanged events from repopulating with stale PhotoItem references
         _selectedPhotos.Clear();
@@ -409,29 +415,55 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             // Enqueue thumbnail loading for all photos in parallel
+            var cancellationToken = _thumbnailLoadCancellation.Token;
             foreach (var photoItem in photoItems)
             {
                 _thumbnailQueue.Enqueue(photoItem, async (item, ct) =>
                 {
                     try
                     {
+                        // Check if cancellation was requested before starting work
+                        ct.ThrowIfCancellationRequested();
+
                         var thumbnail = await _thumbnailGenerator.GenerateThumbnailAsync(item.FilePath, (int)ThumbnailSize);
 
-                        // Update thumbnail on UI thread
-                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        // Check if cancellation was requested before updating UI
+                        ct.ThrowIfCancellationRequested();
+
+                        // Update thumbnail on UI thread, but only if the application is still running
+                        if (Application.Current != null && !ct.IsCancellationRequested)
                         {
-                            item.Thumbnail = thumbnail;
-                        });
+                            await Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                if (!ct.IsCancellationRequested)
+                                {
+                                    item.Thumbnail = thumbnail;
+                                }
+                            });
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Normal cancellation, don't log
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Error loading thumbnail for {item.FilePath}: {ex.Message}");
                     }
-                }, CancellationToken.None);
+                }, cancellationToken);
             }
 
             // Wait for all thumbnails to complete loading
-            await _thumbnailQueue.WaitForCompletionAsync();
+            try
+            {
+                await _thumbnailQueue.WaitForCompletionAsync(timeout: null, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal cancellation during shutdown
+                StatusMessage = "Photo loading cancelled";
+                return;
+            }
 
             // Detect and set common prefix (only from photos, not folders)
             DetectCommonPrefix();
@@ -1501,6 +1533,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        // Cancel any ongoing thumbnail loading operations
+        _thumbnailLoadCancellation?.Cancel();
+        _thumbnailLoadCancellation?.Dispose();
+
+        // Dispose the worker queue (this will wait for workers to complete)
         _thumbnailQueue?.Dispose();
     }
 }
