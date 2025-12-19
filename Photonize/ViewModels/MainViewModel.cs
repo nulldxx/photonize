@@ -928,6 +928,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if (success)
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Refresh view to show the newly created subfolder
+                await LoadPhotosAsync();
             }
             else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
@@ -1027,6 +1030,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if (success)
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Refresh view to show the newly created subfolder
+                await LoadPhotosAsync();
             }
             else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
@@ -1146,6 +1152,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if (success)
             {
                 MessageBox.Show(message, "Upscale Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Refresh view to show the newly created subfolder
+                await LoadPhotosAsync();
             }
             else if (!cts.Token.IsCancellationRequested && !message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
