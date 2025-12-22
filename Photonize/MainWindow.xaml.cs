@@ -120,6 +120,116 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         }
+        // Handle arrow key navigation with row wrapping
+        else if ((e.Key == Key.Right || e.Key == Key.Left) &&
+                 Keyboard.Modifiers == ModifierKeys.None &&
+                 PhotoListBox.Items.Count > 0)
+        {
+            HandleRowWrappingNavigation(e.Key);
+            e.Handled = true;
+        }
+    }
+
+    private void HandleRowWrappingNavigation(Key key)
+    {
+        int currentIndex = PhotoListBox.SelectedIndex;
+
+        // If nothing selected, select first item
+        if (currentIndex < 0)
+        {
+            PhotoListBox.SelectedIndex = 0;
+            return;
+        }
+
+        // Calculate items per row based on container positions
+        var itemsPerRow = CalculateItemsPerRow();
+        if (itemsPerRow <= 0) return;
+
+        int totalItems = PhotoListBox.Items.Count;
+        int currentRow = currentIndex / itemsPerRow;
+        int currentColumn = currentIndex % itemsPerRow;
+
+        if (key == Key.Right)
+        {
+            // Check if at the end of a row
+            bool isLastInRow = currentColumn == itemsPerRow - 1 || currentIndex == totalItems - 1;
+
+            if (isLastInRow && currentIndex < totalItems - 1)
+            {
+                // Move to first item of next row
+                PhotoListBox.SelectedIndex = (currentRow + 1) * itemsPerRow;
+                // Ensure we don't go beyond the last item
+                if (PhotoListBox.SelectedIndex >= totalItems)
+                {
+                    PhotoListBox.SelectedIndex = totalItems - 1;
+                }
+            }
+            else if (currentIndex < totalItems - 1)
+            {
+                // Normal right navigation
+                PhotoListBox.SelectedIndex = currentIndex + 1;
+            }
+        }
+        else if (key == Key.Left)
+        {
+            // Check if at the beginning of a row
+            bool isFirstInRow = currentColumn == 0;
+
+            if (isFirstInRow && currentIndex > 0)
+            {
+                // Move to last item of previous row
+                int previousRowStart = (currentRow - 1) * itemsPerRow;
+                int previousRowEnd = Math.Min(currentRow * itemsPerRow - 1, totalItems - 1);
+                PhotoListBox.SelectedIndex = previousRowEnd;
+            }
+            else if (currentIndex > 0)
+            {
+                // Normal left navigation
+                PhotoListBox.SelectedIndex = currentIndex - 1;
+            }
+        }
+
+        // Ensure the selected item is visible
+        PhotoListBox.ScrollIntoView(PhotoListBox.SelectedItem);
+    }
+
+    private int CalculateItemsPerRow()
+    {
+        if (PhotoListBox.Items.Count == 0)
+            return 0;
+
+        // Get the first two ListBoxItem containers and check their vertical positions
+        var firstContainer = PhotoListBox.ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem;
+        if (firstContainer == null)
+            return 1;
+
+        double firstItemTop = GetItemTopPosition(firstContainer);
+
+        // Find the first item that's on a different row
+        for (int i = 1; i < PhotoListBox.Items.Count; i++)
+        {
+            var container = PhotoListBox.ItemContainerGenerator.ContainerFromIndex(i) as ListBoxItem;
+            if (container != null)
+            {
+                double itemTop = GetItemTopPosition(container);
+                // If this item is lower than the first item, we've reached the next row
+                if (Math.Abs(itemTop - firstItemTop) > 5) // 5px tolerance for floating point comparison
+                {
+                    return i; // i is the number of items in the first row
+                }
+            }
+        }
+
+        // All items are on one row
+        return PhotoListBox.Items.Count;
+    }
+
+    private double GetItemTopPosition(ListBoxItem item)
+    {
+        // Get the position of the item relative to the ListBox
+        var transform = item.TransformToAncestor(PhotoListBox);
+        var position = transform.Transform(new Point(0, 0));
+        return position.Y;
     }
 
     private void PhotoScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
