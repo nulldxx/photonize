@@ -977,6 +977,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         // Show the progress dialog non-modally
         progressDialog.Show();
 
+        IsLoading = true;
         try
         {
             // Run the export operation
@@ -1011,6 +1012,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             progressDialog.Close();
             StatusMessage = $"Error exporting to WebP: {ex.Message}";
             MessageBox.Show($"Error exporting to WebP: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -1107,6 +1112,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         // Show the progress dialog non-modally
         progressDialog.Show();
 
+        IsLoading = true;
         try
         {
             // Run the export operation
@@ -1142,6 +1148,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             progressDialog.Close();
             StatusMessage = $"Error exporting to {format}: {ex.Message}";
             MessageBox.Show($"Error exporting to {format}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -1227,6 +1237,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         // Show the progress dialog non-modally
         progressDialog.Show();
 
+        IsLoading = true;
         try
         {
             // Run the upscale operation
@@ -1261,6 +1272,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             progressDialog.Close();
             StatusMessage = $"Error upscaling with Topaz Photo AI: {ex.Message}";
             MessageBox.Show($"Error upscaling with Topaz Photo AI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -1533,36 +1548,50 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Show the progress dialog non-modally
             progressDialog.Show();
 
-            // Export to WebP (no overwrite callback - always create new files)
-            var (success, message) = await _webpExporter.ExportToWebPAsync(
-                photosToExport,
-                outputDirectory,
-                overwriteCallback: null,
-                progress,
-                cts.Token);
-
-            // Close the progress dialog
-            progressDialog.Close();
-
-            StatusMessage = message;
-
-            if (success)
+            IsLoading = true;
+            try
             {
-                var webpFolder = Path.Combine(outputDirectory, "WebP");
+                // Export to WebP (no overwrite callback - always create new files)
+                var (success, message) = await _webpExporter.ExportToWebPAsync(
+                    photosToExport,
+                    outputDirectory,
+                    overwriteCallback: null,
+                    progress,
+                    cts.Token);
 
-                MessageBox.Show(
-                    $"{message}\n\nOutput folder:\n{webpFolder}",
-                    "Export Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                // Close the progress dialog
+                progressDialog.Close();
 
-                // Load the output directory AFTER user dismisses the message box
-                // This ensures all files are written and avoids race conditions
-                DirectoryPath = outputDirectory;
+                StatusMessage = message;
+
+                if (success)
+                {
+                    var webpFolder = Path.Combine(outputDirectory, "WebP");
+
+                    MessageBox.Show(
+                        $"{message}\n\nOutput folder:\n{webpFolder}",
+                        "Export Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // Load the output directory AFTER user dismisses the message box
+                    // This ensures all files are written and avoids race conditions
+                    DirectoryPath = outputDirectory;
+                }
+                else if (!cts.Token.IsCancellationRequested)
+                {
+                    MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
-            else if (!cts.Token.IsCancellationRequested)
+            catch (Exception ex)
             {
-                MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                progressDialog.Close();
+                StatusMessage = $"Error during export: {ex.Message}";
+                MessageBox.Show($"Error during export: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
         catch (Exception ex)
