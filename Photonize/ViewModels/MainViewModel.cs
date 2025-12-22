@@ -913,54 +913,86 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (photosToExport.Count == 0)
             return;
 
-        IsLoading = true;
-        StatusMessage = "Exporting to WebP...";
+        // Check for existing files and ask about overwriting BEFORE showing progress dialog
+        Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
+        {
+            string message;
+            if (existingFiles.Count == 1)
+            {
+                message = $"The file '{existingFiles[0]}' already exists in the WebP folder.\n\n" +
+                          "Choose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire export";
+            }
+            else
+            {
+                message = $"{existingFiles.Count} files already exist in the WebP folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                          (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                          "\n\nChoose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire export";
+            }
+
+            var result = MessageBox.Show(
+                message,
+                "Files Already Exist",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            return result switch
+            {
+                MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                MessageBoxResult.No => OverwriteOption.SkipExisting,
+                _ => OverwriteOption.Cancel
+            };
+        };
+
+        // Create progress dialog
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+        progressDialog.TitleText.Text = "Exporting to WebP";
+
+        // Create cancellation token source
+        var cts = new CancellationTokenSource();
+
+        // Handle dialog closing (user clicked X or Cancel)
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        // Create progress reporter
+        var progress = new Progress<(int current, int total, string status)>(p =>
+        {
+            progressDialog.UpdateProgress(p.current, p.total, p.status);
+        });
+
+        // Show the progress dialog non-modally
+        progressDialog.Show();
 
         try
         {
-            // Check for existing files and ask about overwriting
-            Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
-            {
-                string message;
-                if (existingFiles.Count == 1)
-                {
-                    message = $"The file '{existingFiles[0]}' already exists in the WebP folder.\n\n" +
-                              "Choose an option:\n" +
-                              "• Yes: Overwrite all existing files\n" +
-                              "• No: Skip existing files\n" +
-                              "• Cancel: Cancel the entire export";
-                }
-                else
-                {
-                    message = $"{existingFiles.Count} files already exist in the WebP folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
-                              (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                              "\n\nChoose an option:\n" +
-                              "• Yes: Overwrite all existing files\n" +
-                              "• No: Skip existing files\n" +
-                              "• Cancel: Cancel the entire export";
-                }
-
-                var result = MessageBox.Show(
-                    message,
-                    "Files Already Exist",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
-
-                return result switch
-                {
-                    MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
-                    MessageBoxResult.No => OverwriteOption.SkipExisting,
-                    _ => OverwriteOption.Cancel
-                };
-            };
-
+            // Run the export operation
             var (success, message) = await _webpExporter.ExportToWebPAsync(
                 photosToExport,
                 DirectoryPath,
-                overwriteCallback);
+                overwriteCallback,
+                progress,
+                cts.Token);
+
+            // Close the progress dialog
+            progressDialog.Close();
 
             StatusMessage = message;
 
+            // Show result
             if (success)
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -968,7 +1000,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 // Refresh view to show the newly created subfolder
                 await LoadPhotosAsync();
             }
-            else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
+            else if (!cts.Token.IsCancellationRequested && !message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
                 // Only show error if it wasn't a user cancellation
                 MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -976,12 +1008,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
+            progressDialog.Close();
             StatusMessage = $"Error exporting to WebP: {ex.Message}";
             MessageBox.Show($"Error exporting to WebP: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsLoading = false;
         }
     }
 
@@ -1014,55 +1043,87 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (photosToExport.Count == 0)
             return;
 
-        IsLoading = true;
-        StatusMessage = $"Exporting to {format}...";
+        // Check for existing files and ask about overwriting BEFORE showing progress dialog
+        Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
+        {
+            string message;
+            if (existingFiles.Count == 1)
+            {
+                message = $"The file '{existingFiles[0]}' already exists in the {format} folder.\n\n" +
+                          "Choose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire export";
+            }
+            else
+            {
+                message = $"{existingFiles.Count} files already exist in the {format} folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                          (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                          "\n\nChoose an option:\n" +
+                          "• Yes: Overwrite all existing files\n" +
+                          "• No: Skip existing files\n" +
+                          "• Cancel: Cancel the entire export";
+            }
+
+            var result = MessageBox.Show(
+                message,
+                "Files Already Exist",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            return result switch
+            {
+                MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                MessageBoxResult.No => OverwriteOption.SkipExisting,
+                _ => OverwriteOption.Cancel
+            };
+        };
+
+        // Create progress dialog
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+        progressDialog.TitleText.Text = $"Exporting to {format}";
+
+        // Create cancellation token source
+        var cts = new CancellationTokenSource();
+
+        // Handle dialog closing (user clicked X or Cancel)
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        // Create progress reporter
+        var progress = new Progress<(int current, int total, string status)>(p =>
+        {
+            progressDialog.UpdateProgress(p.current, p.total, p.status);
+        });
+
+        // Show the progress dialog non-modally
+        progressDialog.Show();
 
         try
         {
-            // Check for existing files and ask about overwriting
-            Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
-            {
-                string message;
-                if (existingFiles.Count == 1)
-                {
-                    message = $"The file '{existingFiles[0]}' already exists in the {format} folder.\n\n" +
-                              "Choose an option:\n" +
-                              "• Yes: Overwrite all existing files\n" +
-                              "• No: Skip existing files\n" +
-                              "• Cancel: Cancel the entire export";
-                }
-                else
-                {
-                    message = $"{existingFiles.Count} files already exist in the {format} folder:\n\n{string.Join("\n", existingFiles.Take(5))}" +
-                              (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
-                              "\n\nChoose an option:\n" +
-                              "• Yes: Overwrite all existing files\n" +
-                              "• No: Skip existing files\n" +
-                              "• Cancel: Cancel the entire export";
-                }
-
-                var result = MessageBox.Show(
-                    message,
-                    "Files Already Exist",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
-
-                return result switch
-                {
-                    MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
-                    MessageBoxResult.No => OverwriteOption.SkipExisting,
-                    _ => OverwriteOption.Cancel
-                };
-            };
-
+            // Run the export operation
             var (success, message) = await _imageExporter.ExportToFormatAsync(
                 photosToExport,
                 DirectoryPath,
                 format,
-                overwriteCallback);
+                overwriteCallback,
+                progress,
+                cts.Token);
+
+            // Close the progress dialog
+            progressDialog.Close();
 
             StatusMessage = message;
 
+            // Show result
             if (success)
             {
                 MessageBox.Show(message, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1070,7 +1131,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 // Refresh view to show the newly created subfolder
                 await LoadPhotosAsync();
             }
-            else if (!message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
+            else if (!cts.Token.IsCancellationRequested && !message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
             {
                 // Only show error if it wasn't a user cancellation
                 MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -1078,12 +1139,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
+            progressDialog.Close();
             StatusMessage = $"Error exporting to {format}: {ex.Message}";
             MessageBox.Show($"Error exporting to {format}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsLoading = false;
         }
     }
 
@@ -1447,14 +1505,44 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 IsFolder = false
             }).ToList();
 
-            IsLoading = true;
-            StatusMessage = $"Exporting {photosToExport.Count} file(s) to WebP...";
+            // Create progress dialog
+            var progressDialog = new ProgressDialog
+            {
+                Owner = Application.Current.MainWindow
+            };
+            progressDialog.TitleText.Text = "Exporting to WebP";
+
+            // Create cancellation token source
+            var cts = new CancellationTokenSource();
+
+            // Handle dialog closing (user clicked X or Cancel)
+            progressDialog.Closed += (s, e) =>
+            {
+                if (progressDialog.WasCancelled)
+                {
+                    cts.Cancel();
+                }
+            };
+
+            // Create progress reporter
+            var progress = new Progress<(int current, int total, string status)>(p =>
+            {
+                progressDialog.UpdateProgress(p.current, p.total, p.status);
+            });
+
+            // Show the progress dialog non-modally
+            progressDialog.Show();
 
             // Export to WebP (no overwrite callback - always create new files)
             var (success, message) = await _webpExporter.ExportToWebPAsync(
                 photosToExport,
                 outputDirectory,
-                overwriteCallback: null);
+                overwriteCallback: null,
+                progress,
+                cts.Token);
+
+            // Close the progress dialog
+            progressDialog.Close();
 
             StatusMessage = message;
 
@@ -1472,7 +1560,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 // This ensures all files are written and avoids race conditions
                 DirectoryPath = outputDirectory;
             }
-            else
+            else if (!cts.Token.IsCancellationRequested)
             {
                 MessageBox.Show(message, "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -1481,10 +1569,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             StatusMessage = $"Error during export: {ex.Message}";
             MessageBox.Show($"Error during export: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsLoading = false;
         }
     }
 

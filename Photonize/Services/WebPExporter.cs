@@ -13,11 +13,15 @@ public class WebPExporter
     /// <param name="photos">List of photos to export</param>
     /// <param name="directoryPath">Base directory containing the photos</param>
     /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns OverwriteOption.</param>
+    /// <param name="progress">Progress reporter for tracking operation progress</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>Tuple with success status and message</returns>
     public async Task<(bool Success, string Message)> ExportToWebPAsync(
         List<PhotoItem> photos,
         string directoryPath,
-        Func<List<string>, OverwriteOption>? overwriteCallback = null)
+        Func<List<string>, OverwriteOption>? overwriteCallback = null,
+        IProgress<(int current, int total, string status)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (photos == null || photos.Count == 0)
         {
@@ -66,50 +70,93 @@ public class WebPExporter
                 }
             }
 
-            // Export photos
+            // Export photos using worker queue for parallel processing
             int exportedCount = 0;
             int skippedCount = 0;
+            int totalPhotos = photos.Count;
             List<string> failedFiles = new List<string>();
+            var lockObj = new object();
 
-            await Task.Run(() =>
+            var workerCount = Math.Max(1, Environment.ProcessorCount);
+            using var workerQueue = new WorkerQueue<PhotoItem>(workerCount: workerCount, staggerDelay: TimeSpan.FromMilliseconds(100));
+
+            // Subscribe to completion events
+            workerQueue.WorkItemCompleted += (sender, args) =>
             {
-                foreach (var photo in photos)
+                int currentCount;
+                lock (lockObj)
                 {
-                    try
-                    {
-                        var originalFileName = Path.GetFileNameWithoutExtension(photo.FileName);
-                        var webpFileName = originalFileName + ".webp";
-                        var webpFilePath = Path.Combine(webpFolder, webpFileName);
-
-                        // Skip if file exists and user chose to skip existing files
-                        if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(webpFilePath))
-                        {
-                            skippedCount++;
-                            continue;
-                        }
-
-                        // Load the image using ImageSharp
-                        using (var image = Image.Load(photo.FilePath))
-                        {
-                            // Configure WebP encoder for lossy compression at 90% quality
-                            var encoder = new WebpEncoder
-                            {
-                                Quality = 90,
-                                FileFormat = WebpFileFormatType.Lossy
-                            };
-
-                            // Save as WebP
-                            image.Save(webpFilePath, encoder);
-                        }
-
-                        exportedCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        failedFiles.Add($"{photo.FileName}: {ex.Message}");
-                    }
+                    exportedCount++;
+                    currentCount = exportedCount + skippedCount + failedFiles.Count;
                 }
-            });
+                progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+            };
+
+            workerQueue.WorkItemFailed += (sender, args) =>
+            {
+                int currentCount;
+                lock (lockObj)
+                {
+                    failedFiles.Add($"{args.Item.FileName}: {args.Exception.Message}");
+                    currentCount = exportedCount + skippedCount + failedFiles.Count;
+                }
+                progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+            };
+
+            // Enqueue all photos for processing
+            foreach (var photo in photos)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var originalFileName = Path.GetFileNameWithoutExtension(photo.FileName);
+                var webpFileName = originalFileName + ".webp";
+                var webpFilePath = Path.Combine(webpFolder, webpFileName);
+
+                // Skip if file exists and user chose to skip existing files
+                if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(webpFilePath))
+                {
+                    int currentCount;
+                    lock (lockObj)
+                    {
+                        skippedCount++;
+                        currentCount = exportedCount + skippedCount + failedFiles.Count;
+                    }
+                    progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+                    continue;
+                }
+
+                workerQueue.Enqueue(photo, async (item, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var fileName = Path.GetFileNameWithoutExtension(item.FileName);
+                    var outputFileName = fileName + ".webp";
+                    var outputFilePath = Path.Combine(webpFolder, outputFileName);
+
+                    // Load the image using ImageSharp
+                    using (var image = await Image.LoadAsync(item.FilePath, ct))
+                    {
+                        // Configure WebP encoder for lossy compression at 90% quality
+                        var encoder = new WebpEncoder
+                        {
+                            Quality = 90,
+                            FileFormat = WebpFileFormatType.Lossy
+                        };
+
+                        // Save as WebP
+                        await image.SaveAsync(outputFilePath, encoder, ct);
+                    }
+                }, cancellationToken);
+            }
+
+            // Wait for all work to complete
+            await workerQueue.WaitForCompletionAsync(cancellationToken: cancellationToken);
+
+            // Report final progress
+            progress?.Report((exportedCount + skippedCount + failedFiles.Count, totalPhotos, "Complete"));
 
             // Build result message
             string message;

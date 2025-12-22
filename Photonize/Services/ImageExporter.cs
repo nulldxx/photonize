@@ -30,12 +30,16 @@ public class ImageExporter
     /// <param name="directoryPath">Base directory containing the photos</param>
     /// <param name="format">Target image format (WebP, PNG, or JPG)</param>
     /// <param name="overwriteCallback">Callback to ask user about overwriting existing files. Returns OverwriteOption.</param>
+    /// <param name="progress">Progress reporter for tracking operation progress</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>Tuple with success status and message</returns>
     public async Task<(bool Success, string Message)> ExportToFormatAsync(
         List<PhotoItem> photos,
         string directoryPath,
         ImageFormat format,
-        Func<List<string>, OverwriteOption>? overwriteCallback = null)
+        Func<List<string>, OverwriteOption>? overwriteCallback = null,
+        IProgress<(int current, int total, string status)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (photos == null || photos.Count == 0)
         {
@@ -94,69 +98,112 @@ public class ImageExporter
                 }
             }
 
-            // Export photos
+            // Export photos using worker queue for parallel processing
             int exportedCount = 0;
             int skippedCount = 0;
+            int totalPhotos = photos.Count;
             List<string> failedFiles = new List<string>();
+            var lockObj = new object();
 
-            await Task.Run(() =>
+            var workerCount = Math.Max(1, Environment.ProcessorCount);
+            using var workerQueue = new WorkerQueue<PhotoItem>(workerCount: workerCount, staggerDelay: TimeSpan.FromMilliseconds(100));
+
+            // Subscribe to completion events
+            workerQueue.WorkItemCompleted += (sender, args) =>
             {
-                foreach (var photo in photos)
+                int currentCount;
+                lock (lockObj)
                 {
-                    try
-                    {
-                        var originalFileName = Path.GetFileNameWithoutExtension(photo.FileName);
-                        var outputFileName = originalFileName + extension;
-                        var outputFilePath = Path.Combine(outputFolder, outputFileName);
-
-                        // Skip if file exists and user chose to skip existing files
-                        if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(outputFilePath))
-                        {
-                            skippedCount++;
-                            continue;
-                        }
-
-                        // Load the image using ImageSharp
-                        using (var image = Image.Load(photo.FilePath))
-                        {
-                            // Save with format-specific encoder
-                            switch (format)
-                            {
-                                case ImageFormat.WebP:
-                                    var webpEncoder = new WebpEncoder
-                                    {
-                                        Quality = 90,
-                                        FileFormat = WebpFileFormatType.Lossy
-                                    };
-                                    image.Save(outputFilePath, webpEncoder);
-                                    break;
-
-                                case ImageFormat.PNG:
-                                    var pngEncoder = new PngEncoder
-                                    {
-                                        CompressionLevel = PngCompressionLevel.BestCompression
-                                    };
-                                    image.Save(outputFilePath, pngEncoder);
-                                    break;
-
-                                case ImageFormat.JPG:
-                                    var jpgEncoder = new JpegEncoder
-                                    {
-                                        Quality = 90
-                                    };
-                                    image.Save(outputFilePath, jpgEncoder);
-                                    break;
-                            }
-                        }
-
-                        exportedCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        failedFiles.Add($"{photo.FileName}: {ex.Message}");
-                    }
+                    exportedCount++;
+                    currentCount = exportedCount + skippedCount + failedFiles.Count;
                 }
-            });
+                progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+            };
+
+            workerQueue.WorkItemFailed += (sender, args) =>
+            {
+                int currentCount;
+                lock (lockObj)
+                {
+                    failedFiles.Add($"{args.Item.FileName}: {args.Exception.Message}");
+                    currentCount = exportedCount + skippedCount + failedFiles.Count;
+                }
+                progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+            };
+
+            // Enqueue all photos for processing
+            foreach (var photo in photos)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var originalFileName = Path.GetFileNameWithoutExtension(photo.FileName);
+                var outputFileName = originalFileName + extension;
+                var outputFilePath = Path.Combine(outputFolder, outputFileName);
+
+                // Skip if file exists and user chose to skip existing files
+                if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(outputFilePath))
+                {
+                    int currentCount;
+                    lock (lockObj)
+                    {
+                        skippedCount++;
+                        currentCount = exportedCount + skippedCount + failedFiles.Count;
+                    }
+                    progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
+                    continue;
+                }
+
+                workerQueue.Enqueue(photo, async (item, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var fileName = Path.GetFileNameWithoutExtension(item.FileName);
+                    var outputFileNameFinal = fileName + extension;
+                    var outputFilePathFinal = Path.Combine(outputFolder, outputFileNameFinal);
+
+                    // Load the image using ImageSharp
+                    using (var image = await Image.LoadAsync(item.FilePath, ct))
+                    {
+                        // Save with format-specific encoder
+                        switch (format)
+                        {
+                            case ImageFormat.WebP:
+                                var webpEncoder = new WebpEncoder
+                                {
+                                    Quality = 90,
+                                    FileFormat = WebpFileFormatType.Lossy
+                                };
+                                await image.SaveAsync(outputFilePathFinal, webpEncoder, ct);
+                                break;
+
+                            case ImageFormat.PNG:
+                                var pngEncoder = new PngEncoder
+                                {
+                                    CompressionLevel = PngCompressionLevel.BestCompression
+                                };
+                                await image.SaveAsync(outputFilePathFinal, pngEncoder, ct);
+                                break;
+
+                            case ImageFormat.JPG:
+                                var jpgEncoder = new JpegEncoder
+                                {
+                                    Quality = 90
+                                };
+                                await image.SaveAsync(outputFilePathFinal, jpgEncoder, ct);
+                                break;
+                        }
+                    }
+                }, cancellationToken);
+            }
+
+            // Wait for all work to complete
+            await workerQueue.WaitForCompletionAsync(cancellationToken: cancellationToken);
+
+            // Report final progress
+            progress?.Report((exportedCount + skippedCount + failedFiles.Count, totalPhotos, "Complete"));
 
             // Build result message
             string message;
