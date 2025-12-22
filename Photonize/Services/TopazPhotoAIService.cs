@@ -155,14 +155,19 @@ public class TopazPhotoAIService
                 // Subscribe to completion events
                 workerQueue.WorkItemCompleted += (sender, args) =>
                 {
+                    int currentCount;
                     lock (lockObj)
                     {
                         processedCount++;
+                        currentCount = processedCount;
                     }
+                    // Report progress after successful completion
+                    progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
                 };
 
                 workerQueue.WorkItemFailed += (sender, args) =>
                 {
+                    int currentCount;
                     lock (lockObj)
                     {
                         if (args.Exception.Message.StartsWith("FAILED: "))
@@ -173,7 +178,10 @@ public class TopazPhotoAIService
                         {
                             failedFiles.Add($"{args.Item.photo.FileName}: {args.Exception.Message}");
                         }
+                        currentCount = processedCount + failedFiles.Count;
                     }
+                    // Report progress after failure (count processed + failed as completed work)
+                    progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
                 };
 
                 // Enqueue all photos for processing
@@ -194,10 +202,14 @@ public class TopazPhotoAIService
 
                     if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(webpFilePath))
                     {
+                        int currentCount;
                         lock (lockObj)
                         {
                             skippedCount++;
+                            currentCount = processedCount + skippedCount + failedFiles.Count;
                         }
+                        // Report progress for skipped items
+                        progress?.Report((currentCount, totalPhotos, $"Completed {currentCount} of {totalPhotos}"));
                         continue;
                     }
 
@@ -210,7 +222,7 @@ public class TopazPhotoAIService
                             tpaiExePath,
                             tempFolder,
                             outputFolder,
-                            progress,
+                            null,  // Don't report progress during processing, only on completion
                             ct);
                     }, cancellationToken);
                 }
@@ -321,11 +333,8 @@ public class TopazPhotoAIService
                 throw new OperationCanceledException();
             }
 
-            // Report progress
-            var statusMessage = attempt == 1 
-                ? $"Processing {photo.FileName}..." 
-                : $"Processing {photo.FileName}... (retry {attempt}/{maxRetries})";
-            progress?.Report((index, totalPhotos, statusMessage));
+            // Note: Progress reporting has been moved to WorkItemCompleted/WorkItemFailed events
+            // to avoid progress bar jumping backward when workers complete out of order
 
             // Build command line arguments for tpai.exe using ArgumentList
             var processStartInfo = new ProcessStartInfo
