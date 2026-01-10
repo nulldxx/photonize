@@ -14,7 +14,8 @@
       "Bash(mkdir:*)",
       "Bash(chmod:*)",
       "Bash(ls:*)",
-      "Bash(git describe:*)"
+      "Bash(git describe:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

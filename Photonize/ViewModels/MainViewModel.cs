@@ -37,6 +37,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private BitmapImage? _previewImage;
     private bool _hasUnsavedChanges = false;
     private bool _suppressUnsavedChanges = false;
+    private bool _isVideoPlaying = false;
+    private double _videoCurrentSeconds = 0;
+    private double _videoTotalSeconds = 0;
+    private double _videoVolume = 0.8;
+
+    public event EventHandler? VideoSourceChanged;
 
     public MainViewModel(string? initialDirectory = null)
     {
@@ -70,6 +76,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ExportJPGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToJPGAsync(photo), CanExportImage);
         ExportPhotoAICommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPhotoAIAsync(photo), CanExportPhotoAI);
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
+        ToggleVideoPlaybackCommand = new RelayCommand(ToggleVideoPlayback);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -203,6 +210,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             _previewPhoto = value;
             OnPropertyChanged();
             _ = LoadPreviewImageAsync();
+            // Notify VideoSource AFTER _previewPhoto is set
+            OnPropertyChanged(nameof(VideoSource));
         }
     }
 
@@ -216,11 +225,89 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool IsVideoPlaying
+    {
+        get => _isVideoPlaying;
+        set
+        {
+            _isVideoPlaying = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public double VideoCurrentSeconds
+    {
+        get => _videoCurrentSeconds;
+        set
+        {
+            _videoCurrentSeconds = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VideoTimeText));
+        }
+    }
+
+    public double VideoTotalSeconds
+    {
+        get => _videoTotalSeconds;
+        set
+        {
+            _videoTotalSeconds = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VideoTimeText));
+        }
+    }
+
+    public double VideoVolume
+    {
+        get => _videoVolume;
+        set
+        {
+            _videoVolume = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string VideoTimeText
+    {
+        get
+        {
+            var current = TimeSpan.FromSeconds(VideoCurrentSeconds);
+            var total = TimeSpan.FromSeconds(VideoTotalSeconds);
+            return $"{current:mm\\:ss} / {total:mm\\:ss}";
+        }
+    }
+
+    public Uri? VideoSource
+    {
+        get
+        {
+            if (_previewPhoto?.IsVideo == true && !string.IsNullOrEmpty(_previewPhoto.FilePath))
+            {
+                return new Uri(_previewPhoto.FilePath, UriKind.Absolute);
+            }
+            return null;
+        }
+    }
+
     private async Task LoadPreviewImageAsync()
     {
+        // Reset video state first
+        IsVideoPlaying = false;
+        VideoCurrentSeconds = 0;
+        VideoTotalSeconds = 0;
+
         if (_previewPhoto == null)
         {
             PreviewImage = null;
+            return;
+        }
+
+        // Videos are loaded directly by MediaElement - notify UI to reload
+        if (_previewPhoto.IsVideo)
+        {
+            PreviewImage = null;
+            // Fire event to trigger MediaElement reload in code-behind
+            VideoSourceChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -268,6 +355,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ExportJPGCommand { get; }
     public ICommand ExportPhotoAICommand { get; }
     public ICommand CompareImagesCommand { get; }
+    public ICommand ToggleVideoPlaybackCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -304,6 +392,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private void TogglePreview()
     {
         IsPreviewVisible = !IsPreviewVisible;
+    }
+
+    public void ToggleVideoPlayback()
+    {
+        IsVideoPlaying = !IsVideoPlaying;
     }
 
     private void BrowseDirectory()
@@ -392,15 +485,15 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 Photos.Add(folderItem);
             }
 
-            // Load image files
-            var imageFiles = await _thumbnailGenerator.GetImageFilesAsync(DirectoryPath);
+            // Load media files (images and videos)
+            var mediaFiles = await _thumbnailGenerator.GetMediaFilesAsync(DirectoryPath);
 
             // Create all PhotoItem objects first and add to collection
             // Thumbnails will be loaded in parallel using the worker queue
             var photoItems = new List<PhotoItem>();
-            for (int i = 0; i < imageFiles.Count; i++)
+            for (int i = 0; i < mediaFiles.Count; i++)
             {
-                var filePath = imageFiles[i];
+                var filePath = mediaFiles[i];
                 var photoItem = new PhotoItem
                 {
                     FilePath = filePath,
@@ -434,7 +527,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                         // Use BeginInvoke (fire-and-forget) instead of InvokeAsync to avoid blocking during shutdown
                         if (Application.Current != null && !ct.IsCancellationRequested)
                         {
-                            Application.Current.Dispatcher.BeginInvoke(() =>
+                            _ = Application.Current.Dispatcher.BeginInvoke(() =>
                             {
                                 if (!ct.IsCancellationRequested)
                                 {
@@ -469,7 +562,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Detect and set common prefix (only from photos, not folders)
             DetectCommonPrefix();
 
-            StatusMessage = $"Loaded {subfolders.Count} folder(s) and {imageFiles.Count} photo(s)";
+            // Count photos and videos separately for status message
+            var photoCount = mediaFiles.Count(f => ThumbnailGenerator.IsImageFile(f));
+            var videoCount = mediaFiles.Count(f => ThumbnailGenerator.IsVideoFile(f));
+
+            if (videoCount > 0)
+            {
+                StatusMessage = $"Loaded {subfolders.Count} folder(s), {photoCount} photo(s), and {videoCount} video(s)";
+            }
+            else
+            {
+                StatusMessage = $"Loaded {subfolders.Count} folder(s) and {photoCount} photo(s)";
+            }
+
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
             SaveSettings();
             HasUnsavedChanges = false; // Clear unsaved changes after loading

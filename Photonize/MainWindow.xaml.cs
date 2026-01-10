@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Photonize.Models;
 using Photonize.ViewModels;
 
@@ -12,6 +13,9 @@ namespace Photonize;
 
 public partial class MainWindow : Window
 {
+    private DispatcherTimer? _videoPositionTimer;
+    private bool _isSeekingVideo = false;
+
     public MainWindow(string? initialDirectory = null, List<string>? filesToExport = null)
     {
         InitializeComponent();
@@ -26,6 +30,7 @@ public partial class MainWindow : Window
         PhotoListBox.SelectionChanged += PhotoListBox_SelectionChanged;
         PhotoListBox.PreviewMouseWheel += PhotoListBox_PreviewMouseWheel;
         PhotoListBox.PreviewKeyDown += PhotoListBox_PreviewKeyDown;
+        viewModel.VideoSourceChanged += ViewModel_VideoSourceChanged;
 
         // If files were provided for export, trigger export after window loads
         if (filesToExport != null && filesToExport.Count > 0)
@@ -276,5 +281,130 @@ public partial class MainWindow : Window
             return scrollViewer;
 
         return FindParentScrollViewer(parent);
+    }
+
+    private void VideoPlayer_MediaOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is MediaElement media && DataContext is MainViewModel viewModel)
+        {
+            // Set the total duration from the video
+            if (media.NaturalDuration.HasTimeSpan)
+            {
+                viewModel.VideoTotalSeconds = media.NaturalDuration.TimeSpan.TotalSeconds;
+            }
+
+            // Stop any existing timer
+            _videoPositionTimer?.Stop();
+
+            // Create a timer to update the current position
+            _videoPositionTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+
+            _videoPositionTimer.Tick += (s, args) =>
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    // Only update position if not seeking
+                    if (!_isSeekingVideo)
+                    {
+                        vm.VideoCurrentSeconds = media.Position.TotalSeconds;
+                    }
+
+                    // Control playback based on ViewModel state
+                    if (vm.IsVideoPlaying && media.Position >= media.NaturalDuration.TimeSpan)
+                    {
+                        // Video ended naturally
+                        media.Stop();
+                        media.Position = TimeSpan.Zero;
+                        vm.IsVideoPlaying = false;
+                    }
+                    else if (vm.IsVideoPlaying)
+                    {
+                        media.Play();
+                    }
+                    else
+                    {
+                        media.Pause();
+                    }
+                }
+            };
+
+            _videoPositionTimer.Start();
+
+            // Start playback automatically
+            viewModel.IsVideoPlaying = true;
+            media.Play();
+        }
+    }
+
+    private void VideoPlayer_MediaEnded(object sender, RoutedEventArgs e)
+    {
+        if (sender is MediaElement media && DataContext is MainViewModel viewModel)
+        {
+            // Reset to the beginning
+            media.Stop();
+            media.Position = TimeSpan.Zero;
+            viewModel.IsVideoPlaying = false;
+            viewModel.VideoCurrentSeconds = 0;
+        }
+    }
+
+    private void VideoPlayer_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+    {
+        MessageBox.Show(
+            $"Unable to play video: {e.ErrorException.Message}\n\n" +
+            "The video codec may not be supported by Windows Media Player. " +
+            "You may need to install additional codecs or open the file with a different player.",
+            "Video Playback Error",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.IsVideoPlaying = false;
+        }
+    }
+
+    private void VideoTimeline_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // User started dragging the timeline slider
+        _isSeekingVideo = true;
+    }
+
+    private void VideoTimeline_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        // User finished dragging - seek to the new position
+        _isSeekingVideo = false;
+
+        if (DataContext is MainViewModel viewModel && sender is Slider slider)
+        {
+            VideoPlayer.Position = TimeSpan.FromSeconds(slider.Value);
+        }
+    }
+
+    private void ViewModel_VideoSourceChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            // Stop any existing playback and timer
+            _videoPositionTimer?.Stop();
+            VideoPlayer.Stop();
+            VideoPlayer.Close();
+
+            // Get the new video source
+            var videoSource = viewModel.VideoSource;
+
+            if (videoSource != null)
+            {
+                // Force MediaElement to reload by setting Source to null first, then the new Uri
+                VideoPlayer.Source = null;
+                VideoPlayer.Source = videoSource;
+
+                // With LoadedBehavior="Manual", we must explicitly call Play() to trigger loading
+                VideoPlayer.Play();
+            }
+        }
     }
 }

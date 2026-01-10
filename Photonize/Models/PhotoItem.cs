@@ -65,6 +65,11 @@ public class PhotoItem : INotifyPropertyChanged
 
     public string Extension => IsFolder ? string.Empty : Path.GetExtension(FilePath);
 
+    public bool IsVideo => !IsFolder &&
+        (Extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
+         Extension.Equals(".mov", StringComparison.OrdinalIgnoreCase) ||
+         Extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase));
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
