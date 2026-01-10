@@ -80,12 +80,35 @@ public partial class App : Application
             }
             else
             {
-                // FFmpeg not found - video features will be unavailable
+                // FFmpeg not found - show warning message
                 Console.WriteLine("FFmpeg not found. Video thumbnail extraction will not work.");
-                Console.WriteLine("To enable video support, install FFmpeg and place it in one of these locations:");
-                foreach (var path in possiblePaths)
+                
+                var result = MessageBox.Show(
+                    "FFmpeg is not installed on your system.\n\n" +
+                    "Video files will be displayed but thumbnails and preview will not work.\n\n" +
+                    "Would you like to download FFmpeg now?",
+                    "FFmpeg Not Found",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                
+                if (result == MessageBoxResult.Yes)
                 {
-                    Console.WriteLine($"  - {path}");
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "https://www.ffmpeg.org/download.html",
+                            UseShellExecute = true
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            $"Could not open browser. Please visit:\nhttps://www.ffmpeg.org/download.html\n\nError: {ex.Message}",
+                            "Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
                 }
             }
         }
@@ -93,6 +116,12 @@ public partial class App : Application
         {
             // Log error but don't crash - video features will be unavailable
             Console.WriteLine($"Failed to initialize FFmpeg: {ex.Message}");
+            MessageBox.Show(
+                $"Failed to initialize FFmpeg: {ex.Message}\n\n" +
+                "Video features may not work properly.",
+                "FFmpeg Initialization Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
 
         return Task.CompletedTask;
