@@ -76,6 +76,18 @@
               Source="$(var.Photonize.TargetDir)SixLabors.ImageSharp.dll"
               KeyPath="yes" />
       </Component>
+
+      <Component Id="FFMpegCore" Guid="{E4F5A6B7-C8D9-0E1F-2A3B-4C5D6E7F8A9B}">
+        <File Id="FFMpegCoreDll"
+              Source="$(var.Photonize.TargetDir)FFMpegCore.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <Component Id="InstancesCore" Guid="{F5A6B7C8-D9E0-1F2A-3B4C-5D6E7F8A9B0C}">
+        <File Id="InstancesCoreDll"
+              Source="$(var.Photonize.TargetDir)Instances.dll"
+              KeyPath="yes" />
+      </Component>
     </DirectoryRef>
 
     <!-- Start Menu Shortcut -->
@@ -176,6 +188,8 @@
       <ComponentRef Id="CommunityToolkitMvvm" />
       <ComponentRef Id="GongWpfDragDrop" />
       <ComponentRef Id="SixLaborsImageSharp" />
+      <ComponentRef Id="FFMpegCore" />
+      <ComponentRef Id="InstancesCore" />
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
 
