@@ -25,6 +25,8 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="{Binding PreviewColumnWidth}" MinWidth="0"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="{Binding TextEditorColumnWidth}" MinWidth="0"/>
         </Grid.ColumnDefinitions>
 
         <!-- Main Content Area -->
@@ -94,6 +96,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Slider Grid.Column="0"
@@ -126,6 +129,28 @@
                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsPreviewVisible}" Value="True">
+                                    <Setter Property="Background" Value="#FF007ACC"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <Button Grid.Column="3"
+                        Content="TXT"
+                        Command="{Binding ToggleTextEditorCommand}"
+                        Padding="10,5"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Margin="5,0,0,0"
+                        MinWidth="45"
+                        ToolTip="Toggle Text Editor"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsNotLoading}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTextEditorVisible}" Value="True">
                                     <Setter Property="Background" Value="#FF007ACC"/>
                                 </DataTrigger>
                             </Style.Triggers>
@@ -511,6 +536,97 @@
                             </Grid>
                         </Border>
                     </Grid>
+
+                    <!-- No Media Selected Text -->
+                    <TextBlock Text="No media selected"
+                               FontSize="14"
+                               Foreground="#FF808080"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PreviewPhoto}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- GridSplitter for Text Editor -->
+        <GridSplitter Grid.Column="3"
+                      Width="5"
+                      HorizontalAlignment="Stretch"
+                      Background="#FF3E3E42"
+                      Visibility="{Binding IsTextEditorVisible, Converter={StaticResource BoolToVisConverter}}"
+                      ShowsPreview="True"
+                      Cursor="SizeWE">
+            <GridSplitter.Style>
+                <Style TargetType="GridSplitter">
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#FF007ACC"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </GridSplitter.Style>
+        </GridSplitter>
+
+        <!-- Text Editor Pane -->
+        <Border Grid.Column="4"
+                Background="#FF252526"
+                BorderBrush="#FF3E3E42"
+                BorderThickness="1,0,0,0"
+                Visibility="{Binding IsTextEditorVisible, Converter={StaticResource BoolToVisConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Text Editor Header -->
+                <Border Grid.Row="0"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF3E3E42"
+                        BorderThickness="0,0,0,1"
+                        Padding="10">
+                    <TextBlock Text="{Binding TextEditorTitle}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#FFF1F1F1"/>
+                </Border>
+
+                <!-- Text Editor Content -->
+                <Grid Grid.Row="1">
+                    <!-- TextBox for editing -->
+                    <TextBox Text="{Binding TextContent, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="10"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             Background="#FF1E1E1E"
+                             Foreground="#FFF1F1F1"
+                             BorderThickness="0"
+                             Padding="5">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PreviewPhoto}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
 
                     <!-- No Media Selected Text -->
                     <TextBlock Text="No media selected"

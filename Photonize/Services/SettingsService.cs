@@ -9,6 +9,7 @@ public class AppSettings
     public double LastThumbnailSize { get; set; } = 200;
     public string? LastPrefix { get; set; }
     public bool IsPreviewVisible { get; set; } = false;
+    public bool IsTextEditorVisible { get; set; } = false;
 }
 
 public class SettingsService

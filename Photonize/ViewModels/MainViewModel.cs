@@ -41,6 +41,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private double _videoCurrentSeconds = 0;
     private double _videoTotalSeconds = 0;
     private double _videoVolume = 0.8;
+    private bool _isTextEditorVisible = false;
+    private string _textContent = string.Empty;
+    private string _textFilePath = string.Empty;
+    private bool _isLoadingText = false;
 
     public event EventHandler? VideoSourceChanged;
 
@@ -77,6 +81,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ExportPhotoAICommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPhotoAIAsync(photo), CanExportPhotoAI);
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
         ToggleVideoPlaybackCommand = new RelayCommand(ToggleVideoPlayback);
+        ToggleTextEditorCommand = new RelayCommand(ToggleTextEditor);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -209,9 +214,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             _previewPhoto = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(TextEditorTitle));
             _ = LoadPreviewImageAsync();
             // Notify VideoSource AFTER _previewPhoto is set
             OnPropertyChanged(nameof(VideoSource));
+
+            // Load text file if text editor is visible
+            if (IsTextEditorVisible)
+            {
+                _ = LoadTextFileAsync();
+            }
         }
     }
 
@@ -289,6 +301,48 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool IsTextEditorVisible
+    {
+        get => _isTextEditorVisible;
+        set
+        {
+            _isTextEditorVisible = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TextEditorColumnWidth));
+            SaveSettings();
+        }
+    }
+
+    public GridLength TextEditorColumnWidth => IsTextEditorVisible ? new GridLength(500) : new GridLength(0);
+
+    public string TextContent
+    {
+        get => _textContent;
+        set
+        {
+            if (_textContent == value || _isLoadingText)
+                return;
+
+            _textContent = value;
+            OnPropertyChanged();
+
+            // Auto-save when text changes
+            _ = SaveTextFileAsync();
+        }
+    }
+
+    public string TextEditorTitle
+    {
+        get
+        {
+            if (_previewPhoto == null)
+                return "Text Editor";
+
+            var baseFileName = Path.GetFileNameWithoutExtension(_previewPhoto.FileName);
+            return $"Text Editor - {baseFileName}.txt";
+        }
+    }
+
     private async Task LoadPreviewImageAsync()
     {
         // Reset video state first
@@ -319,6 +373,76 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             Console.WriteLine($"Error loading preview image: {ex.Message}");
             PreviewImage = null;
+        }
+    }
+
+    private async Task LoadTextFileAsync()
+    {
+        if (_previewPhoto == null || _previewPhoto.IsFolder)
+        {
+            _isLoadingText = true;
+            TextContent = string.Empty;
+            _textFilePath = string.Empty;
+            _isLoadingText = false;
+            return;
+        }
+
+        try
+        {
+            _isLoadingText = true;
+
+            // Get the text file path based on the image file name
+            var directory = Path.GetDirectoryName(_previewPhoto.FilePath);
+            var baseFileName = Path.GetFileNameWithoutExtension(_previewPhoto.FileName);
+            _textFilePath = Path.Combine(directory ?? string.Empty, $"{baseFileName}.txt");
+
+            // Load text if file exists
+            if (File.Exists(_textFilePath))
+            {
+                TextContent = await File.ReadAllTextAsync(_textFilePath);
+            }
+            else
+            {
+                TextContent = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading text file: {ex.Message}");
+            TextContent = string.Empty;
+        }
+        finally
+        {
+            _isLoadingText = false;
+        }
+    }
+
+    private async Task SaveTextFileAsync()
+    {
+        if (string.IsNullOrEmpty(_textFilePath) || _previewPhoto == null || _previewPhoto.IsFolder)
+        {
+            return;
+        }
+
+        try
+        {
+            // If text is empty, delete the file
+            if (string.IsNullOrEmpty(_textContent))
+            {
+                if (File.Exists(_textFilePath))
+                {
+                    await Task.Run(() => File.Delete(_textFilePath));
+                }
+            }
+            else
+            {
+                // Save the text to file
+                await File.WriteAllTextAsync(_textFilePath, _textContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving text file: {ex.Message}");
         }
     }
 
@@ -356,6 +480,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ExportPhotoAICommand { get; }
     public ICommand CompareImagesCommand { get; }
     public ICommand ToggleVideoPlaybackCommand { get; }
+    public ICommand ToggleTextEditorCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -375,6 +500,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         // Restore preview visibility state
         IsPreviewVisible = settings.IsPreviewVisible;
+
+        // Restore text editor visibility state
+        IsTextEditorVisible = settings.IsTextEditorVisible;
     }
 
     private void SaveSettings()
@@ -384,14 +512,38 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             LastDirectoryPath = DirectoryPath,
             LastThumbnailSize = ThumbnailSize,
             LastPrefix = RenamePrefix,
-            IsPreviewVisible = IsPreviewVisible
+            IsPreviewVisible = IsPreviewVisible,
+            IsTextEditorVisible = IsTextEditorVisible
         };
         _settingsService.SaveSettings(settings);
     }
 
     private void TogglePreview()
     {
+        // Close text editor if it's open
+        if (IsTextEditorVisible)
+        {
+            IsTextEditorVisible = false;
+        }
+
         IsPreviewVisible = !IsPreviewVisible;
+    }
+
+    private void ToggleTextEditor()
+    {
+        // Close preview if it's open
+        if (IsPreviewVisible)
+        {
+            IsPreviewVisible = false;
+        }
+
+        IsTextEditorVisible = !IsTextEditorVisible;
+
+        // Load text file when opening text editor
+        if (IsTextEditorVisible)
+        {
+            _ = LoadTextFileAsync();
+        }
     }
 
     public void ToggleVideoPlayback()
