@@ -381,8 +381,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_previewPhoto == null || _previewPhoto.IsFolder)
         {
             _isLoadingText = true;
-            TextContent = string.Empty;
+            _textContent = string.Empty;
             _textFilePath = string.Empty;
+            OnPropertyChanged(nameof(TextContent));
             _isLoadingText = false;
             return;
         }
@@ -399,17 +400,22 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Load text if file exists
             if (File.Exists(_textFilePath))
             {
-                TextContent = await File.ReadAllTextAsync(_textFilePath);
+                // Set the backing field directly to avoid triggering the auto-save
+                _textContent = await File.ReadAllTextAsync(_textFilePath);
+                OnPropertyChanged(nameof(TextContent));
             }
             else
             {
-                TextContent = string.Empty;
+                // Set the backing field directly to avoid triggering the auto-save
+                _textContent = string.Empty;
+                OnPropertyChanged(nameof(TextContent));
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading text file: {ex.Message}");
-            TextContent = string.Empty;
+            _textContent = string.Empty;
+            OnPropertyChanged(nameof(TextContent));
         }
         finally
         {
