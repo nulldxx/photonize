@@ -45,6 +45,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _textContent = string.Empty;
     private string _textFilePath = string.Empty;
     private bool _isLoadingText = false;
+    private string _captionServer = CaptionService.DefaultServer;
 
     public event EventHandler? VideoSourceChanged;
 
@@ -79,6 +80,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ExportPNGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPNGAsync(photo), CanExportImage);
         ExportJPGCommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToJPGAsync(photo), CanExportImage);
         ExportPhotoAICommand = new RelayCommand<PhotoItem?>(async (photo) => await ExportToPhotoAIAsync(photo), CanExportPhotoAI);
+        AutoCaptionCommand = new RelayCommand<PhotoItem?>(async (photo) => await AutoCaptionAsync(photo), CanAutoCaption);
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
         ToggleVideoPlaybackCommand = new RelayCommand(ToggleVideoPlayback);
         ToggleTextEditorCommand = new RelayCommand(ToggleTextEditor);
@@ -466,6 +468,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)AutoCaptionCommand).RaiseCanExecuteChanged();
         ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
 
         // Update preview photo to the first selected item
@@ -484,6 +487,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ExportPNGCommand { get; }
     public ICommand ExportJPGCommand { get; }
     public ICommand ExportPhotoAICommand { get; }
+    public ICommand AutoCaptionCommand { get; }
     public ICommand CompareImagesCommand { get; }
     public ICommand ToggleVideoPlaybackCommand { get; }
     public ICommand ToggleTextEditorCommand { get; }
@@ -509,6 +513,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         // Restore text editor visibility state
         IsTextEditorVisible = settings.IsTextEditorVisible;
+
+        // Restore the ComfyUI caption server address
+        if (!string.IsNullOrWhiteSpace(settings.CaptionServer))
+        {
+            _captionServer = settings.CaptionServer;
+        }
     }
 
     private void SaveSettings()
@@ -519,7 +529,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             LastThumbnailSize = ThumbnailSize,
             LastPrefix = RenamePrefix,
             IsPreviewVisible = IsPreviewVisible,
-            IsTextEditorVisible = IsTextEditorVisible
+            IsTextEditorVisible = IsTextEditorVisible,
+            CaptionServer = _captionServer
         };
         _settingsService.SaveSettings(settings);
     }
@@ -1112,6 +1123,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
+            ((RelayCommand<PhotoItem?>)AutoCaptionCommand).RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -1136,6 +1148,141 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         // Allow export if Topaz is installed and we have photos
         return IsTopazInstalled && (photo != null || _selectedPhotos.Count > 0);
+    }
+
+    private bool CanAutoCaption(PhotoItem? photo)
+    {
+        // Allow auto-caption if we have a right-clicked image or any selected images
+        return photo != null || _selectedPhotos.Count > 0;
+    }
+
+    private async Task AutoCaptionAsync(PhotoItem? photo)
+    {
+        // Determine which images to caption: all selected images, or the
+        // right-clicked image as a fallback. Folders and videos are excluded.
+        List<PhotoItem> photosToCaption = new List<PhotoItem>();
+
+        if (_selectedPhotos.Count > 0)
+        {
+            photosToCaption.AddRange(_selectedPhotos.Where(p => !p.IsFolder && !p.IsVideo));
+        }
+        else if (photo != null && !photo.IsFolder && !photo.IsVideo)
+        {
+            photosToCaption.Add(photo);
+        }
+
+        // Restrict to formats the caption service supports
+        photosToCaption = photosToCaption
+            .Where(p => CaptionService.SupportedExtensions.Contains(Path.GetExtension(p.FilePath)))
+            .ToList();
+
+        if (photosToCaption.Count == 0)
+        {
+            MessageBox.Show(
+                "No captionable images are selected. Auto-caption supports JPG, PNG, WebP, BMP and GIF images.",
+                "Auto-caption",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        // Ask about overwriting captions that already exist (before showing progress)
+        Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
+        {
+            string message;
+            if (existingFiles.Count == 1)
+            {
+                message = $"The caption '{existingFiles[0]}' already exists.\n\n" +
+                          "Choose an option:\n" +
+                          "• Yes: Overwrite all existing captions\n" +
+                          "• No: Skip images that already have a caption\n" +
+                          "• Cancel: Cancel auto-caption";
+            }
+            else
+            {
+                message = $"{existingFiles.Count} captions already exist:\n\n{string.Join("\n", existingFiles.Take(5))}" +
+                          (existingFiles.Count > 5 ? $"\n...and {existingFiles.Count - 5} more" : "") +
+                          "\n\nChoose an option:\n" +
+                          "• Yes: Overwrite all existing captions\n" +
+                          "• No: Skip images that already have a caption\n" +
+                          "• Cancel: Cancel auto-caption";
+            }
+
+            var result = MessageBox.Show(
+                message,
+                "Captions Already Exist",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            return result switch
+            {
+                MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                MessageBoxResult.No => OverwriteOption.SkipExisting,
+                _ => OverwriteOption.Cancel
+            };
+        };
+
+        // Create progress dialog
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+        progressDialog.TitleText.Text = "Auto-captioning images";
+
+        var cts = new CancellationTokenSource();
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        var progress = new Progress<(int current, int total, string status)>(p =>
+        {
+            progressDialog.UpdateProgress(p.current, p.total, p.status);
+        });
+
+        progressDialog.Show();
+
+        IsLoading = true;
+        try
+        {
+            var captionService = new CaptionService(_captionServer);
+            var (success, message) = await captionService.GenerateCaptionsAsync(
+                photosToCaption,
+                overwriteCallback,
+                progress,
+                cancellationToken: cts.Token);
+
+            progressDialog.Close();
+
+            StatusMessage = message;
+
+            if (success)
+            {
+                MessageBox.Show(message, "Auto-caption Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else if (!cts.Token.IsCancellationRequested && !message.Contains("cancelled by user", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(message, "Auto-caption Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            progressDialog.Close();
+            StatusMessage = "Auto-caption cancelled.";
+        }
+        catch (Exception ex)
+        {
+            progressDialog.Close();
+            StatusMessage = $"Error auto-captioning: {ex.Message}";
+            MessageBox.Show($"Error auto-captioning: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private bool CanCompareImages()

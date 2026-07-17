@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Auto-caption (Florence-2 via ComfyUI)**: Right-click any image and choose "Auto-caption" to generate a descriptive caption using a Florence-2 workflow on a ComfyUI server
+  - Works on a single image or a multi-selection of images
+  - Each caption is saved as a `.txt` file next to its source image (e.g. "photo.webp" → "photo.txt")
+  - Progress dialog with cancellation while captions are generated
+  - Prompts before overwriting captions that already exist
+  - Server address (default `mordor:8000`) is persisted in settings
 - **Text Editor for AI Training Prompts**: Built-in text editor for managing AI training prompts alongside images
   - Automatically loads and saves .txt files with the same base name as selected images (e.g., "photo.jpg" → "photo.txt")
   - Real-time auto-save as you type

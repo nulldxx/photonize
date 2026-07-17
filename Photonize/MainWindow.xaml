@@ -268,6 +268,13 @@
                                                                   Command="{Binding ExportJPGCommand}"
                                                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                     </MenuItem>
+                                                    <MenuItem Header="Auto-caption"
+                                                              Command="{Binding PlacementTarget.Tag.AutoCaptionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                        <MenuItem.Icon>
+                                                            <TextBlock Text="💬" FontSize="14"/>
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
                                                     <Separator/>
                                                     <MenuItem Header="Delete"
                                                               Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

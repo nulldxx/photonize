@@ -10,6 +10,7 @@ public class AppSettings
     public string? LastPrefix { get; set; }
     public bool IsPreviewVisible { get; set; } = false;
     public bool IsTextEditorVisible { get; set; } = false;
+    public string CaptionServer { get; set; } = CaptionService.DefaultServer;
 }
 
 public class SettingsService
