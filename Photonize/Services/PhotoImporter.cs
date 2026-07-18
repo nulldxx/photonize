@@ -21,7 +21,8 @@ public class PhotoImporter
     /// <param name="existingPhotos">Current photos in the collection</param>
     /// <param name="targetDirectory">Directory to import into</param>
     /// <param name="prefix">Naming prefix to use</param>
-    /// <param name="mode">Import mode (Append or Distribute)</param>
+    /// <param name="mode">Import mode (Insert or Distribute)</param>
+    /// <param name="insertIndex">Position to insert at when mode is Insert (ignored otherwise)</param>
     /// <returns>Tuple of success status and message</returns>
     public async Task<(bool Success, string Message, List<PhotoItem> UpdatedPhotos)> ImportPhotosAsync(
         List<string> sourceFiles,
@@ -29,6 +30,7 @@ public class PhotoImporter
         string targetDirectory,
         string prefix,
         ImportMode mode,
+        int insertIndex = int.MaxValue,
         int thumbnailSize = 200)
     {
         try
@@ -62,9 +64,9 @@ public class PhotoImporter
             {
                 fileOperations = CalculateDistributedPositions(existingPhotos, filesToImport);
             }
-            else // Append
+            else // Insert
             {
-                fileOperations = CalculateAppendPositions(existingPhotos, filesToImport);
+                fileOperations = CalculateInsertPositions(existingPhotos, filesToImport, insertIndex);
             }
 
             // Phase 1: Rename existing files to temporary names (skip folders)
@@ -112,7 +114,7 @@ public class PhotoImporter
                 updatedPhotos.Add(photoItem);
             }
 
-            var modeText = mode == ImportMode.Distribute ? "distributed" : "appended";
+            var modeText = mode == ImportMode.Distribute ? "distributed" : "inserted";
             return (true, $"Successfully {modeText} {filesToImport.Count} file(s).", updatedPhotos);
         }
         catch (Exception ex)
@@ -122,25 +124,35 @@ public class PhotoImporter
     }
 
     /// <summary>
-    /// Calculate file positions for append mode (new files at the end).
+    /// Calculate file positions for insert mode (new files at a specific position).
+    /// An insertIndex at or beyond the existing photo count is equivalent to appending.
     /// </summary>
-    private List<(string SourcePath, bool IsNew, int FinalIndex)> CalculateAppendPositions(
+    private List<(string SourcePath, bool IsNew, int FinalIndex)> CalculateInsertPositions(
         List<PhotoItem> existingPhotos,
-        List<string> newFiles)
+        List<string> newFiles,
+        int insertIndex)
     {
         var operations = new List<(string, bool, int)>();
 
-        // Add existing photos first (excluding folders)
         var sortedExisting = existingPhotos.Where(p => !p.IsFolder).OrderBy(p => p.DisplayOrder).ToList();
-        for (int i = 0; i < sortedExisting.Count; i++)
+        var clampedIndex = Math.Clamp(insertIndex, 0, sortedExisting.Count);
+
+        // Existing photos before the insertion point keep their positions
+        for (int i = 0; i < clampedIndex; i++)
         {
             operations.Add((sortedExisting[i].FilePath, false, i));
         }
 
-        // Add new photos at the end
+        // New photos land at the insertion point
         for (int i = 0; i < newFiles.Count; i++)
         {
-            operations.Add((newFiles[i], true, sortedExisting.Count + i));
+            operations.Add((newFiles[i], true, clampedIndex + i));
+        }
+
+        // Existing photos at/after the insertion point shift down
+        for (int i = clampedIndex; i < sortedExisting.Count; i++)
+        {
+            operations.Add((sortedExisting[i].FilePath, false, i + newFiles.Count));
         }
 
         return operations;

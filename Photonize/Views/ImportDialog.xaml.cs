@@ -4,7 +4,7 @@ namespace Photonize.Views;
 
 public enum ImportMode
 {
-    Append,
+    Insert,
     Distribute
 }
 
@@ -12,15 +12,17 @@ public partial class ImportDialog : Window
 {
     public ImportMode SelectedMode { get; private set; }
 
-    public ImportDialog(int existingCount, int newCount)
+    public ImportDialog(int existingCount, int newCount, int insertIndex)
     {
         InitializeComponent();
-        FileCountText.Text = $"Adding {newCount} new photo(s) to {existingCount} existing photo(s)";
+        FileCountText.Text = insertIndex >= existingCount
+            ? $"Adding {newCount} new photo(s) to {existingCount} existing photo(s)"
+            : $"Adding {newCount} new photo(s) to {existingCount} existing photo(s), inserting at position {insertIndex + 1}";
     }
 
-    private void AppendButton_Click(object sender, RoutedEventArgs e)
+    private void InsertButton_Click(object sender, RoutedEventArgs e)
     {
-        SelectedMode = ImportMode.Append;
+        SelectedMode = ImportMode.Insert;
         DialogResult = true;
         Close();
     }

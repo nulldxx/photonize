@@ -16,7 +16,7 @@
         <!-- Message -->
         <Border Grid.Row="0" Margin="20">
             <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Append to existing set or distribute evenly?"
+                <TextBlock Text="Insert at drop position or distribute evenly?"
                            FontSize="16"
                            FontWeight="SemiBold"
                            TextAlignment="Center"
@@ -40,12 +40,12 @@
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0"
-                    Content="Append"
-                    Click="AppendButton_Click"
+                    Content="Insert"
+                    Click="InsertButton_Click"
                     Padding="15,10"
                     FontSize="14"
                     FontWeight="SemiBold"
-                    ToolTip="Add new photos to the end of the existing set"/>
+                    ToolTip="Insert new photos at the position where they were dropped"/>
 
             <Button Grid.Column="2"
                     Content="Distribute Evenly"

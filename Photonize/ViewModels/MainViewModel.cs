@@ -2011,7 +2011,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public async Task ImportPhotosAsync(List<string> filesToImport)
+    public async Task ImportPhotosAsync(List<string> filesToImport, int insertIndex)
     {
         if (string.IsNullOrEmpty(DirectoryPath) || !Directory.Exists(DirectoryPath))
         {
@@ -2041,8 +2041,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        var clampedInsertIndex = Math.Clamp(insertIndex, 0, Photos.Count);
+
         // Show dialog to choose import mode
-        var dialog = new Photonize.Views.ImportDialog(Photos.Count, supportedFiles.Count);
+        var dialog = new Photonize.Views.ImportDialog(Photos.Count, supportedFiles.Count, clampedInsertIndex);
         dialog.Owner = Application.Current.MainWindow;
 
         if (dialog.ShowDialog() != true)
@@ -2061,6 +2063,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 DirectoryPath,
                 RenamePrefix,
                 dialog.SelectedMode,
+                clampedInsertIndex,
                 (int)ThumbnailSize);
 
             if (success)

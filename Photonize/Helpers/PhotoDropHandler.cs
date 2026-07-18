@@ -25,7 +25,10 @@ public class PhotoDropHandler : IDropTarget
         if (dropInfo.Data is System.Windows.IDataObject dataObject &&
             dataObject.GetDataPresent(DataFormats.FileDrop))
         {
+            // Show insert cursor between photos so the user can choose where to drop
+            dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
             dropInfo.Effects = DragDropEffects.Copy;
+            HandleAutoScroll(dropInfo);
             return;
         }
 
@@ -114,10 +117,10 @@ public class PhotoDropHandler : IDropTarget
             var files = dataObject.GetData(DataFormats.FileDrop) as string[];
             if (files != null && files.Length > 0)
             {
-                // Call the ViewModel's import method
+                // Call the ViewModel's import method, using the cursor position to choose where to insert
                 if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
                 {
-                    await vm.ImportPhotosAsync(files.ToList());
+                    await vm.ImportPhotosAsync(files.ToList(), dropInfo.InsertIndex);
                 }
             }
             return;
