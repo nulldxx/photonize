@@ -178,8 +178,6 @@ GitHub Actions will automatically:
 The current implementation has some differences from the Windows version:
 
 ⚠️ **Not Yet Implemented:**
-- WebP export (macOS doesn't have built-in WebP support)
-- PNG/JPG export
 - Image comparison view
 - Photo import/copy
 - Actual drag-and-drop reordering (SwiftUI LazyVGrid limitation)
@@ -198,8 +196,7 @@ Possible improvements:
 
 1. **Apple Silicon Support**: Add arm64 architecture to build
 2. **Drag-Drop Reordering**: Implement custom collection view for true drag-drop
-3. **Export Features**: Add WebP/PNG/JPG export (would need third-party library for WebP)
-4. **Image Comparison**: Port the comparison window from Windows version
+3. **Image Comparison**: Port the comparison window from Windows version
 5. **Photo Import**: Add import/copy functionality
 6. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
 7. **Multi-selection**: Improve multi-selection UI with shift-click ranges

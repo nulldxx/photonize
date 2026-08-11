@@ -11,11 +11,21 @@ settings:
     ARCHS: $(ARCHS_STANDARD)
     SWIFT_VERSION: "5.0"
     ENABLE_HARDENED_RUNTIME: YES
+packages:
+  # Google's libwebp, SPM-packaged. ImageIO only gained WebP *encoding* in macOS
+  # 14, but the deployment target is 13.0, so we vendor the C library to keep
+  # Ventura users covered. This package vendors libwebp with a module map and
+  # nothing else — no SDWebImage runtime comes along with it.
+  libwebp:
+    url: https://github.com/SDWebImage/libwebp-Xcode
+    from: "1.3.2"
 targets:
   Photonize:
     type: application
     platform: macOS
     sources: [Photonize]
+    dependencies:
+      - package: libwebp
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.photonize.macos

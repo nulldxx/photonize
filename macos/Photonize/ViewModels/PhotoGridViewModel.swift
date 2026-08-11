@@ -16,6 +16,9 @@ class PhotoGridViewModel: ObservableObject {
     @Published var restoreLastFolderOnLaunch: Bool = true { didSet { scheduleSave() } }
     @Published var previewPhoto: PhotoItem?
     @Published var hasUnsavedChanges: Bool = false
+    /// Drives the shared progress sheet. Non-nil while a batch operation (export,
+    /// and later import/tag-move) is running; setting it to nil dismisses the sheet.
+    @Published var operationProgress: OperationProgress?
     /// The focus cursor for keyboard navigation. Published so the grid can scroll
     /// it into view as it moves.
     @Published var focusedPhotoID: PhotoItem.ID?
@@ -28,6 +31,7 @@ class PhotoGridViewModel: ObservableObject {
     var columnCount: Int = 1
 
     private let fileRenamer = FileRenamer()
+    private let imageExporter = ImageExporter()
     private let thumbnailGenerator = ThumbnailGenerator()
     private let thumbnailLoader = ThumbnailLoader()
     private let settingsManager = SettingsManager()
@@ -461,6 +465,141 @@ class PhotoGridViewModel: ObservableObject {
         selectedPhotos.removeAll()
         selectionAnchor = nil
         focusedPhotoID = nil
+    }
+
+    // MARK: - Export
+
+    /// Right-click → Export ▸ WebP/PNG/JPG. Resolves the source set, then runs the
+    /// batch behind the shared progress sheet and navigates into the output folder
+    /// on success. Kicks off a `Task` so the menu action returns immediately.
+    func exportSelection(_ contextPhoto: PhotoItem, as format: ExportFormat) {
+        // A folder exports the images it directly contains; the exporter writes the
+        // subfolder inside it. An image exports the selection when it is part of
+        // one, otherwise itself alone (the Windows right-click rule).
+        let sources: [PhotoItem]
+        let baseDirectory: URL
+        if contextPhoto.isFolder {
+            sources = imageFiles(in: contextPhoto.filePath)
+            baseDirectory = contextPhoto.filePath
+        } else {
+            baseDirectory = URL(fileURLWithPath: directoryPath)
+            if selectedPhotos.contains(contextPhoto.id) {
+                sources = photos.filter { selectedPhotos.contains($0.id) && !$0.isFolder }
+            } else {
+                sources = [contextPhoto]
+            }
+        }
+
+        guard !sources.isEmpty else {
+            statusMessage = "No images to export."
+            return
+        }
+
+        let progress = OperationProgress(
+            title: "Exporting to \(format.folderName)",
+            status: "Preparing…",
+            total: sources.count
+        )
+        let exporter = imageExporter
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await exporter.export(
+                    sources,
+                    in: baseDirectory,
+                    as: format,
+                    overwrite: { [weak self] existing in
+                        self?.promptOverwrite(existing, format: format) ?? .cancel
+                    },
+                    progress: { [weak self] current, total, status in
+                        self?.operationProgress?.update(current: current, total: total, status: status)
+                    }
+                )
+                self.operationProgress = nil
+                self.finishExport(result)
+            } catch is CancellationError {
+                self.operationProgress = nil
+                self.statusMessage = "Export cancelled."
+            } catch ExportError.cancelled {
+                self.operationProgress = nil
+                self.statusMessage = "Export cancelled."
+            } catch {
+                self.operationProgress = nil
+                self.statusMessage = "Export failed: \(error.localizedDescription)"
+                self.showAlert(title: "Export Failed", message: error.localizedDescription)
+            }
+        }
+
+        progress.task = task
+        operationProgress = progress
+    }
+
+    /// The image files directly inside `folderURL`, sorted by name — the folder
+    /// equivalent of the grid's own image list.
+    private func imageFiles(in folderURL: URL) -> [PhotoItem] {
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: folderURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        return contents
+            .filter { url in
+                (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == false
+                    && thumbnailGenerator.isImageFile(url)
+            }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            .map { PhotoItem(filePath: $0, fileName: $0.lastPathComponent, displayOrder: 0, isFolder: false, thumbnail: nil) }
+    }
+
+    /// The one overwrite prompt for a batch: Overwrite All / Skip Existing / Cancel,
+    /// listing the clashing outputs (capped, as on Windows).
+    private func promptOverwrite(_ existing: [String], format: ExportFormat) -> OverwriteOption {
+        let alert = NSAlert()
+        alert.messageText = "Files Already Exist"
+
+        let listed = existing.prefix(5).joined(separator: "\n")
+        let more = existing.count > 5 ? "\n…and \(existing.count - 5) more" : ""
+        if existing.count == 1 {
+            alert.informativeText = "The file '\(existing[0])' already exists in the \(format.folderName) folder.\n\n"
+                + "• Overwrite All\n• Skip Existing\n• Cancel"
+        } else {
+            alert.informativeText = "\(existing.count) files already exist in the \(format.folderName) folder:\n\n"
+                + "\(listed)\(more)\n\n• Overwrite All\n• Skip Existing\n• Cancel"
+        }
+
+        alert.addButton(withTitle: "Overwrite All")
+        alert.addButton(withTitle: "Skip Existing")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:  return .overwriteAll
+        case .alertSecondButtonReturn: return .skipExisting
+        default:                       return .cancel
+        }
+    }
+
+    /// Report the counts and, when anything was written, navigate into the output
+    /// folder to reveal the result (Windows reloads to the same end).
+    private func finishExport(_ result: ExportResult) {
+        var parts: [String] = []
+        if result.exported > 0 { parts.append("\(result.exported) exported") }
+        if result.skipped > 0 { parts.append("\(result.skipped) skipped") }
+        if !result.failed.isEmpty { parts.append("\(result.failed.count) failed") }
+        statusMessage = parts.isEmpty ? "Nothing to export." : "Export complete: " + parts.joined(separator: ", ")
+
+        if !result.failed.isEmpty {
+            showAlert(
+                title: "Export Errors",
+                message: "Failed to export \(result.failed.count) item(s):\n\n\(result.failed.joined(separator: "\n"))"
+            )
+        }
+
+        if result.exported > 0 {
+            directoryPath = result.outputURL.path
+            Task { await loadPhotos() }
+        }
     }
 
     func openPhoto(_ photo: PhotoItem) {

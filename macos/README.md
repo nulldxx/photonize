@@ -275,8 +275,8 @@ See the main repository LICENSE file.
 | Preview Pane | ✓ | ✓ |
 | Folder Navigation | ✓ | ✓ |
 | Settings Persistence | ✓ | ✓ |
-| WebP Export | ✓ | Planned |
-| PNG/JPG Export | ✓ | Planned |
+| WebP Export | ✓ | ✓ |
+| PNG/JPG Export | ✓ | ✓ |
 | Image Compare | ✓ | Planned |
 | Photo Import | ✓ | Planned |
 

@@ -189,7 +189,7 @@ struct PhotoContextMenu: View {
         case .folder:
             openButton
             showInFinderButton
-            // INSERTION POINT — slice 05: Export ▸ (PhotoAI Upscale Folder)
+            exportMenu
             // INSERTION POINT — slice 10: Tags ▸
             Divider()
             deleteButton
@@ -205,7 +205,7 @@ struct PhotoContextMenu: View {
             openButton
             showInFinderButton
             // INSERTION POINT — slice 07: Image Compare
-            // INSERTION POINT — slice 05: Export ▸
+            exportMenu
             // INSERTION POINT — slice 10: Tags ▸
             Divider()
             deleteButton
@@ -218,6 +218,20 @@ struct PhotoContextMenu: View {
 
     private var showInFinderButton: some View {
         Button("Show in Finder") { viewModel.showInFinder(photo) }
+    }
+
+    /// Export ▸ WebP / PNG / JPG. Shown for images and folders (a folder exports
+    /// the images it contains), never for videos — matching the Windows menu.
+    /// Windows also lists PhotoAI upscale here; that is deferred, so there is no
+    /// separator and just the three format entries.
+    private var exportMenu: some View {
+        Menu("Export") {
+            ForEach(ExportFormat.allCases, id: \.self) { format in
+                Button(format.folderName) {
+                    viewModel.exportSelection(photo, as: format)
+                }
+            }
+        }
     }
 
     private var deleteButton: some View {

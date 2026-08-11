@@ -33,6 +33,10 @@ struct ContentView: View {
                 .padding(.vertical, 8)
                 .background(Color(NSColor.controlBackgroundColor))
         }
+        // Modal-to-the-window progress for export/import/tag-move batches.
+        .sheet(item: $viewModel.operationProgress) { progress in
+            ProgressSheet(progress: progress)
+        }
     }
 }
 
