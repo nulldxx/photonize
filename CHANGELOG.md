@@ -84,6 +84,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Seamless switching between images updates the text editor with corresponding prompt files
 
 ### Changed
+- **macOS: Universal binary**: The macOS app now ships as a universal build running natively on both Apple Silicon (arm64) and Intel (x86_64) Macs, instead of Intel-only through Rosetta. The release DMG is named `Photonize-<version>-universal.dmg`, and CI fails the build if the binary is not actually universal.
+- **macOS: One release for both platforms**: A `v*` tag now builds and publishes the Windows MSI and the macOS DMG to a single GitHub release with shared notes from `CHANGELOG.md`; the previously-documented but non-existent `release-macos.yml` / `macos-v*` flow is gone.
+- **macOS: Test suite runs in CI**: A new `PhotonizeTests` XCTest target covers the renamer, tagging, sorter, importer, exporter, selection maths, prompt store, thumbnail loader and launch-argument parsing. `xcodebuild test` runs on every build and release, and a failing test blocks the release. The tagging suites mirror the Windows `TagTests` for cross-client parity.
 - **macOS: Sandbox-safe folder restore**: The last-opened folder is now reopened via a security-scoped bookmark, so it survives relaunch under the App Sandbox
 - **macOS: Preferences persist immediately**: Thumbnail size and preview toggle are now saved as you change them, not only when a folder is loaded or renamed
 - **macOS: Single File menu**: Open Folder… (⌘O) and Refresh (⌘R) now live in the standard File menu instead of a duplicate one

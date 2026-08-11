@@ -18,7 +18,7 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 ## System Requirements
 
 - macOS 13.0 (Ventura) or later
-- Intel-based Mac (Apple Silicon support coming soon)
+- Universal binary — runs natively on both Apple Silicon (arm64) and Intel (x86_64) Macs
 
 ## Supported Formats
 
@@ -30,11 +30,11 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 
 ### From Release
 
-1. Download the latest `Photonize-{version}-intel.dmg` from [Releases](https://github.com/benstaniford/photonize/releases)
+1. Download the latest `Photonize-{version}-universal.dmg` from [Releases](https://github.com/benstaniford/photonize/releases)
 2. Open the DMG file
 3. Drag `Photonize.app` to your Applications folder
 4. Launch Photonize from Applications
-5. If macOS blocks the app (Gatekeeper), go to System Preferences > Security & Privacy and click "Open Anyway"
+5. The app is not yet notarized, so on first launch Gatekeeper will block it. **Right-click (or Control-click) `Photonize.app` in Applications and choose "Open"**, then confirm in the dialog. macOS remembers the choice, so subsequent launches are normal. (Recent macOS releases no longer reliably show an "Open Anyway" button in System Settings, so the right-click route is the dependable one.)
 
 ### Building from Source
 
@@ -43,6 +43,8 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - macOS 13.0 or later
 - Xcode 15.0 or later
 - Command Line Tools for Xcode
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) — the Xcode
+  project is generated from `project.yml`, so regenerate it after editing that file
 
 #### Build Steps
 
@@ -52,8 +54,9 @@ A macOS desktop application for visually organizing and batch-renaming photograp
    cd photonize/macos
    ```
 
-2. **Open in Xcode**:
+2. **(Re)generate and open in Xcode**:
    ```bash
+   xcodegen generate   # only needed after changing project.yml
    open Photonize.xcodeproj
    ```
 
@@ -241,7 +244,7 @@ The project includes automated build workflows:
 ### Build Workflow
 - **File**: `.github/workflows/build-macos.yml`
 - **Trigger**: Manual workflow dispatch
-- **Purpose**: Build DMG for testing
+- **Purpose**: Run the test suite and build a universal DMG for testing
 - **Output**: Artifact available for 30 days
 
 To trigger a build:
@@ -252,22 +255,25 @@ To trigger a build:
 5. Download artifact from workflow run
 
 ### Release Workflow
-- **File**: `.github/workflows/release-macos.yml`
-- **Trigger**: Git tag push (`macos-v*.*.*`) or manual dispatch
-- **Purpose**: Build and create GitHub release
-- **Output**: DMG attached to release
+- **File**: `.github/workflows/release.yml` (shared with Windows — there is no separate macOS release workflow)
+- **Trigger**: Git tag push (`v*.*.*`) or manual dispatch
+- **Purpose**: Build and publish a single GitHub release carrying both platforms
+- **Output**: The Windows MSI and the universal macOS DMG attached to one release
 
-To create a release:
+A macOS release is not cut separately. Pushing a `v*` tag builds and ships **both**
+the Windows and macOS artifacts to the same GitHub release, with notes shared from
+`CHANGELOG.md`'s `[Unreleased]` section:
+
 ```bash
-git tag macos-v0.1.0
-git push origin macos-v0.1.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-The workflow will:
-1. Build the app for Intel Macs
-2. Create a DMG installer
-3. Create a GitHub release with release notes
-4. Attach the DMG to the release
+The macOS half of the workflow will:
+1. Run `xcodebuild test` (the release is blocked if any test fails)
+2. Build the app as a universal binary (arm64 + x86_64)
+3. Create a DMG installer (`Photonize-{version}-universal.dmg`)
+4. Attach the DMG to the shared GitHub release
 
 ## Troubleshooting
 

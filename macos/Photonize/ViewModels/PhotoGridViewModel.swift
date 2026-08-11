@@ -735,7 +735,7 @@ class PhotoGridViewModel: ObservableObject {
     /// Split export sources into the images the exporter can handle and the count
     /// of videos to report as skipped. Static and pure so slice 12 can assert the
     /// mixed-selection rule without driving the whole export.
-    static func partitionExportSources(_ sources: [PhotoItem]) -> (images: [PhotoItem], skippedVideos: Int) {
+    nonisolated static func partitionExportSources(_ sources: [PhotoItem]) -> (images: [PhotoItem], skippedVideos: Int) {
         let images = sources.filter { !$0.isVideo }
         return (images, sources.count - images.count)
     }
@@ -1541,7 +1541,7 @@ class PhotoGridViewModel: ObservableObject {
     // MARK: - Pure selection helpers (window-free, so slice 12 can unit-test them)
 
     /// Every non-folder id, in document order.
-    static func fileIDs(in photos: [PhotoItem]) -> [PhotoItem.ID] {
+    nonisolated static func fileIDs(in photos: [PhotoItem]) -> [PhotoItem.ID] {
         photos.filter { !$0.isFolder }.map { $0.id }
     }
 
@@ -1549,7 +1549,7 @@ class PhotoGridViewModel: ObservableObject {
     /// non-folders, ordered by `displayOrder` so A is the earlier photo (the one
     /// the divider reveals). A folder anywhere in the selection disqualifies it,
     /// as does any count other than two.
-    static func comparePair(in photos: [PhotoItem], selection: Set<PhotoItem.ID>) -> ComparePair? {
+    nonisolated static func comparePair(in photos: [PhotoItem], selection: Set<PhotoItem.ID>) -> ComparePair? {
         let selected = photos.filter { selection.contains($0.id) }
         guard selected.count == 2, selected.allSatisfy({ !$0.isFolder }) else { return nil }
         let ordered = selected.sorted { $0.displayOrder < $1.displayOrder }
@@ -1557,7 +1557,7 @@ class PhotoGridViewModel: ObservableObject {
     }
 
     /// The inclusive set of ids between two indices, order-independent.
-    static func rangeSelection(in photos: [PhotoItem], from anchorIndex: Int, to targetIndex: Int) -> Set<PhotoItem.ID> {
+    nonisolated static func rangeSelection(in photos: [PhotoItem], from anchorIndex: Int, to targetIndex: Int) -> Set<PhotoItem.ID> {
         guard !photos.isEmpty else { return [] }
         let lower = max(0, min(anchorIndex, targetIndex))
         let upper = min(photos.count - 1, max(anchorIndex, targetIndex))
@@ -1567,7 +1567,7 @@ class PhotoGridViewModel: ObservableObject {
 
     /// Where the focus cursor lands for a direction, or `nil` at a grid edge.
     /// Left/right walk linearly (which is also row wrapping); up/down jump a row.
-    static func nextFocusIndex(from index: Int, direction: FocusDirection, columnCount: Int, count: Int) -> Int? {
+    nonisolated static func nextFocusIndex(from index: Int, direction: FocusDirection, columnCount: Int, count: Int) -> Int? {
         guard count > 0, index >= 0, index < count else { return nil }
         let columns = max(1, columnCount)
         switch direction {

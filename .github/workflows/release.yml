@@ -158,18 +158,34 @@ jobs:
           sed -i '' "s/MARKETING_VERSION: 0.1.0/MARKETING_VERSION: ${{ steps.version.outputs.NUMERIC_VERSION }}/" project.yml
           xcodegen generate
 
-      - name: Build macOS app (Intel only)
+      - name: Run tests
         run: |
           cd macos
+          xcodebuild test \
+            -project Photonize.xcodeproj \
+            -scheme Photonize \
+            -destination 'platform=macOS'
+
+      - name: Build macOS app (universal)
+        run: |
+          cd macos
+          # ARCHS is $(ARCHS_STANDARD) in project.yml, so a Release build for the
+          # generic macOS destination produces a universal (arm64 + x86_64) binary.
           xcodebuild -project Photonize.xcodeproj \
             -scheme Photonize \
             -configuration Release \
-            -arch x86_64 \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath build \
             build
 
           # Copy the built app
           cp -R build/Build/Products/Release/Photonize.app ./
+
+          # Fail the release if the binary is not actually universal.
+          lipo -archs Photonize.app/Contents/MacOS/Photonize
+          lipo -archs Photonize.app/Contents/MacOS/Photonize | grep -q "x86_64" \
+            && lipo -archs Photonize.app/Contents/MacOS/Photonize | grep -q "arm64" \
+            || { echo "✗ Binary is not universal"; exit 1; }
 
       - name: Create DMG
         run: |
@@ -185,13 +201,13 @@ jobs:
           hdiutil create -volname "Photonize ${{ steps.version.outputs.NUMERIC_VERSION }}" \
             -srcfolder dmg-contents \
             -ov -format UDZO \
-            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: photonize-macos
-          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg
 
   create-release:
     needs: [build-windows, build-macos]
@@ -251,7 +267,7 @@ jobs:
           - **PhotonizeInstaller-v${NUMERIC_VERSION}-x64.msi** - Windows MSI installer (64-bit)
 
           ### macOS Installer
-          - **Photonize-${NUMERIC_VERSION}-intel.dmg** - macOS application (Intel Macs)
+          - **Photonize-${NUMERIC_VERSION}-universal.dmg** - macOS application (universal, Apple Silicon + Intel)
 
           ## Installation
 
@@ -263,10 +279,10 @@ jobs:
           5. Right-click context menu integration will be available in Windows Explorer
 
           ### macOS
-          1. Download \`Photonize-${NUMERIC_VERSION}-intel.dmg\`
+          1. Download \`Photonize-${NUMERIC_VERSION}-universal.dmg\`
           2. Open the DMG
           3. Drag Photonize.app to your Applications folder
-          4. Launch Photonize from Applications
+          4. Launch Photonize from Applications (first launch: right-click → Open to clear Gatekeeper, as the app is not yet notarized)
 
           ## System Requirements
 
@@ -277,7 +293,7 @@ jobs:
 
           ### macOS
           - **Operating System**: macOS 13.0 (Ventura) or later
-          - **Architecture**: Intel-based Mac
+          - **Architecture**: Universal — Apple Silicon (arm64) and Intel (x86_64)
           - **Disk Space**: ~30 MB
 
           ## Supported Image Formats
@@ -330,7 +346,7 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           NUMERIC_VERSION="${{ steps.version.outputs.NUMERIC_VERSION }}"
 
-          MACOS_ASSET="artifacts/photonize-macos/Photonize-${NUMERIC_VERSION}-intel.dmg"
+          MACOS_ASSET="artifacts/photonize-macos/Photonize-${NUMERIC_VERSION}-universal.dmg"
 
           echo "Uploading macOS DMG to release..."
           gh release upload "$VERSION" "$MACOS_ASSET" --clobber

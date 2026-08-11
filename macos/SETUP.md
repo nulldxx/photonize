@@ -54,8 +54,9 @@ macos/
 ```
 
 GitHub Actions workflows:
-- `.github/workflows/build-macos.yml` - Build DMG on demand
-- `.github/workflows/release-macos.yml` - Create releases with tags
+- `.github/workflows/build-macos.yml` - Run tests and build a universal DMG on demand
+- `.github/workflows/release.yml` - Shared with Windows; a `v*` tag ships the MSI and
+  the universal DMG to one GitHub release (there is no separate macOS release workflow)
 
 ## Features Implemented
 
@@ -72,6 +73,11 @@ GitHub Actions workflows:
 ✅ Status bar with loading indicator
 ✅ Adjustable thumbnail size
 ✅ Video support (MP4/MOV/M4V) — thumbnails and preview-pane playback
+✅ Quick tagging (0-9) with a shared `.photonize-tags.json` sidecar
+✅ WebP / PNG / JPG export and A/B image compare
+✅ Import from Finder and drag-into-folders
+✅ `.txt` caption (prompt) editor
+✅ XCTest suites in `PhotonizeTests/`, run by `xcodebuild test` in CI
 
 ## Frameworks
 
@@ -111,20 +117,37 @@ The app should launch and you'll be able to:
 
 ### 4. Test the Build
 
-Try building from command line (same as GitHub Actions will do):
+Run the unit suites and build a universal binary from the command line (same as
+GitHub Actions does):
 
 ```bash
 cd ~/Code/photonize/macos
 xcodegen generate
+
+# Run the XCTest suites in PhotonizeTests/
+xcodebuild test \
+  -project Photonize.xcodeproj \
+  -scheme Photonize \
+  -destination 'platform=macOS'
+
+# Build a universal (arm64 + x86_64) Release app.
+# ARCHS is $(ARCHS_STANDARD) in project.yml, so the generic destination
+# produces both slices.
 xcodebuild -project Photonize.xcodeproj \
   -scheme Photonize \
   -configuration Release \
-  -arch x86_64 \
+  -destination 'generic/platform=macOS' \
   -derivedDataPath build \
   build
 ```
 
-The built app will be at: `build/Build/Products/Release/Photonize.app`
+The built app will be at: `build/Build/Products/Release/Photonize.app`. Confirm it
+is universal:
+
+```bash
+lipo -archs build/Build/Products/Release/Photonize.app/Contents/MacOS/Photonize
+# → x86_64 arm64
+```
 
 ### 5. Create a DMG (Optional)
 
@@ -147,59 +170,96 @@ hdiutil create -volname "Photonize" \
 
 ### 6. Test GitHub Actions Build
 
-Push the code to GitHub and trigger a build:
+Trigger the on-demand build workflow to run the tests and produce a universal DMG:
 
-```bash
-cd ~/Code/photonize
-git add macos/
-git add .github/workflows/build-macos.yml
-git add .github/workflows/release-macos.yml
-git commit -m "Add macOS version of Photonize"
-git push
-```
-
-Then on GitHub:
-1. Go to Actions tab
+1. Go to the Actions tab
 2. Select "Build macOS App"
 3. Click "Run workflow"
 4. Enter version: `v0.1.0`
 5. Click "Run workflow"
 
-The workflow will build the DMG and upload it as an artifact.
+The workflow runs `xcodebuild test`, builds the universal app, and uploads the DMG
+as an artifact.
 
 ### 7. Create a Release
 
-When ready to release:
+Releases are cut for **both** platforms at once from the shared
+`.github/workflows/release.yml` — there is no separate macOS release. Pushing a
+`v*` tag builds and attaches the Windows MSI and the universal macOS DMG to a single
+GitHub release, with notes drawn from `CHANGELOG.md`'s `[Unreleased]` section:
 
 ```bash
-git tag macos-v0.1.0
-git push origin macos-v0.1.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-GitHub Actions will automatically:
-1. Build the app
-2. Create a DMG
-3. Create a GitHub release
-4. Attach the DMG to the release
+For the macOS half, GitHub Actions will automatically:
+1. Run the test suite (a failure blocks the release)
+2. Build the app as a universal binary (arm64 + x86_64)
+3. Create a DMG (`Photonize-{version}-universal.dmg`)
+4. Attach the DMG to the shared GitHub release
 
-## Known Limitations
+## Platform Differences (by design)
 
-The current implementation has some differences from the Windows version:
+These are the deliberate macOS idioms, not gaps — they match the platform rather
+than the Windows implementation:
 
-⚠️ **Platform Differences:**
-- File operations use macOS Trash instead of permanent delete
-- Uses NSOpenPanel instead of FolderBrowserDialog
-- Uses UserDefaults instead of JSON settings file
-- Different keyboard shortcuts (Cmd instead of Ctrl)
+- File deletion moves items to the macOS Trash rather than deleting permanently
+- Folder selection uses `NSOpenPanel` rather than a `FolderBrowserDialog`
+- Settings persist in `UserDefaults` rather than a JSON file
+- Shortcuts are ⌘-based (⌘O, ⌘R, …) rather than Ctrl-based
 
-## Future Enhancements
+## Deferred Work
 
-Possible improvements:
+Feature parity with Windows is complete for everything on this roadmap. The two
+Windows features **not** ported are tracked, with their rationale, in the
+"Deliberately out of scope" section of [`plans/README.md`](../plans/README.md):
 
-1. **Apple Silicon Support**: Add arm64 architecture to build
-2. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
-3. **Dark Mode**: Add explicit dark mode support (currently uses system theme)
-4. **Localization**: Add support for multiple languages
+- **Topaz Photo AI upscaling** — excluded by decision; it shells out to a licensed
+  external CLI.
+- **Auto-caption via ComfyUI (Florence-2)** — genuinely portable later; it is plain
+  HTTP against a ComfyUI server, and would need the
+  `com.apple.security.network.client` sandbox entitlement.
+
+## Signing and Notarization (not yet implemented)
+
+The released DMG is currently **unsigned and un-notarized**, so every user meets
+Gatekeeper on first launch and has to right-click → **Open** (see the README's
+install steps). Implementing this is deferred because it needs a paid Apple
+Developer ID that the project may not have. When one is available, here is exactly
+what it takes — the hardened runtime is already enabled in `project.yml`
+(`ENABLE_HARDENED_RUNTIME: YES`), which notarization requires.
+
+**Secrets to add to the repository** (Settings → Secrets and variables → Actions):
+
+- A **Developer ID Application** certificate exported from Keychain as a `.p12`,
+  stored base64-encoded, plus its export password.
+- An **App Store Connect API key** for notarization: the issuer id, the key id, and
+  the `.p8` private key (base64-encoded).
+
+**CI steps to add to the macOS job**, after the build and before the DMG upload:
+
+1. Import the certificate into a temporary keychain:
+   ```bash
+   echo "$DEVELOPER_ID_P12_BASE64" | base64 --decode > cert.p12
+   security create-keychain -p "$KEYCHAIN_PW" build.keychain
+   security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+   security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PW" build.keychain
+   ```
+2. Sign the app with the hardened runtime:
+   ```bash
+   codesign --deep --force --options runtime \
+     --sign "Developer ID Application: <Name> (<TeamID>)" Photonize.app
+   ```
+3. Build the DMG (as now), then notarize and staple it:
+   ```bash
+   xcrun notarytool submit Photonize-<version>-universal.dmg \
+     --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER_ID" --wait
+   xcrun stapler staple Photonize-<version>-universal.dmg
+   ```
+
+Once stapled, Gatekeeper accepts the app on a normal double-click and the
+right-click → Open work-around in the README can be removed.
 
 ## Troubleshooting
 

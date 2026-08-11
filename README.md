@@ -2,9 +2,9 @@
 
 **Automatically order, rename and compare large photo collections, no databases, just filesystem**
 
-Photonize is a Windows desktop application that makes it simple to organize hundreds or thousands of photos. Visually reorder your photos by dragging thumbnails, then automatically rename them all at once with sequential numbering. Perfect for photographers, digital archivists, or anyone managing large photo collections.
+Photonize is a cross-platform desktop application — **Windows and macOS** — that makes it simple to organize hundreds or thousands of photos. Visually reorder your photos by dragging thumbnails, then automatically rename them all at once with sequential numbering. Perfect for photographers, digital archivists, or anyone managing large photo collections.
 
-Grab the latest windows installer <a href="https://github.com/benstaniford/photonize/releases">here</a>.
+Grab the latest release <a href="https://github.com/benstaniford/photonize/releases">here</a>: the **Windows** MSI installer or the **macOS** universal DMG (Apple Silicon + Intel). Both platforms share the same core workflow and file formats — a folder tagged or captioned on one reads correctly on the other. The macOS client is documented in [`macos/README.md`](macos/README.md).
 
 <img width="1672" height="1197" alt="image" src="https://github.com/user-attachments/assets/97ae089f-5f9c-40ae-8f1c-5986911eec5e" />
 
@@ -35,13 +35,21 @@ When you have hundreds of photos from a vacation, event, or photo shoot, getting
 
 ### System Requirements
 
+**Windows**
 - **Operating System**: Windows 10 or later (64-bit)
 - **.NET Runtime**: .NET 8.0 Desktop Runtime - [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
 - **Disk Space**: ~50 MB
 
+**macOS**
+- **Operating System**: macOS 13.0 (Ventura) or later
+- **Architecture**: Universal — Apple Silicon (arm64) and Intel (x86_64)
+- **Disk Space**: ~30 MB
+
 ### Installation
 
-1. Download the latest installer from the [Releases page](https://github.com/yourusername/photonize/releases)
+**Windows**
+
+1. Download the latest installer from the [Releases page](https://github.com/benstaniford/photonize/releases)
 2. Run `PhotonizeInstaller-vX.X.X-x64.msi`
 3. Follow the installation wizard
 4. Launch Photonize from the Start Menu or Desktop shortcut
@@ -50,6 +58,14 @@ The installer includes:
 - Desktop shortcut (optional)
 - Start Menu shortcut
 - Windows Explorer context menu integration (optional)
+
+**macOS**
+
+1. Download `Photonize-X.Y.Z-universal.dmg` from the [Releases page](https://github.com/benstaniford/photonize/releases)
+2. Open the DMG and drag `Photonize.app` to Applications
+3. The app is not yet notarized, so on first launch right-click (Control-click) it in Applications and choose **Open** to clear Gatekeeper
+
+See [`macos/README.md`](macos/README.md) for full macOS documentation.
 
 ## Quick Start
 

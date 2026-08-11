@@ -43,20 +43,39 @@ Photonize.sln
 
 ### macOS Build Commands
 
+The Xcode project is **generated from `macos/project.yml` with XcodeGen** — it is not
+edited by hand. Regenerate it after changing `project.yml` (the generated
+`Photonize.xcodeproj` is committed so it opens without XcodeGen installed).
+
 #### Building and Running
 ```bash
 # Navigate to macOS project
 cd macos
 
-# Build the app (Intel)
+# One-time: install XcodeGen; regenerate after editing project.yml
+brew install xcodegen
+xcodegen generate
+
+# Run the XCTest suites (PhotonizeTests/)
+xcodebuild test \
+  -project Photonize.xcodeproj \
+  -scheme Photonize \
+  -destination 'platform=macOS'
+
+# Build the app as a universal binary (arm64 + x86_64).
+# ARCHS is $(ARCHS_STANDARD) in project.yml, so the generic destination
+# produces both slices.
 xcodebuild -project Photonize.xcodeproj \
   -scheme Photonize \
   -configuration Release \
-  -arch x86_64 \
+  -destination 'generic/platform=macOS' \
+  -derivedDataPath build \
   build
 
 # The built app will be in:
 # build/Build/Products/Release/Photonize.app
+# Confirm it is universal:
+lipo -archs build/Build/Products/Release/Photonize.app/Contents/MacOS/Photonize  # → x86_64 arm64
 
 # Create DMG installer
 mkdir -p dmg-contents
@@ -70,9 +89,10 @@ hdiutil create -volname "Photonize" \
 
 #### Xcode
 ```bash
-# Open the project in Xcode
-open macos/Photonize.xcodeproj
-# Then press Cmd+R to build and run
+# Regenerate (after editing project.yml) and open in Xcode
+cd macos && xcodegen generate
+open Photonize.xcodeproj
+# Then press Cmd+R to build and run, or Cmd+U to run the tests
 ```
 
 ## Architecture
@@ -245,11 +265,12 @@ Before creating a new release, update the `CHANGELOG.md` file in the repository 
    git push origin v0.1.5
    ```
 
-3. **GitHub Actions automatically**:
-   - Builds the application
-   - Creates MSI installer
-   - Extracts release notes from CHANGELOG.md
-   - Creates GitHub release with the MSI attached
+3. **GitHub Actions automatically** (a single `v*` tag ships **both platforms** —
+   `release.yml` has `build-windows`, `build-macos` and a `create-release` job):
+   - Builds the Windows application and MSI installer
+   - Runs the macOS tests and builds the universal macOS app + DMG
+   - Extracts release notes from CHANGELOG.md (shared by both platforms)
+   - Creates one GitHub release with **both** the MSI and the universal DMG attached
 
 4. **After release, archive the released changes**:
    - Move the `[Unreleased]` content to a new version section in CHANGELOG.md
@@ -275,9 +296,10 @@ You can also trigger a release manually from GitHub Actions:
 
 ### Release Checklist
 
-Before tagging a release:
-- [ ] All tests pass locally
-- [ ] CHANGELOG.md `[Unreleased]` section is complete and accurate
+A single `v*` tag releases both the Windows and macOS clients. Before tagging:
+- [ ] All tests pass locally (Windows `dotnet test` **and** macOS `xcodebuild test`)
+- [ ] CHANGELOG.md `[Unreleased]` section is complete and accurate (it is shared by both platforms' release notes)
 - [ ] README.md reflects any new features or changes
 - [ ] Version number follows semantic versioning (MAJOR.MINOR.PATCH)
 - [ ] Build and test the MSI installer locally if possible
+- [ ] `macos/project.yml` is regenerated and the committed `Photonize.xcodeproj` is up to date

@@ -41,20 +41,39 @@ jobs:
           xcodegen generate
           echo "Generated project at version ${{ steps.version.outputs.NUMERIC_VERSION }}"
 
-      - name: Build macOS app (Intel only)
+      - name: Run tests
         run: |
           cd macos
-          echo "Building Photonize for Intel..."
+          echo "Running PhotonizeTests..."
+          xcodebuild test \
+            -project Photonize.xcodeproj \
+            -scheme Photonize \
+            -destination 'platform=macOS'
+          echo "✓ Tests passed"
+
+      - name: Build macOS app (universal)
+        run: |
+          cd macos
+          echo "Building Photonize (universal, arm64 + x86_64)..."
+          # ARCHS is $(ARCHS_STANDARD) in project.yml, so a Release build for the
+          # generic macOS destination produces a universal binary.
           xcodebuild -project Photonize.xcodeproj \
             -scheme Photonize \
             -configuration Release \
-            -arch x86_64 \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath build \
             build
 
           # Copy the built app
           cp -R build/Build/Products/Release/Photonize.app ./
-          echo "✓ Build completed successfully"
+
+          # Fail the build if the binary is not actually universal.
+          echo "Verifying architectures..."
+          lipo -archs Photonize.app/Contents/MacOS/Photonize
+          lipo -archs Photonize.app/Contents/MacOS/Photonize | grep -q "x86_64" \
+            && lipo -archs Photonize.app/Contents/MacOS/Photonize | grep -q "arm64" \
+            || { echo "✗ Binary is not universal"; exit 1; }
+          echo "✓ Build completed successfully (universal)"
 
       - name: Create DMG
         run: |
@@ -72,15 +91,15 @@ jobs:
           hdiutil create -volname "Photonize ${{ steps.version.outputs.NUMERIC_VERSION }}" \
             -srcfolder dmg-contents \
             -ov -format UDZO \
-            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+            Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg
 
-          echo "✓ DMG created: Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg"
+          echo "✓ DMG created: Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: photonize-macos-${{ steps.version.outputs.NUMERIC_VERSION }}
-          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg
+          path: macos/Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg
           retention-days: 30
 
       - name: Summary
@@ -89,8 +108,8 @@ jobs:
           echo "✅ **macOS app built successfully**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.version.outputs.NUMERIC_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Architecture:** Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact:** Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-intel.dmg" >> $GITHUB_STEP_SUMMARY
+          echo "**Architecture:** Universal (arm64 + x86_64)" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** Photonize-${{ steps.version.outputs.NUMERIC_VERSION }}-universal.dmg" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 The DMG file has been uploaded as an artifact and will be available for 30 days." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

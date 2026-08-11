@@ -39,6 +39,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "12CF13A2CC37ECC34EF50E8D"
+               BuildableName = "PhotonizeTests.xctest"
+               BlueprintName = "PhotonizeTests"
+               ReferencedContainer = "container:Photonize.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
