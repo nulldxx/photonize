@@ -71,6 +71,15 @@ GitHub Actions workflows:
 ✅ Context menus (Open, Show in Finder, Delete)
 ✅ Status bar with loading indicator
 ✅ Adjustable thumbnail size
+✅ Video support (MP4/MOV/M4V) — thumbnails and preview-pane playback
+
+## Frameworks
+
+The only third-party package is **libwebp** (WebP encoding on macOS 13). Video
+support links **AVFoundation** (thumbnail frame extraction) and **AVKit** (the
+preview playback surface), both system frameworks declared in `project.yml`.
+Unlike the Windows build, **no FFmpeg binary is required** — AVFoundation decodes
+MP4, MOV and M4V natively on every supported Mac.
 
 ## Next Steps
 

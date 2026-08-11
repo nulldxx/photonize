@@ -26,6 +26,10 @@ targets:
     sources: [Photonize]
     dependencies:
       - package: libwebp
+      # Native video decode and playback — AVFoundation for thumbnails, AVKit for
+      # the preview surface. No FFmpeg dependency, unlike the Windows build.
+      - sdk: AVFoundation.framework
+      - sdk: AVKit.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.photonize.macos

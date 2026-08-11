@@ -9,6 +9,7 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - **Batch Rename**: Rename multiple files at once with customizable prefix (e.g., `vacation-00001`, `vacation-00002`)
 - **Smart Prefix Detection**: Automatically detects common filename patterns from existing files
 - **Preview Pane**: View full-size image previews with detailed file information
+- **Video Support**: MP4, MOV and M4V clips appear as thumbnails and play in the preview pane with a scrubbable timeline, play/pause and volume — decoded natively by AVFoundation, so no FFmpeg install is required
 - **Settings Persistence**: Remembers your last directory, prefix, thumbnail size, and preferences
 - **Two-Pass Rename Algorithm**: Safely renames files without conflicts, even when reordering
 
@@ -17,9 +18,11 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - macOS 13.0 (Ventura) or later
 - Intel-based Mac (Apple Silicon support coming soon)
 
-## Supported Image Formats
+## Supported Formats
 
-JPG, JPEG, PNG, BMP, GIF, TIFF, WebP, HEIC, HEIF
+**Images:** JPG, JPEG, PNG, BMP, GIF, TIFF, WebP, HEIC, HEIF
+
+**Videos:** MP4, MOV, M4V — decoded natively by AVFoundation, no FFmpeg required
 
 ## Installation
 
@@ -134,11 +137,11 @@ The app follows a strict MVVM (Model-View-ViewModel) architecture:
 ### Views
 - `ContentView.swift` - Main application layout with toolbar and status bar
 - `PhotoGridView.swift` - Photo grid with thumbnails
-- `PreviewPane.swift` - Image preview and file information panel
+- `PreviewPane.swift` - Image preview, video playback surface, and file information panel
 
 ### Services
 - `FileRenamer.swift` - Two-pass atomic rename algorithm
-- `ThumbnailGenerator.swift` - Async image loading and thumbnail generation
+- `ThumbnailGenerator.swift` - Async image loading, video frame extraction (AVFoundation), and thumbnail generation
 - `SettingsManager.swift` - UserDefaults persistence
 
 ### Two-Pass Rename Algorithm
@@ -218,7 +221,7 @@ The workflow will:
 3. Or right-click the app and select "Open"
 
 ### Photos not loading
-- Check that the directory contains supported image formats
+- Check that the directory contains supported image or video formats
 - Ensure you have read permissions for the directory
 - Try refreshing with `Cmd+R`
 

@@ -33,6 +33,44 @@ final class ThumbnailGeneratorTests: XCTestCase {
         )
     }
 
+    /// Video recognition is case-insensitive and limited to the Windows three;
+    /// images and unsupported containers are not videos.
+    func testIsVideoFileRecognizesExtensions() {
+        let generator = ThumbnailGenerator()
+        for name in ["clip.mp4", "clip.MOV", "clip.m4v", "CLIP.Mp4"] {
+            XCTAssertTrue(generator.isVideoFile(URL(fileURLWithPath: "/tmp/\(name)")),
+                          "\(name) should be recognised as video")
+        }
+        for name in ["photo.jpg", "photo.png", "clip.mkv", "clip.avi", "clip.webm"] {
+            XCTAssertFalse(generator.isVideoFile(URL(fileURLWithPath: "/tmp/\(name)")),
+                           "\(name) should not be recognised as video")
+        }
+
+        // isMediaFile is the union of images and videos.
+        XCTAssertTrue(generator.isMediaFile(URL(fileURLWithPath: "/tmp/a.jpg")))
+        XCTAssertTrue(generator.isMediaFile(URL(fileURLWithPath: "/tmp/a.mov")))
+        XCTAssertFalse(generator.isMediaFile(URL(fileURLWithPath: "/tmp/a.mkv")))
+    }
+
+    /// The thumbnail frame time is 0.1 s for a very short clip (where 1 s would be
+    /// at or past the end) and 1 s for a normal one — matching Windows.
+    func testVideoThumbnailTimestamp() {
+        XCTAssertEqual(ThumbnailGenerator.videoThumbnailSeconds(forDuration: 1), 0.1, accuracy: 0.0001)
+        XCTAssertEqual(ThumbnailGenerator.videoThumbnailSeconds(forDuration: 0.5), 0.1, accuracy: 0.0001)
+        XCTAssertEqual(ThumbnailGenerator.videoThumbnailSeconds(forDuration: 30), 1, accuracy: 0.0001)
+        XCTAssertEqual(ThumbnailGenerator.videoThumbnailSeconds(forDuration: 2), 1, accuracy: 0.0001)
+    }
+
+    /// The cache key must distinguish an image and a video frame for the same
+    /// path/size, so the two never collide.
+    func testCacheKeyDistinguishesVideoFromImage() {
+        let url = URL(fileURLWithPath: "/tmp/does-not-exist-\(UUID().uuidString).mp4")
+        XCTAssertNotEqual(
+            ThumbnailGenerator.cacheKey(for: url, size: 200, isVideo: true),
+            ThumbnailGenerator.cacheKey(for: url, size: 200, isVideo: false)
+        )
+    }
+
     /// A landscape image tagged with EXIF orientation 6 (rotate 90° CW) must come
     /// back portrait-shaped once the orientation transform is applied.
     func testOrientationSixProducesPortraitThumbnail() async throws {

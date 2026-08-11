@@ -204,20 +204,23 @@ class PhotoGridViewModel: ObservableObject {
                 displayOrder += 1
             }
 
-            let imageFiles = contents.filter { url in
+            // Videos enumerate alongside images so a mixed folder shows and
+            // renumbers both, in one filename-sorted sequence.
+            let mediaFiles = contents.filter { url in
                 guard (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == false else {
                     return false
                 }
-                return thumbnailGenerator.isImageFile(url)
+                return thumbnailGenerator.isMediaFile(url)
             }.sorted { $0.lastPathComponent < $1.lastPathComponent }
 
-            for imageFile in imageFiles {
+            for mediaFile in mediaFiles {
                 let photoItem = PhotoItem(
-                    filePath: imageFile,
-                    fileName: imageFile.lastPathComponent,
+                    filePath: mediaFile,
+                    fileName: mediaFile.lastPathComponent,
                     displayOrder: displayOrder,
                     isFolder: false,
-                    thumbnail: nil
+                    thumbnail: nil,
+                    isVideo: thumbnailGenerator.isVideoFile(mediaFile)
                 )
                 newPhotos.append(photoItem)
                 displayOrder += 1
@@ -493,15 +496,21 @@ class PhotoGridViewModel: ObservableObject {
             }
         }
 
-        guard !sources.isEmpty else {
-            statusMessage = "No images to export."
+        // The image exporter can't read a video, so drop videos from a mixed
+        // selection and report them as skipped rather than failing each clip.
+        let (imageSources, skippedVideos) = Self.partitionExportSources(sources)
+
+        guard !imageSources.isEmpty else {
+            statusMessage = skippedVideos > 0
+                ? "Nothing to export — \(skippedVideos) video(s) can't be exported."
+                : "No images to export."
             return
         }
 
         let progress = OperationProgress(
             title: "Exporting to \(format.folderName)",
             status: "Preparing…",
-            total: sources.count
+            total: imageSources.count
         )
         let exporter = imageExporter
 
@@ -509,7 +518,7 @@ class PhotoGridViewModel: ObservableObject {
             guard let self else { return }
             do {
                 let result = try await exporter.export(
-                    sources,
+                    imageSources,
                     in: baseDirectory,
                     as: format,
                     overwrite: { [weak self] existing in
@@ -520,7 +529,7 @@ class PhotoGridViewModel: ObservableObject {
                     }
                 )
                 self.operationProgress = nil
-                self.finishExport(result)
+                self.finishExport(result, skippedVideos: skippedVideos)
             } catch is CancellationError {
                 self.operationProgress = nil
                 self.statusMessage = "Export cancelled."
@@ -536,6 +545,14 @@ class PhotoGridViewModel: ObservableObject {
 
         progress.task = task
         operationProgress = progress
+    }
+
+    /// Split export sources into the images the exporter can handle and the count
+    /// of videos to report as skipped. Static and pure so slice 12 can assert the
+    /// mixed-selection rule without driving the whole export.
+    static func partitionExportSources(_ sources: [PhotoItem]) -> (images: [PhotoItem], skippedVideos: Int) {
+        let images = sources.filter { !$0.isVideo }
+        return (images, sources.count - images.count)
     }
 
     /// The image files directly inside `folderURL`, sorted by name — the folder
@@ -585,10 +602,11 @@ class PhotoGridViewModel: ObservableObject {
 
     /// Report the counts and, when anything was written, navigate into the output
     /// folder to reveal the result (Windows reloads to the same end).
-    private func finishExport(_ result: ExportResult) {
+    private func finishExport(_ result: ExportResult, skippedVideos: Int = 0) {
         var parts: [String] = []
         if result.exported > 0 { parts.append("\(result.exported) exported") }
         if result.skipped > 0 { parts.append("\(result.skipped) skipped") }
+        if skippedVideos > 0 { parts.append("\(skippedVideos) video(s) skipped") }
         if !result.failed.isEmpty { parts.append("\(result.failed.count) failed") }
         statusMessage = parts.isEmpty ? "Nothing to export." : "Export complete: " + parts.joined(separator: ", ")
 

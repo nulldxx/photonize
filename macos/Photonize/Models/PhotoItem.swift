@@ -7,7 +7,7 @@ import SwiftUI
 /// re-tangling one big `ViewBuilder`.
 enum PhotoKind {
     case image
-    case video   // reachable once slice 08 recognises video files
+    case video
     case folder
     case parent  // the ".." navigation tile
 }
@@ -19,6 +19,10 @@ struct PhotoItem: Identifiable, Equatable {
     var displayOrder: Int
     var isFolder: Bool
     var thumbnail: NSImage?
+    /// Set at enumeration time (slice 08) from the file extension. A default keeps
+    /// the synthesized memberwise initializer usable by the many call sites that
+    /// only ever construct images or folders.
+    var isVideo: Bool = false
 
     var fileExtension: String {
         isFolder ? "" : filePath.pathExtension.lowercased()
@@ -28,8 +32,7 @@ struct PhotoItem: Identifiable, Equatable {
         if isFolder {
             return fileName == ".." ? .parent : .folder
         }
-        // Video recognition arrives in slice 08; every file is an image today.
-        return .image
+        return isVideo ? .video : .image
     }
 
     static func == (lhs: PhotoItem, rhs: PhotoItem) -> Bool {

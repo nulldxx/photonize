@@ -367,6 +367,11 @@ struct PhotoItemView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
                     .cornerRadius(8)
+                    // A play badge marks video tiles at a glance — Windows relies on
+                    // the frame alone, but the badge is cheap and clearer.
+                    .overlay(alignment: .center) {
+                        if photo.isVideo { PlayBadge() }
+                    }
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
@@ -429,6 +434,18 @@ struct PhotoItemView: View {
     private var strokeColor: Color {
         if isDropTarget { return Color.accentColor }
         return viewModel.selectedPhotos.contains(photo.id) ? Color.accentColor : Color.clear
+    }
+}
+
+/// A small semi-transparent play triangle centred on a video tile's thumbnail so
+/// videos are distinguishable from photos without opening them.
+struct PlayBadge: View {
+    var body: some View {
+        Image(systemName: "play.fill")
+            .font(.system(size: 18))
+            .foregroundColor(.white)
+            .padding(12)
+            .background(Circle().fill(Color.black.opacity(0.5)))
     }
 }
 

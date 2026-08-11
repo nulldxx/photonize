@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Video support**: MP4, MOV and M4V clips now appear and behave like photos, matching Windows — and with no FFmpeg dependency (AVFoundation decodes them natively)
+  - Videos show real thumbnails with correct aspect ratio (portrait phone clips appear upright); a play-triangle badge marks them at a glance, and an unplayable file shows a broken-video placeholder
+  - Selecting a video plays it in the preview pane with custom transport controls: play/pause, a scrubbable timeline that seeks on release, an `mm:ss / mm:ss` label, and a volume slider (default 0.8)
+  - Playback auto-starts on selection and resets to the start at the end rather than looping; switching selection or closing the pane stops it immediately
+  - Videos are included in batch renames alongside photos, in one filename-sorted sequence
+  - The video right-click menu offers Open, Show in Finder and Delete (no Export or Image Compare); exporting a mixed selection exports only the images and reports the videos as skipped
 - **macOS: Import from Finder and drag-into-folders**: Drag-and-drop now carries files in and out of the grid, matching Windows
   - **Import** — drag image files from Finder onto the grid and choose whether to insert them at the drop position or distribute them evenly through the existing photos; the folder is copied in (originals are never moved) and renumbered with the current prefix
   - Guards mirror Windows: a folder must be open, a prefix must be set, and the drop must contain at least one supported image, each with a clear message
