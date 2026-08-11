@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
+- **macOS: "Open With Photonize" / Finder Service on a folder was denied by the sandbox**: opening a folder from Finder's Open With, the Dock, `open -a`, or the "Open in Photonize" service left the grid empty because the app never started security-scoped access on the incoming folder URL — the sandbox then refused to list its contents (only the Browse… panel, whose URLs carry an implicit grant, worked). The app now consumes the Powerbox grant with `startAccessingSecurityScopedResource()` when adopting any launch/open folder, balanced by the existing relinquish on the next folder change.
 - **macOS: Thumbnails stuck on the loading placeholder**: grid cells kept showing the spinner/grey placeholder until an unrelated relayout (e.g. toggling the inspector) forced a redraw. `PhotoItem`'s equality only compared `id`, so SwiftUI treated a late-arriving thumbnail (and new tags or renames) as "no change" and skipped repainting the cell. Equality now covers every rendered field; drag-reordering keys off `id` so it is unaffected.
 - **macOS: Quick-tag digits (0-9) went to the address bar**: the directory field held keyboard focus, so pressing a digit to tag a selected photo typed into the path instead. The grid now catches its keys with a local event monitor that yields only while a text field is actually being edited, and clicking a photo takes focus off the address/prefix fields.
 

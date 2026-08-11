@@ -151,6 +151,15 @@ class PhotoGridViewModel: ObservableObject {
         if let scopedURL {
             directoryAccess.relinquish(scopedURL)
         }
+        // Start security-scoped access before we enumerate or bookmark. An
+        // NSOpenPanel URL carries an implicit, already-active grant, but a folder
+        // arriving from "Open With", the Dock, `open`, or a Finder Service does
+        // not — without this call the sandbox denies the directory listing (the
+        // user only granted access to the item they clicked, and we must consume
+        // that grant here). The matching stop happens in `relinquish` when the
+        // root is next replaced. The return is ignored on purpose: a non-sandboxed
+        // debug build has access anyway, and a false result must not block the load.
+        _ = url.startAccessingSecurityScopedResource()
         scopedURL = url
         directoryBookmark = directoryAccess.makeBookmark(for: url)
     }
