@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Import from Finder and drag-into-folders**: Drag-and-drop now carries files in and out of the grid, matching Windows
+  - **Import** — drag image files from Finder onto the grid and choose whether to insert them at the drop position or distribute them evenly through the existing photos; the folder is copied in (originals are never moved) and renumbered with the current prefix
+  - Guards mirror Windows: a folder must be open, a prefix must be set, and the drop must contain at least one supported image, each with a clear message
+  - **Move into folders** — drag photos or folders onto a subfolder tile, or onto the `..` tile to move up; the target folder highlights while it can accept the drop
+  - Moving a folder into itself or a descendant is refused, as is merging a folder into an existing folder of the same name; file-name collisions prompt once (Overwrite All / Skip / Cancel)
+  - An image's `.txt` caption sidecar travels with it on a move
+  - The grid auto-scrolls when a drag nears its top or bottom edge
 - **macOS: File operations and context-menu parity**: The right-click menu now matches Windows per item kind
   - Images and videos offer Open, Show in Finder and Delete; folders add folder deletion; the `..` tile only offers Open
   - **Folders can now be deleted** — right-click a subfolder and Delete moves it and all its contents to the Trash (restorable with ⌘Z in Finder); previously there was no way to remove a subfolder from inside the app

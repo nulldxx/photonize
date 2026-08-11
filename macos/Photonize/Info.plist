@@ -26,6 +26,24 @@
     <string></string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <!-- The internal drag payload for grid items. Declaring it here makes
+                 the UTI well-formed so NSItemProvider round-trips the dragged
+                 selection's ids within the app; external drags use public.file-url. -->
+            <key>UTTypeIdentifier</key>
+            <string>com.photonize.photo-item</string>
+            <key>UTTypeDescription</key>
+            <string>Photonize Grid Item</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict/>
+        </dict>
+    </array>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>

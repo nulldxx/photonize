@@ -179,10 +179,6 @@ The current implementation has some differences from the Windows version:
 
 ⚠️ **Not Yet Implemented:**
 - Image comparison view
-- Photo import/copy
-- Actual drag-and-drop reordering (SwiftUI LazyVGrid limitation)
-  - Currently using selection-based reordering
-  - True drag-drop would require custom NSCollectionView
 
 ⚠️ **Platform Differences:**
 - File operations use macOS Trash instead of permanent delete
@@ -195,14 +191,10 @@ The current implementation has some differences from the Windows version:
 Possible improvements:
 
 1. **Apple Silicon Support**: Add arm64 architecture to build
-2. **Drag-Drop Reordering**: Implement custom collection view for true drag-drop
-3. **Image Comparison**: Port the comparison window from Windows version
-5. **Photo Import**: Add import/copy functionality
-6. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
-7. **Multi-selection**: Improve multi-selection UI with shift-click ranges
-8. **App Icon**: Create a custom app icon
-9. **Dark Mode**: Add explicit dark mode support (currently uses system theme)
-10. **Localization**: Add support for multiple languages
+2. **Image Comparison**: Port the comparison window from Windows version
+3. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
+4. **Dark Mode**: Add explicit dark mode support (currently uses system theme)
+5. **Localization**: Add support for multiple languages
 
 ## Troubleshooting
 

@@ -37,6 +37,11 @@ struct ContentView: View {
         .sheet(item: $viewModel.operationProgress) { progress in
             ProgressSheet(progress: progress)
         }
+        // Insert-vs-distribute choice for a Finder drop. Presented before the
+        // progress sheet, so the two are never up at once.
+        .sheet(item: $viewModel.importModeRequest) { request in
+            ImportModeSheet(request: request)
+        }
     }
 }
 

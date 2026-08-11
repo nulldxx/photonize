@@ -271,6 +271,8 @@ See the main repository LICENSE file.
 |---------|---------------|-----------------|
 | Photo Grid | ✓ | ✓ |
 | Drag-Drop Reorder | ✓ | ✓ |
+| Import from Finder | ✓ | ✓ |
+| Drag into Folders | ✓ | ✓ |
 | Batch Rename | ✓ | ✓ |
 | Preview Pane | ✓ | ✓ |
 | Folder Navigation | ✓ | ✓ |
@@ -278,7 +280,6 @@ See the main repository LICENSE file.
 | WebP Export | ✓ | ✓ |
 | PNG/JPG Export | ✓ | ✓ |
 | Image Compare | ✓ | Planned |
-| Photo Import | ✓ | Planned |
 
 ## Credits
 

@@ -19,6 +19,9 @@ class PhotoGridViewModel: ObservableObject {
     /// Drives the shared progress sheet. Non-nil while a batch operation (export,
     /// and later import/tag-move) is running; setting it to nil dismisses the sheet.
     @Published var operationProgress: OperationProgress?
+    /// Non-nil while the import-mode sheet (insert vs distribute) is asking the
+    /// user how to place a Finder drop; the awaiting import resumes on their answer.
+    @Published var importModeRequest: ImportModeRequest?
     /// The focus cursor for keyboard navigation. Published so the grid can scroll
     /// it into view as it moves.
     @Published var focusedPhotoID: PhotoItem.ID?
@@ -599,6 +602,240 @@ class PhotoGridViewModel: ObservableObject {
         if result.exported > 0 {
             directoryPath = result.outputURL.path
             Task { await loadPhotos() }
+        }
+    }
+
+    // MARK: - Import (Finder drop)
+
+    private let photoImporter = PhotoImporter()
+
+    /// Import files dropped from Finder into the current directory, inserting at
+    /// `insertIndex` (an image-only position; `distribute` ignores it). Guards
+    /// mirror the Windows message boxes: a folder must be open, a prefix set, and
+    /// the drop must contain at least one supported image.
+    func importPhotos(_ urls: [URL], atImageIndex insertIndex: Int) async {
+        guard !directoryPath.isEmpty, FileManager.default.fileExists(atPath: directoryPath) else {
+            showAlert(title: "No Folder", message: "Open a folder before importing photos.")
+            return
+        }
+        // A non-empty, legal prefix is required — imported files are renamed into
+        // the folder's scheme immediately, so there is nothing to import them as
+        // without one.
+        if let reason = fileRenamer.validatePrefix(renamePrefix) {
+            showAlert(title: "No Prefix", message: reason)
+            return
+        }
+
+        let supported = urls.filter { thumbnailGenerator.isImageFile($0) }
+        guard !supported.isEmpty else {
+            showAlert(title: "No Images", message: "No supported image files found in the selection.")
+            return
+        }
+
+        let directory = URL(fileURLWithPath: directoryPath)
+        let newFiles = PhotoImporter.sanitizedSources(supported, into: directory)
+        guard !newFiles.isEmpty else {
+            showAlert(title: "Already Here", message: "All selected files are already in this folder.")
+            return
+        }
+
+        let existingImageCount = photos.filter { !$0.isFolder }.count
+        let clampedIndex = min(max(insertIndex, 0), existingImageCount)
+
+        guard let mode = await requestImportMode(
+            newCount: newFiles.count,
+            existingCount: existingImageCount,
+            insertIndex: clampedIndex
+        ) else {
+            return // user cancelled the mode dialog
+        }
+
+        let progress = OperationProgress(
+            title: "Importing \(newFiles.count) photo(s)",
+            status: "Preparing…",
+            total: newFiles.count
+        )
+        let importer = photoImporter
+        let snapshot = photos
+        let prefix = renamePrefix
+        let count = newFiles.count
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await importer.importPhotos(
+                    newFiles,
+                    into: directory,
+                    existing: snapshot,
+                    prefix: prefix,
+                    mode: mode,
+                    progress: { [weak self] current, total, status in
+                        self?.operationProgress?.update(current: current, total: total, status: status)
+                    }
+                )
+                self.operationProgress = nil
+                let verb = mode == .distribute ? "distributed" : "inserted"
+                self.statusMessage = "Imported \(count) photo(s) — \(verb) into the folder."
+                // Reload so the renumbered folder (and its thumbnails, folders and
+                // ".." tile) is rebuilt from what actually landed on disk.
+                await self.loadPhotos()
+            } catch is CancellationError {
+                self.operationProgress = nil
+                self.statusMessage = "Import cancelled."
+                await self.loadPhotos()
+            } catch PhotoImporter.ImportError.cancelled {
+                self.operationProgress = nil
+                self.statusMessage = "Import cancelled."
+                await self.loadPhotos()
+            } catch {
+                self.operationProgress = nil
+                self.statusMessage = "Import failed: \(error.localizedDescription)"
+                self.showAlert(title: "Import Failed", message: error.localizedDescription)
+                await self.loadPhotos()
+            }
+        }
+
+        progress.task = task
+        operationProgress = progress
+    }
+
+    /// Present the insert-vs-distribute sheet and await the answer. Returns the
+    /// concrete `ImportMode` (carrying the insert index) or nil if cancelled.
+    private func requestImportMode(newCount: Int, existingCount: Int, insertIndex: Int) async -> ImportMode? {
+        let choice: ImportModeChoice? = await withCheckedContinuation { continuation in
+            importModeRequest = ImportModeRequest(
+                newCount: newCount,
+                existingCount: existingCount,
+                insertIndex: insertIndex
+            ) { [weak self] choice in
+                self?.importModeRequest = nil
+                continuation.resume(returning: choice)
+            }
+        }
+        switch choice {
+        case .insert:     return .insert(at: insertIndex)
+        case .distribute: return .distribute
+        case .none:       return nil
+        }
+    }
+
+    // MARK: - Move into folders
+
+    /// The set of items a drag carries: the whole selection when the dragged item
+    /// is part of it (Windows drags multi-selections), otherwise just that item.
+    /// The ".." tile is never draggable.
+    func dragSet(startingFrom photo: PhotoItem) -> [PhotoItem.ID] {
+        guard photo.kind != .parent else { return [] }
+        if selectedPhotos.contains(photo.id) {
+            return photos.filter { selectedPhotos.contains($0.id) && $0.kind != .parent }.map { $0.id }
+        }
+        return [photo.id]
+    }
+
+    /// Move the given items into `target` (a folder tile or the ".." parent).
+    /// Refuses to move a folder into itself or a descendant, and refuses to merge
+    /// a folder into an existing folder of the same name — half-merging is worse
+    /// than refusing, and Windows refuses too. File collisions prompt once and the
+    /// answer governs the batch. Failures are accumulated into one summary rather
+    /// than aborting.
+    func moveItems(_ ids: [PhotoItem.ID], into target: URL, targetName: String) async {
+        let items = ids
+            .compactMap { id in photos.first(where: { $0.id == id }) }
+            .filter { $0.filePath.standardizedFileURL != target.standardizedFileURL }
+
+        guard !items.isEmpty else { return }
+        guard FileManager.default.fileExists(atPath: target.path) else {
+            showAlert(title: "Error", message: "Target folder does not exist:\n\(target.path)")
+            return
+        }
+
+        isLoading = true
+        statusMessage = "Moving \(items.count) item(s) to \(targetName)…"
+
+        var movedIDs: [PhotoItem.ID] = []
+        var failures: [String] = []
+        // Decided lazily on the first file collision, then applied to the rest.
+        var fileCollisionPolicy: OverwriteOption?
+
+        move: for item in items {
+            let dest = target.appendingPathComponent(item.fileName)
+            do {
+                if item.isFolder {
+                    if Self.isMoveIntoSelfOrDescendant(source: item.filePath, target: target) {
+                        failures.append("\(item.fileName): can't move a folder into itself")
+                        continue
+                    }
+                    if FileManager.default.fileExists(atPath: dest.path) {
+                        failures.append("\(item.fileName): a folder of that name already exists there "
+                            + "(merging folders isn't supported)")
+                        continue
+                    }
+                    try FileManager.default.moveItem(at: item.filePath, to: dest)
+                } else {
+                    if FileManager.default.fileExists(atPath: dest.path) {
+                        if fileCollisionPolicy == nil {
+                            fileCollisionPolicy = promptMoveOverwrite(name: item.fileName, folder: targetName)
+                        }
+                        switch fileCollisionPolicy! {
+                        case .cancel:       break move
+                        case .skipExisting: continue
+                        case .overwriteAll: try FileManager.default.removeItem(at: dest)
+                        }
+                    }
+                    try FileManager.default.moveItem(at: item.filePath, to: dest)
+                    // An image's caption travels with it.
+                    try? SidecarFiles.moveCompanions(of: item.filePath, toDirectory: target)
+                    // INSERTION POINT — slice 10: move this file's entry out of the
+                    // source directory's .photonize-tags.json and into the target's.
+                }
+                movedIDs.append(item.id)
+            } catch {
+                failures.append("\(item.fileName): \(error.localizedDescription)")
+            }
+        }
+
+        photos.removeAll { movedIDs.contains($0.id) }
+        selectedPhotos.subtract(movedIDs)
+        // Moving out renumbers the remaining photos but, like deleting, must not
+        // arm the unsaved-changes quit guard.
+        updateDisplayOrder(updateUnsavedChanges: false)
+        isLoading = false
+
+        if movedIDs.count == 1 {
+            statusMessage = "Moved 1 item to \(targetName)"
+        } else if !movedIDs.isEmpty {
+            statusMessage = "Moved \(movedIDs.count) item(s) to \(targetName)"
+        }
+
+        if !failures.isEmpty {
+            showAlert(
+                title: "Move Errors",
+                message: "Failed to move \(failures.count) item(s):\n\n\(failures.joined(separator: "\n"))"
+            )
+        }
+    }
+
+    /// True when moving `source` into `target` would put a folder inside itself
+    /// or one of its own descendants — the one move that would eat the folder.
+    nonisolated static func isMoveIntoSelfOrDescendant(source: URL, target: URL) -> Bool {
+        let s = source.standardizedFileURL.path
+        let t = target.standardizedFileURL.path
+        return t == s || t.hasPrefix(s + "/")
+    }
+
+    /// The single collision decision for a move batch: Overwrite All / Skip / Cancel.
+    private func promptMoveOverwrite(name: String, folder: String) -> OverwriteOption {
+        let alert = NSAlert()
+        alert.messageText = "File Already Exists"
+        alert.informativeText = "'\(name)' already exists in \(folder).\n\n• Overwrite All\n• Skip Existing\n• Cancel"
+        alert.addButton(withTitle: "Overwrite All")
+        alert.addButton(withTitle: "Skip Existing")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:  return .overwriteAll
+        case .alertSecondButtonReturn: return .skipExisting
+        default:                       return .cancel
         }
     }
 
