@@ -52,12 +52,45 @@ struct PhotonizeApp: App {
                 .keyboardShortcut("a", modifiers: .command)
                 .disabled(viewModel.photos.filter { !$0.isFolder }.isEmpty)
             }
+
+            // View ▸ Compare Selected, so the compare tool is discoverable beyond
+            // the right-click menu.
+            CompareCommands(viewModel: viewModel)
         }
         .defaultSize(width: 1200, height: 800)
+
+        // The compare window. A data-driven WindowGroup reuses one window per
+        // pair, so comparing the same two photos twice brings the window forward
+        // rather than stacking a second one.
+        WindowGroup(id: "compare", for: ComparePair.self) { $pair in
+            if let pair {
+                ImageCompareView(pair: pair)
+            }
+        }
+        .defaultSize(width: 1200, height: 800)   // matches CompareWindow.xaml
 
         Settings {
             SettingsView()
                 .environmentObject(viewModel)
+        }
+    }
+}
+
+/// The View ▸ Compare Selected item. A dedicated `Commands` struct so it can read
+/// `openWindow` from the environment, which the plain `.commands` closure cannot.
+struct CompareCommands: Commands {
+    @ObservedObject var viewModel: PhotoGridViewModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button("Compare Selected") {
+                if let pair = viewModel.comparePair {
+                    openWindow(id: "compare", value: pair)
+                }
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(!viewModel.canCompare)
         }
     }
 }

@@ -279,7 +279,7 @@ See the main repository LICENSE file.
 | Settings Persistence | ✓ | ✓ |
 | WebP Export | ✓ | ✓ |
 | PNG/JPG Export | ✓ | ✓ |
-| Image Compare | ✓ | Planned |
+| Image Compare | ✓ | ✓ |
 
 ## Credits
 

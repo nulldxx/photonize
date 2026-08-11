@@ -984,11 +984,36 @@ class PhotoGridViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Image compare
+
+    /// True when the selection is exactly two non-folder photos — the Windows
+    /// `CanCompareImages` rule, gating the context-menu item and View menu entry.
+    var canCompare: Bool {
+        Self.comparePair(in: photos, selection: selectedPhotos) != nil
+    }
+
+    /// The pair to open the compare window with, ordered so A is the earlier
+    /// photo. Nil unless exactly two non-folders are selected.
+    var comparePair: ComparePair? {
+        Self.comparePair(in: photos, selection: selectedPhotos)
+    }
+
     // MARK: - Pure selection helpers (window-free, so slice 12 can unit-test them)
 
     /// Every non-folder id, in document order.
     static func fileIDs(in photos: [PhotoItem]) -> [PhotoItem.ID] {
         photos.filter { !$0.isFolder }.map { $0.id }
+    }
+
+    /// The compare pair for a selection: exactly two selected items, both
+    /// non-folders, ordered by `displayOrder` so A is the earlier photo (the one
+    /// the divider reveals). A folder anywhere in the selection disqualifies it,
+    /// as does any count other than two.
+    static func comparePair(in photos: [PhotoItem], selection: Set<PhotoItem.ID>) -> ComparePair? {
+        let selected = photos.filter { selection.contains($0.id) }
+        guard selected.count == 2, selected.allSatisfy({ !$0.isFolder }) else { return nil }
+        let ordered = selected.sorted { $0.displayOrder < $1.displayOrder }
+        return ComparePair(urlA: ordered[0].filePath, urlB: ordered[1].filePath)
     }
 
     /// The inclusive set of ids between two indices, order-independent.

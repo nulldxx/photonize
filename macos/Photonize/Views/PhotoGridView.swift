@@ -437,6 +437,7 @@ struct PhotoItemView: View {
 /// insertion points, keeping this a one-line change for them.
 struct PhotoContextMenu: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
+    @Environment(\.openWindow) private var openWindow
     let photo: PhotoItem
 
     @ViewBuilder
@@ -464,7 +465,7 @@ struct PhotoContextMenu: View {
         case .image:
             openButton
             showInFinderButton
-            // INSERTION POINT — slice 07: Image Compare
+            compareButton
             exportMenu
             // INSERTION POINT — slice 10: Tags ▸
             Divider()
@@ -478,6 +479,18 @@ struct PhotoContextMenu: View {
 
     private var showInFinderButton: some View {
         Button("Show in Finder") { viewModel.showInFinder(photo) }
+    }
+
+    /// Image Compare — enabled only when exactly two non-folder photos are
+    /// selected, the Windows `CanCompareImages` rule. Opens (or brings forward)
+    /// the data-driven compare window for the ordered pair.
+    private var compareButton: some View {
+        Button("Image Compare") {
+            if let pair = viewModel.comparePair {
+                openWindow(id: "compare", value: pair)
+            }
+        }
+        .disabled(!viewModel.canCompare)
     }
 
     /// Export ▸ WebP / PNG / JPG. Shown for images and folders (a folder exports

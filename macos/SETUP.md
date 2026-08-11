@@ -177,9 +177,6 @@ GitHub Actions will automatically:
 
 The current implementation has some differences from the Windows version:
 
-⚠️ **Not Yet Implemented:**
-- Image comparison view
-
 ⚠️ **Platform Differences:**
 - File operations use macOS Trash instead of permanent delete
 - Uses NSOpenPanel instead of FolderBrowserDialog
@@ -191,10 +188,9 @@ The current implementation has some differences from the Windows version:
 Possible improvements:
 
 1. **Apple Silicon Support**: Add arm64 architecture to build
-2. **Image Comparison**: Port the comparison window from Windows version
-3. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
-4. **Dark Mode**: Add explicit dark mode support (currently uses system theme)
-5. **Localization**: Add support for multiple languages
+2. **Thumbnails Cache**: Cache thumbnails to disk for faster loading
+3. **Dark Mode**: Add explicit dark mode support (currently uses system theme)
+4. **Localization**: Add support for multiple languages
 
 ## Troubleshooting
 
