@@ -26,6 +26,9 @@ class PhotoGridViewModel: ObservableObject {
     /// Non-nil while the import-mode sheet (insert vs distribute) is asking the
     /// user how to place a Finder drop; the awaiting import resumes on their answer.
     @Published var importModeRequest: ImportModeRequest?
+    /// Non-nil while the "move tagged images into sub-folders" sheet is up,
+    /// collecting a destination folder name per tag (slice 10).
+    @Published var tagFolderRequest: TagFolderRequest?
     /// The focus cursor for keyboard navigation. Published so the grid can scroll
     /// it into view as it moves.
     @Published var focusedPhotoID: PhotoItem.ID?
@@ -43,6 +46,7 @@ class PhotoGridViewModel: ObservableObject {
     private let thumbnailLoader = ThumbnailLoader()
     private let settingsManager = SettingsManager()
     private let directoryAccess = DirectoryAccess()
+    private let tagService = TagService()
 
     /// Generation of the current fill pass. Every thumbnail request carries it;
     /// results stamped with a stale generation are dropped. Bumped whenever we
@@ -245,6 +249,23 @@ class PhotoGridViewModel: ObservableObject {
                 displayOrder += 1
             }
 
+            // Restore quick-tags saved for this directory (slice 10). Keyed by
+            // filename, so a copied or moved folder keeps its badges. Matched
+            // case-insensitively via a lowercased index, mirroring the Windows
+            // OrdinalIgnoreCase lookup, without rewriting the on-disk key case.
+            let savedTags = tagService.load(from: dirURL)
+            if !savedTags.isEmpty {
+                let index = Dictionary(
+                    savedTags.map { ($0.key.lowercased(), $0.value) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+                for i in newPhotos.indices where !newPhotos[i].isFolder {
+                    if let tag = index[newPhotos[i].fileName.lowercased()] {
+                        newPhotos[i].tag = tag
+                    }
+                }
+            }
+
             photos = newPhotos
             detectCommonPrefix()
 
@@ -396,6 +417,11 @@ class PhotoGridViewModel: ObservableObject {
                     photos[photoIndex].fileName = entry.url.lastPathComponent
                 }
             }
+
+            // Tags travel with their items through a rename: each item already
+            // carries its tag (only its URL changed), so re-saving the sidecar
+            // rewrites it under the new filenames with no stale entries (slice 10).
+            tagService.save(photos, to: URL(fileURLWithPath: directoryPath))
 
             // Repoint the inspector at the renamed file so the editor keeps
             // showing the (now relocated) caption rather than a stale path.
@@ -801,6 +827,9 @@ class PhotoGridViewModel: ObservableObject {
 
         var movedIDs: [PhotoItem.ID] = []
         var failures: [String] = []
+        // filename→digit for tagged files that landed in `target`, so their tags
+        // can be moved out of this directory's sidecar and into the target's.
+        var movedTags: [String: Int] = [:]
         // Decided lazily on the first file collision, then applied to the rest.
         var fileCollisionPolicy: OverwriteOption?
 
@@ -832,8 +861,11 @@ class PhotoGridViewModel: ObservableObject {
                     try FileManager.default.moveItem(at: item.filePath, to: dest)
                     // An image's caption travels with it.
                     try? SidecarFiles.moveCompanions(of: item.filePath, toDirectory: target)
-                    // INSERTION POINT — slice 10: move this file's entry out of the
-                    // source directory's .photonize-tags.json and into the target's.
+                    // A tagged file's badge travels too: note it so the two
+                    // sidecars can be reconciled once the batch completes (slice 10).
+                    if let tag = item.tag {
+                        movedTags[item.fileName] = tag
+                    }
                 }
                 movedIDs.append(item.id)
             } catch {
@@ -846,6 +878,17 @@ class PhotoGridViewModel: ObservableObject {
         // Moving out renumbers the remaining photos but, like deleting, must not
         // arm the unsaved-changes quit guard.
         updateDisplayOrder(updateUnsavedChanges: false)
+
+        // Keep the two tag sidecars consistent (slice 10): the moved files' tags
+        // leave this directory and join the target's, so navigating into the
+        // target still shows their badges.
+        if !movedTags.isEmpty {
+            var targetTags = tagService.load(from: target)
+            for (name, digit) in movedTags { targetTags[name] = digit }
+            tagService.write(targetTags, to: target)
+            tagService.save(photos, to: URL(fileURLWithPath: directoryPath))
+        }
+
         isLoading = false
 
         if movedIDs.count == 1 {
@@ -875,6 +918,253 @@ class PhotoGridViewModel: ObservableObject {
         let alert = NSAlert()
         alert.messageText = "File Already Exists"
         alert.informativeText = "'\(name)' already exists in \(folder).\n\n• Overwrite All\n• Skip Existing\n• Cancel"
+        alert.addButton(withTitle: "Overwrite All")
+        alert.addButton(withTitle: "Skip Existing")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:  return .overwriteAll
+        case .alertSecondButtonReturn: return .skipExisting
+        default:                       return .cancel
+        }
+    }
+
+    // MARK: - Quick tagging (slice 10)
+
+    /// True when any photo in the directory carries a tag. Gates the three
+    /// Tags ▸ menu items, matching the Windows `HasTaggedPhotos`.
+    var hasTaggedPhotos: Bool {
+        photos.contains { !$0.isFolder && $0.tag != nil }
+    }
+
+    /// Quick-tag the current selection with `digit` (0-9). Pressing the same digit
+    /// again on an already-tagged selection clears it; a different digit replaces.
+    /// One tag per photo — never a set. Folders and the ".." tile can't be tagged.
+    /// The sidecar is re-saved after every change; it's a tiny file, so debouncing
+    /// isn't worth the complexity.
+    func applyTag(_ digit: Int) {
+        guard (0...9).contains(digit) else { return }
+
+        let targetIDs = photos
+            .filter { selectedPhotos.contains($0.id) && !$0.isFolder }
+            .map { $0.id }
+        guard !targetIDs.isEmpty else {
+            statusMessage = "Select one or more photos to tag"
+            return
+        }
+
+        // Toggle off only when every selected photo already carries this digit.
+        let clearing = targetIDs.allSatisfy { id in
+            photos.first(where: { $0.id == id })?.tag == digit
+        }
+        let newTag = clearing ? nil : digit
+
+        for id in targetIDs {
+            if let index = photos.firstIndex(where: { $0.id == id }) {
+                photos[index].tag = newTag
+            }
+        }
+
+        tagService.save(photos, to: URL(fileURLWithPath: directoryPath))
+
+        statusMessage = clearing
+            ? "Cleared tag from \(targetIDs.count) photo(s)"
+            : "Tagged \(targetIDs.count) photo(s) with \(digit)"
+    }
+
+    /// Tags ▸ Sort by tag. Folders first, then tagged photos by ascending digit,
+    /// then untagged (see `TagSorter`). A genuine reorder, so it arms the
+    /// unsaved-changes guard and Apply Rename follows naturally.
+    func sortByTag() {
+        // Clear the selection before replacing the array, so nothing points at a
+        // stale ordering (same idiom as loadPhotos).
+        selectedPhotos.removeAll()
+        selectionAnchor = nil
+        focusedPhotoID = nil
+
+        photos = TagSorter.sortByTag(photos)
+        updateDisplayOrder()
+        statusMessage = "Sorted photos by tag"
+    }
+
+    /// Tags ▸ Clear tags. Confirms, then removes every tag in the directory and
+    /// deletes the sidecar (`save` with nothing tagged unlinks it).
+    func clearTags() async {
+        let taggedCount = photos.filter { !$0.isFolder && $0.tag != nil }.count
+        guard taggedCount > 0 else { return }
+
+        let confirmed = await showConfirmation(
+            title: "Clear Tags",
+            message: "Clear tags from \(taggedCount) photo(s)?"
+        )
+        guard confirmed else { return }
+
+        for i in photos.indices where photos[i].tag != nil {
+            photos[i].tag = nil
+        }
+        tagService.save(photos, to: URL(fileURLWithPath: directoryPath))
+        statusMessage = "Cleared tags from \(taggedCount) photo(s)"
+    }
+
+    /// Tags ▸ Move tagged images into sub-folders. Presents the per-tag folder
+    /// sheet; on confirm, runs the move behind the shared progress sheet.
+    func beginMoveTaggedToFolders() {
+        let tagged = photos.filter { !$0.isFolder && $0.tag != nil }
+        guard !tagged.isEmpty else { return }
+
+        let counts = Dictionary(grouping: tagged, by: { $0.tag! })
+            .map { (tag: $0.key, count: $0.value.count) }
+
+        tagFolderRequest = TagFolderRequest(counts: counts) { [weak self] names in
+            self?.tagFolderRequest = nil
+            guard let self, let names else { return }
+            Task { await self.moveTaggedToFolders(names) }
+        }
+    }
+
+    /// Move each tag's photos into its named sub-folder, carrying the caption
+    /// `.txt` (via `SidecarFiles`) and the tag itself (written into the
+    /// destination folder's sidecar) so navigating in still shows the badge.
+    /// Validates folder names with the same hardened rules as a rename prefix and
+    /// refuses a name that clashes with an existing file.
+    func moveTaggedToFolders(_ folderNames: [Int: String]) async {
+        let tagged = photos.filter { !$0.isFolder && $0.tag != nil }
+        guard !tagged.isEmpty else { return }
+
+        let directory = URL(fileURLWithPath: directoryPath)
+
+        // Validate every folder name up front (slice 04's prefix rules also make a
+        // sound folder-name check), and refuse a name that is already a *file*
+        // here — a sub-folder can't be created over it.
+        for (tag, name) in folderNames {
+            if let reason = fileRenamer.validatePrefix(name) {
+                showAlert(
+                    title: "Invalid Folder Name",
+                    message: "\"\(name)\" can't be used for tag \(tag): \(reason)"
+                )
+                return
+            }
+            let candidate = directory.appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDir), !isDir.boolValue {
+                showAlert(
+                    title: "Name In Use",
+                    message: "\"\(name)\" is already a file in this folder, so it can't be a destination sub-folder."
+                )
+                return
+            }
+        }
+
+        // Warn once about files that would be overwritten in a target sub-folder.
+        var existing: [String] = []
+        for photo in tagged {
+            guard let tag = photo.tag, let folder = folderNames[tag] else { continue }
+            let dest = directory.appendingPathComponent(folder).appendingPathComponent(photo.fileName)
+            if FileManager.default.fileExists(atPath: dest.path) {
+                existing.append("\(folder)/\(photo.fileName)")
+            }
+        }
+        var overwrite: OverwriteOption = .overwriteAll
+        if !existing.isEmpty {
+            overwrite = promptMoveTaggedOverwrite(existing)
+            if overwrite == .cancel { return }
+        }
+
+        let progress = OperationProgress(
+            title: "Moving tagged photos",
+            status: "Preparing…",
+            total: tagged.count
+        )
+        let tagService = self.tagService
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            var movedIDs: Set<PhotoItem.ID> = []
+            var moved = 0
+            var skipped = 0
+            var failures: [String] = []
+            // folderName → (filename → digit), written into each destination
+            // sidecar so the moved photos keep their badges.
+            var destinationTags: [String: [String: Int]] = [:]
+
+            for (i, photo) in tagged.enumerated() {
+                if Task.isCancelled { break }
+                guard let tag = photo.tag, let folder = folderNames[tag] else { continue }
+                self.operationProgress?.update(current: i, total: tagged.count, status: photo.fileName)
+
+                let targetDir = directory.appendingPathComponent(folder)
+                let dest = targetDir.appendingPathComponent(photo.fileName)
+                do {
+                    try FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
+
+                    if FileManager.default.fileExists(atPath: dest.path) {
+                        if overwrite == .skipExisting {
+                            skipped += 1
+                            continue
+                        }
+                        try FileManager.default.removeItem(at: dest)
+                    }
+
+                    try FileManager.default.moveItem(at: photo.filePath, to: dest)
+                    // The caption .txt travels with the image (slice 09 / 06 rule).
+                    try? SidecarFiles.moveCompanions(of: photo.filePath, toDirectory: targetDir)
+
+                    destinationTags[folder, default: [:]][photo.fileName] = tag
+                    movedIDs.insert(photo.id)
+                    moved += 1
+                } catch {
+                    failures.append("\(photo.fileName): \(error.localizedDescription)")
+                }
+            }
+
+            // Write each destination folder's sidecar (merging with any tags
+            // already there), so navigating into it still shows the badges.
+            for (folder, tags) in destinationTags {
+                let targetDir = directory.appendingPathComponent(folder)
+                var merged = tagService.load(from: targetDir)
+                for (name, digit) in tags { merged[name] = digit }
+                tagService.write(merged, to: targetDir)
+            }
+
+            // Drop the moved entries from this directory's sidecar, keeping the
+            // ones that were skipped or failed, then reload so the new sub-folders
+            // appear and the moved images are gone (matching Windows).
+            let remaining = self.photos.filter { !movedIDs.contains($0.id) }
+            tagService.save(remaining, to: directory)
+
+            self.operationProgress = nil
+            await self.loadPhotos()
+
+            var parts: [String] = []
+            if moved > 0 { parts.append("moved \(moved)") }
+            if skipped > 0 { parts.append("skipped \(skipped)") }
+            if !failures.isEmpty { parts.append("\(failures.count) failed") }
+            self.statusMessage = parts.isEmpty
+                ? "No tagged photos moved."
+                : "Tagged photos: " + parts.joined(separator: ", ")
+
+            if !failures.isEmpty {
+                self.showAlert(
+                    title: "Move Errors",
+                    message: "Failed to move \(failures.count) file(s):\n\n\(failures.joined(separator: "\n"))"
+                )
+            }
+        }
+
+        progress.task = task
+        operationProgress = progress
+    }
+
+    /// The single collision decision for a tag-move batch: Overwrite All / Skip /
+    /// Cancel, listing the clashing outputs (capped, as elsewhere).
+    private func promptMoveTaggedOverwrite(_ existing: [String]) -> OverwriteOption {
+        let alert = NSAlert()
+        alert.messageText = "Files Already Exist"
+        let listed = existing.prefix(10).joined(separator: "\n")
+        let more = existing.count > 10 ? "\n…and \(existing.count - 10) more" : ""
+        alert.informativeText = "\(existing.count) file(s) already exist in the target sub-folder(s):\n\n"
+            + "\(listed)\(more)\n\n• Overwrite All\n• Skip Existing\n• Cancel"
         alert.addButton(withTitle: "Overwrite All")
         alert.addButton(withTitle: "Skip Existing")
         alert.addButton(withTitle: "Cancel")
@@ -933,8 +1223,13 @@ class PhotoGridViewModel: ObservableObject {
             }
             openPhoto(photo)
             return true
-        case .digit:
-            return false // reserved for slice 10
+        case .digit(let value):
+            // Consume it even when nothing is selected (applyTag then just posts a
+            // hint) so the key never beeps through to the system. This only fires
+            // when the grid holds focus — a digit typed in the caption editor goes
+            // to the text view, never here.
+            applyTag(value)
+            return true
         }
     }
 

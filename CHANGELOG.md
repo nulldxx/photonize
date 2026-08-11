@@ -43,6 +43,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Quitting with an un-applied reorder now warns first (deleting does not trigger the warning)
 - **macOS: Settings window (⌘,)**: A native Settings scene with a default thumbnail size control and a "restore last folder on launch" toggle
 - **macOS: App icon**: The app now ships with the Photonize icon in the Dock and Finder
+- **macOS: Quick tagging (0-9)**: Select photos and press a digit to badge them, matching Windows
+  - The tag shows as an accent-coloured badge in each thumbnail's top-right corner, sized to stay legible from 100 px to 400 px
+  - One tag per photo — the same digit again clears it, a different digit replaces it; digits only tag when the grid has focus, so they still type normally in the path field and caption editor
+  - Tags are saved per directory in a `.photonize-tags.json` sidecar, keyed by filename so a moved or copied folder keeps them, and restored on reload — the file format is **identical to the Windows client**, so a folder tagged on one platform reads correctly on the other
+  - Tags follow their photos through an Apply Rename, with no stale entries left behind, and are kept consistent when a tagged photo is dragged into another folder
+  - Right-click **Tags** submenu: **Move tagged images into sub-folders** (each group and its `.txt` captions moved into a named sub-folder, badges carried across), **Sort by tag** (folders first, then ascending digit, then untagged), and **Clear tags**
 - **Quick tagging with the 0-9 keys**: Select one or more photos in the grid and press a number key to tag them
   - The tag appears as a small badge in the top-right corner of each thumbnail
   - One tag per photo — pressing a different digit replaces it, pressing the same digit again clears it

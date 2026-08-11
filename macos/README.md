@@ -11,6 +11,7 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - **Inspector Pane**: A right-hand pane with **Preview** and **Text** tabs — full-size previews with file details, or a prompt editor — toggled as a whole with the sidebar button
 - **Prompt Editor**: Each image can carry a caption in a `.txt` sidecar file (`photo.jpg` ↔ `photo.txt`) for AI-training workflows; the Text tab loads it, auto-saves as you type (debounced), deletes the file when you empty it, and the caption follows its image through renames and moves
 - **Video Support**: MP4, MOV and M4V clips appear as thumbnails and play in the preview pane with a scrubbable timeline, play/pause and volume — decoded natively by AVFoundation, so no FFmpeg install is required
+- **Quick Tagging (0-9)**: Select photos and press a digit to badge them (top-right corner). One tag per photo — the same digit again clears it, a different digit replaces it. Tags are saved per directory in a `.photonize-tags.json` sidecar and restored when the folder is reloaded; because they're keyed by filename, a folder can be moved or copied and keep its tags. The file format is identical to the Windows client, so a folder tagged on one platform reads correctly on the other. The right-click **Tags** submenu offers **Move tagged images into sub-folders** (each tag's photos and their `.txt` captions moved into a named sub-folder, badges carried across), **Sort by tag** (folders first, then ascending digit, then untagged), and **Clear tags**. Tags follow their photos through an Apply Rename.
 - **Settings Persistence**: Remembers your last directory, prefix, thumbnail size, and preferences
 - **Two-Pass Rename Algorithm**: Safely renames files without conflicts, even when reordering
 
@@ -117,12 +118,14 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - `Shift+Arrow` - Extend the selection from the anchor
 - `Return` - Open the focused photo, or enter the focused folder
 - `Delete` or `Backspace` - Move selected photos to Trash
+- `0`-`9` - Quick-tag the selection (same digit again clears it). Only when the grid has focus — digits typed in the path field or caption editor go to the text
 
 ### Context Menu
 
 Right-click on any photo to access:
 - **Open** - Open the photo in default image viewer
 - **Show in Finder** - Reveal the file in Finder
+- **Tags** - Move tagged images into sub-folders, sort by tag, or clear tags (enabled once something is tagged)
 - **Delete** - Move the photo to Trash
 
 ## Architecture
@@ -145,6 +148,8 @@ The app follows a strict MVVM (Model-View-ViewModel) architecture:
 ### Services
 - `FileRenamer.swift` - Two-pass atomic rename algorithm (carries each photo's `.txt` caption across the rename)
 - `PromptFileStore.swift` - Canonical `.txt` sidecar path plus load / save / delete-on-empty
+- `TagService.swift` - `.photonize-tags.json` sidecar load/save (filename-keyed, 0-9, deleted when empty; the shared cross-client format)
+- `TagSorter.swift` - Pure "sort by tag" ordering, free of file I/O and SwiftUI
 - `ThumbnailGenerator.swift` - Async image loading, video frame extraction (AVFoundation), and thumbnail generation
 - `SettingsManager.swift` - UserDefaults persistence
 
@@ -169,12 +174,15 @@ macos/
 │   │   └── PhotoGridViewModel.swift # State management
 │   ├── Views/
 │   │   ├── ContentView.swift       # Main UI + tabbed inspector
-│   │   ├── PhotoGridView.swift     # Photo grid
+│   │   ├── PhotoGridView.swift     # Photo grid + tag badge + Tags menu
 │   │   ├── PreviewPane.swift       # Preview tab
-│   │   └── PromptEditorPane.swift  # Text (caption) tab
+│   │   ├── PromptEditorPane.swift  # Text (caption) tab
+│   │   └── TagFolderSheet.swift    # Move-tagged-to-sub-folders sheet
 │   ├── Services/
 │   │   ├── FileRenamer.swift       # Rename logic
 │   │   ├── PromptFileStore.swift   # .txt caption load/save/delete
+│   │   ├── TagService.swift        # .photonize-tags.json sidecar
+│   │   ├── TagSorter.swift         # Pure sort-by-tag ordering
 │   │   ├── ThumbnailGenerator.swift # Image loading
 │   │   └── SettingsManager.swift   # Settings persistence
 │   ├── Info.plist                  # App metadata
@@ -291,6 +299,8 @@ See the main repository LICENSE file.
 | WebP Export | ✓ | ✓ |
 | PNG/JPG Export | ✓ | ✓ |
 | Image Compare | ✓ | ✓ |
+| Quick Tagging (0-9) | ✓ | ✓ |
+| Tags sidecar (`.photonize-tags.json`) | ✓ | ✓ (shared format) |
 
 ## Credits
 

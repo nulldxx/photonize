@@ -361,33 +361,43 @@ struct PhotoItemView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            if let thumbnail = photo.thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
-                    .cornerRadius(8)
-                    // A play badge marks video tiles at a glance — Windows relies on
-                    // the frame alone, but the badge is cheap and clearer.
-                    .overlay(alignment: .center) {
-                        if photo.isVideo { PlayBadge() }
-                    }
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
-                    .cornerRadius(8)
-                    .overlay(
-                        // Subtle progress treatment so a slow thumbnail reads as
-                        // loading rather than broken.
-                        VStack(spacing: 8) {
-                            Image(systemName: "photo")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray)
-                            ProgressView()
-                                .controlSize(.small)
+            Group {
+                if let thumbnail = photo.thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
+                        .cornerRadius(8)
+                        // A play badge marks video tiles at a glance — Windows relies on
+                        // the frame alone, but the badge is cheap and clearer.
+                        .overlay(alignment: .center) {
+                            if photo.isVideo { PlayBadge() }
                         }
-                    )
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
+                        .cornerRadius(8)
+                        .overlay(
+                            // Subtle progress treatment so a slow thumbnail reads as
+                            // loading rather than broken.
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        )
+                }
+            }
+            // The quick-tag badge sits in the thumbnail's top-right corner and
+            // shows even before the bitmap has decoded (slice 10).
+            .overlay(alignment: .topTrailing) {
+                if let tag = photo.tag {
+                    TagBadge(digit: tag, diameter: badgeDiameter)
+                        .padding(4)
+                }
             }
 
             Text(photo.fileName)
@@ -435,6 +445,12 @@ struct PhotoItemView: View {
         if isDropTarget { return Color.accentColor }
         return viewModel.selectedPhotos.contains(photo.id) ? Color.accentColor : Color.clear
     }
+
+    /// Badge diameter scaled from the thumbnail size, clamped so it stays legible
+    /// at 100 px and doesn't dominate at 400 px.
+    private var badgeDiameter: CGFloat {
+        max(18, min(34, viewModel.thumbnailSize * 0.16))
+    }
 }
 
 /// A small semi-transparent play triangle centred on a video tile's thumbnail so
@@ -446,6 +462,25 @@ struct PlayBadge: View {
             .foregroundColor(.white)
             .padding(12)
             .background(Circle().fill(Color.black.opacity(0.5)))
+    }
+}
+
+/// A quick-tag badge: the digit in a filled accent circle, shadowed so it reads
+/// over a light or dark photo. The macOS analogue of the Windows `TagBadgeStyle`
+/// / `TagBadgeTextStyle` resources. Reused at a fixed size in the move-tagged
+/// sheet, so `diameter` is a parameter rather than derived here.
+struct TagBadge: View {
+    let digit: Int
+    var diameter: CGFloat = 24
+
+    var body: some View {
+        Text("\(digit)")
+            .font(.system(size: diameter * 0.58, weight: .semibold, design: .monospaced))
+            .foregroundColor(.white)
+            .frame(width: diameter, height: diameter)
+            .background(Circle().fill(Color.accentColor))
+            .overlay(Circle().stroke(Color.black.opacity(0.25), lineWidth: 1))
+            .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -468,14 +503,14 @@ struct PhotoContextMenu: View {
             openButton
             showInFinderButton
             exportMenu
-            // INSERTION POINT — slice 10: Tags ▸
+            tagsMenu
             Divider()
             deleteButton
 
         case .video:
             openButton
             showInFinderButton
-            // INSERTION POINT — slice 10: Tags ▸
+            tagsMenu
             Divider()
             deleteButton
 
@@ -484,7 +519,7 @@ struct PhotoContextMenu: View {
             showInFinderButton
             compareButton
             exportMenu
-            // INSERTION POINT — slice 10: Tags ▸
+            tagsMenu
             Divider()
             deleteButton
         }
@@ -521,6 +556,28 @@ struct PhotoContextMenu: View {
                     viewModel.exportSelection(photo, as: format)
                 }
             }
+        }
+    }
+
+    /// Tags ▸ submenu — the three directory-wide tag operations, each disabled
+    /// until something in the folder is tagged (the Windows `HasTaggedPhotos`
+    /// rule). Present on every non-parent tile, as on Windows.
+    private var tagsMenu: some View {
+        Menu("Tags") {
+            Button("Move tagged images into sub-folders") {
+                viewModel.beginMoveTaggedToFolders()
+            }
+            .disabled(!viewModel.hasTaggedPhotos)
+
+            Button("Sort by tag") {
+                viewModel.sortByTag()
+            }
+            .disabled(!viewModel.hasTaggedPhotos)
+
+            Button("Clear tags") {
+                Task { await viewModel.clearTags() }
+            }
+            .disabled(!viewModel.hasTaggedPhotos)
         }
     }
 

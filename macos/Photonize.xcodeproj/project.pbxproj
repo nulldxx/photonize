@@ -8,9 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		02F34948AE7F4D1895334D6B /* FileRenamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */; };
+		0429E617FC6A4837530563EA /* TagFolderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53A2AC679A81A8039A97A91 /* TagFolderSheet.swift */; };
 		0932FEFAC6E7D66FDECFF49F /* PhotoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC931E15F60CBC45FFCB65C2 /* PhotoItem.swift */; };
 		1D7FB74E7A7DC1B6488467A3 /* DirectoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11AE64381E32DD412EEECC1 /* DirectoryAccess.swift */; };
+		2332F9391DE596068367FE7D /* TagService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6734FBF8EDF92EE3DF56DCB /* TagService.swift */; };
+		2F41A56347838BEEB70819E5 /* PromptEditorPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D66BCDD43A9BF75D4DFF3D2 /* PromptEditorPane.swift */; };
+		42C597B10A69639881B8B46B /* PromptFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB170152CDB31447B22AB4 /* PromptFileStore.swift */; };
 		43B8AF4A5E71BF3AE4923464 /* WebPEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BD8F2BAB5B9460309FF0AF7 /* WebPEncoder.swift */; };
+		4E23063BF27DC009C513C327 /* TagSorter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BFD0540D16ACC718557AA96 /* TagSorter.swift */; };
 		4FE4BC58B2C76DF8DBAFAD1A /* ComparePair.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90C0CCBA9262750FE0BB039 /* ComparePair.swift */; };
 		52403704E6873A011DC2B2C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F676B6D514ABEBA1D2DCFF71 /* Assets.xcassets */; };
 		5272AA885A59C19374E8EBBF /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E31619E208463F3F04D918C8 /* AVFoundation.framework */; };
@@ -38,6 +43,7 @@
 		048EF4B1FB156702B1732CA7 /* KeyCatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCatcher.swift; sourceTree = "<group>"; };
 		2043591CDCDC131D6B2D969D /* Photonize.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Photonize.entitlements; sourceTree = "<group>"; };
 		29B27009BE4CC215D1FB57D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2BFD0540D16ACC718557AA96 /* TagSorter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagSorter.swift; sourceTree = "<group>"; };
 		360CE3B3949110ACCAE11F5A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3814ECBEDCCFEAF083B66DD2 /* PhotonizeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotonizeApp.swift; sourceTree = "<group>"; };
 		3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRenamer.swift; sourceTree = "<group>"; };
@@ -48,6 +54,7 @@
 		7C1C85E0ABBD5D2410AFC9E7 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
 		7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		89C4852E64CDC73596AB23B1 /* PreviewPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPane.swift; sourceTree = "<group>"; };
+		8D66BCDD43A9BF75D4DFF3D2 /* PromptEditorPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptEditorPane.swift; sourceTree = "<group>"; };
 		9B3EFEF85859849A66C198AF /* Photonize.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Photonize.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B41ADBCAB0D261AC5828D33 /* PhotoImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoImporter.swift; sourceTree = "<group>"; };
 		A11AE64381E32DD412EEECC1 /* DirectoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryAccess.swift; sourceTree = "<group>"; };
@@ -55,7 +62,10 @@
 		A674631997A530FA5AE31F57 /* ImageExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageExporter.swift; sourceTree = "<group>"; };
 		B2594223FB8DAFF650D8AE5C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B529CE22EA1E5C7F0F9DC32B /* ProgressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressSheet.swift; sourceTree = "<group>"; };
+		B53A2AC679A81A8039A97A91 /* TagFolderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagFolderSheet.swift; sourceTree = "<group>"; };
+		C6734FBF8EDF92EE3DF56DCB /* TagService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagService.swift; sourceTree = "<group>"; };
 		C90C0CCBA9262750FE0BB039 /* ComparePair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparePair.swift; sourceTree = "<group>"; };
+		C9FB170152CDB31447B22AB4 /* PromptFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptFileStore.swift; sourceTree = "<group>"; };
 		CA720847552828343274E9A1 /* SidecarFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidecarFiles.swift; sourceTree = "<group>"; };
 		DC931E15F60CBC45FFCB65C2 /* PhotoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoItem.swift; sourceTree = "<group>"; };
 		E31619E208463F3F04D918C8 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -85,8 +95,11 @@
 				3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */,
 				A674631997A530FA5AE31F57 /* ImageExporter.swift */,
 				9B41ADBCAB0D261AC5828D33 /* PhotoImporter.swift */,
+				C9FB170152CDB31447B22AB4 /* PromptFileStore.swift */,
 				7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */,
 				CA720847552828343274E9A1 /* SidecarFiles.swift */,
+				C6734FBF8EDF92EE3DF56DCB /* TagService.swift */,
+				2BFD0540D16ACC718557AA96 /* TagSorter.swift */,
 				5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */,
 				63D74CDC7603E94F3D6213A7 /* ThumbnailLoader.swift */,
 				5BD8F2BAB5B9460309FF0AF7 /* WebPEncoder.swift */,
@@ -145,7 +158,9 @@
 				A4A8D518DBBAD70D000C228E /* PhotoGridView.swift */,
 				89C4852E64CDC73596AB23B1 /* PreviewPane.swift */,
 				B529CE22EA1E5C7F0F9DC32B /* ProgressSheet.swift */,
+				8D66BCDD43A9BF75D4DFF3D2 /* PromptEditorPane.swift */,
 				B2594223FB8DAFF650D8AE5C /* SettingsView.swift */,
+				B53A2AC679A81A8039A97A91 /* TagFolderSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -254,9 +269,14 @@
 				8BE4DC9435F90DFFE779E6AD /* PhotonizeApp.swift in Sources */,
 				F46B45599B1E653B3DF3379F /* PreviewPane.swift in Sources */,
 				9E6611EE086057FF0C769745 /* ProgressSheet.swift in Sources */,
+				2F41A56347838BEEB70819E5 /* PromptEditorPane.swift in Sources */,
+				42C597B10A69639881B8B46B /* PromptFileStore.swift in Sources */,
 				B7451916C372989BF1A6262B /* SettingsManager.swift in Sources */,
 				B4E7E2FBB54533D397FC871E /* SettingsView.swift in Sources */,
 				ADB461C8C08D28822E789CAC /* SidecarFiles.swift in Sources */,
+				0429E617FC6A4837530563EA /* TagFolderSheet.swift in Sources */,
+				2332F9391DE596068367FE7D /* TagService.swift in Sources */,
+				4E23063BF27DC009C513C327 /* TagSorter.swift in Sources */,
 				59B9F27D421E7BB9250ACB53 /* ThumbnailGenerator.swift in Sources */,
 				A4336B121270E4A3B4125F9E /* ThumbnailLoader.swift in Sources */,
 				43B8AF4A5E71BF3AE4923464 /* WebPEncoder.swift in Sources */,

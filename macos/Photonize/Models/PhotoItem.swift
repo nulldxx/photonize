@@ -23,6 +23,13 @@ struct PhotoItem: Identifiable, Equatable {
     /// the synthesized memberwise initializer usable by the many call sites that
     /// only ever construct images or folders.
     var isVideo: Bool = false
+    /// Quick-tag digit 0-9 the user applied, or nil when untagged (slice 10). A
+    /// default keeps the synthesized initializer usable at the many call sites
+    /// that build plain images and folders. Ignored by `==` (which is id-only),
+    /// exactly like `thumbnail`, so mutating it still republishes the array.
+    var tag: Int? = nil
+
+    var hasTag: Bool { tag != nil }
 
     var fileExtension: String {
         isFolder ? "" : filePath.pathExtension.lowercased()

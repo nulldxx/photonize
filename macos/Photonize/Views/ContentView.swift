@@ -54,6 +54,11 @@ struct ContentView: View {
         .sheet(item: $viewModel.importModeRequest) { request in
             ImportModeSheet(request: request)
         }
+        // Per-tag sub-folder names for Tags ▸ Move tagged images. Resolves before
+        // the progress sheet, so the two are never up at once.
+        .sheet(item: $viewModel.tagFolderRequest) { request in
+            TagFolderSheet(request: request)
+        }
     }
 }
 
