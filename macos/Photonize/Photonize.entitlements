@@ -2,11 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.files.user-selected.read-write</key>
-    <true/>
-    <key>com.apple.security.files.bookmarks.app-scope</key>
-    <true/>
+    <!--
+      Photonize is distributed as a GitHub DMG, not through the Mac App Store, so
+      it is intentionally NOT sandboxed. The App Sandbox is only mandatory for MAS
+      distribution (explicitly out of scope), and without a paid Developer ID its
+      security-scoped bookmarks cannot be validated against a stable code-signing
+      identity — so restoring the last folder, "Open With", and drag-in all failed
+      under an ad-hoc signature and forced the user through Browse… every time.
+      Dropping the sandbox lets the app open any folder the user navigates to.
+
+      The hardened runtime is still enabled (ENABLE_HARDENED_RUNTIME in project.yml),
+      which is what notarization requires; no entitlement exceptions are needed, so
+      this dict is intentionally empty.
+    -->
 </dict>
 </plist>

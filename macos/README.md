@@ -151,8 +151,10 @@ second one:
   Unknown arguments are ignored, so running under the Xcode debugger (which injects
   flags such as `-NSDocumentRevisionsDebugMode YES`) is harmless.
 
-Opening a folder this way bookmarks it, so it still reopens on the next launch even
-under the macOS App Sandbox.
+The folder you open is remembered and reopens on the next launch. Photonize is not
+sandboxed (it ships outside the Mac App Store), so it can read any folder you point
+it at directly — macOS may still show a one-time privacy prompt the first time it
+touches a protected location such as Desktop, Documents or Downloads.
 
 ### Finder Services
 
@@ -231,7 +233,7 @@ macos/
 │   │   ├── ThumbnailGenerator.swift # Image loading
 │   │   └── SettingsManager.swift   # Settings persistence
 │   ├── Info.plist                  # App metadata
-│   └── Photonize.entitlements      # Sandbox permissions
+│   └── Photonize.entitlements      # Empty (not sandboxed); hardened runtime via build settings
 ├── Photonize.xcodeproj/
 │   └── project.pbxproj             # Xcode project file
 └── README.md                        # This file

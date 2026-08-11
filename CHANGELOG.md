@@ -6,8 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **macOS: Removed the App Sandbox**: Photonize is distributed as a GitHub DMG, not through the Mac App Store, so the sandbox was only ever a liability. Without a paid Developer ID its security-scoped bookmarks could not be validated against a stable code-signing identity, so restoring the last folder, "Open With" on a folder, the Finder "Open in Photonize" service, and dragging files in all failed under the ad-hoc signature — the app had to be pointed at every folder through Browse… each launch. The app now opens any folder the user navigates to directly. The hardened runtime stays enabled (what notarization needs). This fixes: last-folder restore on launch; "Open With Photonize" / Dock / `open -a` / the Finder service on a folder; and drag-to-import.
+
 ### Fixed
-- **macOS: "Open With Photonize" / Finder Service on a folder was denied by the sandbox**: opening a folder from Finder's Open With, the Dock, `open -a`, or the "Open in Photonize" service left the grid empty because the app never started security-scoped access on the incoming folder URL — the sandbox then refused to list its contents (only the Browse… panel, whose URLs carry an implicit grant, worked). The app now consumes the Powerbox grant with `startAccessingSecurityScopedResource()` when adopting any launch/open folder, balanced by the existing relinquish on the next folder change.
 - **macOS: Thumbnails stuck on the loading placeholder**: grid cells kept showing the spinner/grey placeholder until an unrelated relayout (e.g. toggling the inspector) forced a redraw. `PhotoItem`'s equality only compared `id`, so SwiftUI treated a late-arriving thumbnail (and new tags or renames) as "no change" and skipped repainting the cell. Equality now covers every rendered field; drag-reordering keys off `id` so it is unaffected.
 - **macOS: Quick-tag digits (0-9) went to the address bar**: the directory field held keyboard focus, so pressing a digit to tag a selected photo typed into the path instead. The grid now catches its keys with a local event monitor that yields only while a text field is actually being edited, and clicking a photo takes focus off the address/prefix fields.
 
@@ -18,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Opening images (rather than a folder) navigates to their containing folder and pre-selects them
   - Two Finder right-click **Services** appear once the app has been launched from `/Applications`: **Open in Photonize** (folders) and **Export to WebP** (images)
   - **Export to WebP handles the whole selection in one app instance** — an improvement over the Windows verb, which launches one instance per selected file
-  - A folder opened this way is bookmarked, so it still reopens on the next launch under the App Sandbox; unknown arguments (e.g. Xcode's debugger flags) are ignored, and every entry point reuses the existing window rather than opening a second one
+  - A folder opened this way is remembered, so it reopens on the next launch; unknown arguments (e.g. Xcode's debugger flags) are ignored, and every entry point reuses the existing window rather than opening a second one
 - **macOS: Prompt/caption text editor**: Each image can carry a caption in a `.txt` sidecar file (`photo.jpg` ↔ `photo.txt`) for AI-training workflows, matching Windows
   - The right-hand pane is now an inspector with **Preview** and **Text** tabs (a segmented switch), replacing the Windows two-panes/two-toggles arrangement; the tab you last used is remembered
   - The Text tab loads the selected image's caption, auto-saves as you type (debounced, not per keystroke), and deletes the `.txt` file when you empty it so a trainer never sees a blank caption
@@ -88,7 +90,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **macOS: Universal binary**: The macOS app now ships as a universal build running natively on both Apple Silicon (arm64) and Intel (x86_64) Macs, instead of Intel-only through Rosetta. The release DMG is named `Photonize-<version>-universal.dmg`, and CI fails the build if the binary is not actually universal.
 - **macOS: One release for both platforms**: A `v*` tag now builds and publishes the Windows MSI and the macOS DMG to a single GitHub release with shared notes from `CHANGELOG.md`; the previously-documented but non-existent `release-macos.yml` / `macos-v*` flow is gone.
 - **macOS: Test suite runs in CI**: A new `PhotonizeTests` XCTest target covers the renamer, tagging, sorter, importer, exporter, selection maths, prompt store, thumbnail loader and launch-argument parsing. `xcodebuild test` runs on every build and release, and a failing test blocks the release. The tagging suites mirror the Windows `TagTests` for cross-client parity.
-- **macOS: Sandbox-safe folder restore**: The last-opened folder is now reopened via a security-scoped bookmark, so it survives relaunch under the App Sandbox
+- **macOS: Last-folder restore on launch**: The last-opened folder is reopened automatically on the next launch
 - **macOS: Preferences persist immediately**: Thumbnail size and preview toggle are now saved as you change them, not only when a folder is loaded or renamed
 - **macOS: Single File menu**: Open Folder… (⌘O) and Refresh (⌘R) now live in the standard File menu instead of a duplicate one
 - **macOS: Project generation**: The Xcode project is now generated from `macos/project.yml` with XcodeGen
