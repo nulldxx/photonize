@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Quick tagging with the 0-9 keys**: Select one or more photos in the grid and press a number key to tag them
+  - The tag appears as a small badge in the top-right corner of each thumbnail
+  - One tag per photo — pressing a different digit replaces it, pressing the same digit again clears it
+  - Tags are saved per directory in a `.photonize-tags.json` sidecar file and restored when the folder is reloaded
+  - Tags follow their photos through an Apply Rename
+  - New right-click "Tags" submenu:
+    - **Move tagged images into sub-folders** — prompts for a folder name per tag, then moves each group (and its `.txt` caption) into place
+    - **Sort by tag** — regroups the grid by tag, with untagged photos last
+    - **Clear tags** — removes every tag in the current directory
 - **Auto-caption (Florence-2 via ComfyUI)**: Right-click any image and choose "Auto-caption" to generate a descriptive caption using a Florence-2 workflow on a ComfyUI server
   - Works on a single image or a multi-selection of images
   - Each caption is saved as a `.txt` file next to its source image (e.g. "photo.webp" → "photo.txt")

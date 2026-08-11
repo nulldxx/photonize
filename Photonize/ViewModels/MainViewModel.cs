@@ -22,6 +22,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly WebPExporter _webpExporter;
     private readonly ImageExporter _imageExporter;
     private readonly TopazPhotoAIService _topazPhotoAIService;
+    private readonly TagService _tagService;
     private readonly WorkerQueue<PhotoItem> _thumbnailQueue;
     private CancellationTokenSource? _thumbnailLoadCancellation;
 
@@ -58,6 +59,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _webpExporter = new WebPExporter();
         _imageExporter = new ImageExporter();
         _topazPhotoAIService = new TopazPhotoAIService();
+        _tagService = new TagService();
 
         // Initialize worker queue for parallel thumbnail loading
         // Use CPU core count for worker count and 0.2s stagger delay
@@ -84,6 +86,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         CompareImagesCommand = new RelayCommand(CompareImages, CanCompareImages);
         ToggleVideoPlaybackCommand = new RelayCommand(ToggleVideoPlayback);
         ToggleTextEditorCommand = new RelayCommand(ToggleTextEditor);
+        MoveTaggedToFoldersCommand = new RelayCommand(async () => await MoveTaggedToFoldersAsync(), () => HasTaggedPhotos);
+        SortByTagCommand = new RelayCommand(SortByTag, () => HasTaggedPhotos);
+        ClearTagsCommand = new RelayCommand(ClearTags, () => HasTaggedPhotos);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -470,6 +475,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)AutoCaptionCommand).RaiseCanExecuteChanged();
         ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
+        RaiseTagCommandsCanExecuteChanged();
 
         // Update preview photo to the first selected item
         PreviewPhoto = _selectedPhotos.FirstOrDefault();
@@ -491,6 +497,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand CompareImagesCommand { get; }
     public ICommand ToggleVideoPlaybackCommand { get; }
     public ICommand ToggleTextEditorCommand { get; }
+    public ICommand MoveTaggedToFoldersCommand { get; }
+    public ICommand SortByTagCommand { get; }
+    public ICommand ClearTagsCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -657,18 +666,23 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Load media files (images and videos)
             var mediaFiles = await _thumbnailGenerator.GetMediaFilesAsync(DirectoryPath);
 
+            // Restore any quick-tags saved for this directory
+            var savedTags = _tagService.Load(DirectoryPath);
+
             // Create all PhotoItem objects first and add to collection
             // Thumbnails will be loaded in parallel using the worker queue
             var photoItems = new List<PhotoItem>();
             for (int i = 0; i < mediaFiles.Count; i++)
             {
                 var filePath = mediaFiles[i];
+                var fileName = Path.GetFileName(filePath);
                 var photoItem = new PhotoItem
                 {
                     FilePath = filePath,
-                    FileName = Path.GetFileName(filePath),
+                    FileName = fileName,
                     DisplayOrder = displayOrder++,
                     IsFolder = false,
+                    Tag = savedTags.TryGetValue(fileName, out var savedTag) ? savedTag : null,
                     Thumbnail = null // Thumbnail will be loaded by worker queue
                 };
 
@@ -745,6 +759,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             ((RelayCommand)ApplyRenameCommand).RaiseCanExecuteChanged();
+            RaiseTagCommandsCanExecuteChanged();
             SaveSettings();
             HasUnsavedChanges = false; // Clear unsaved changes after loading
         }
@@ -798,6 +813,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (success)
         {
+            // Tags are keyed by filename, so rewrite the map under the new names.
+            // FileRenamer updates FilePath/FileName in place on these same PhotoItems.
+            _tagService.Save(DirectoryPath, Photos);
+
             SaveSettings();
             HasUnsavedChanges = false; // Clear unsaved changes after successful rename
         }
@@ -1124,6 +1143,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)ExportPhotoAICommand).RaiseCanExecuteChanged();
             ((RelayCommand<PhotoItem?>)AutoCaptionCommand).RaiseCanExecuteChanged();
+            RaiseTagCommandsCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -1810,54 +1830,245 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public async Task MovePhotosToFolderAsync(List<PhotoItem> photosToMove, PhotoItem targetFolder)
+    #region Quick tagging
+
+    public bool HasTaggedPhotos => Photos.Any(p => !p.IsFolder && p.Tag.HasValue);
+
+    private void RaiseTagCommandsCanExecuteChanged()
     {
-        if (photosToMove.Count == 0 || targetFolder == null || !targetFolder.IsFolder)
+        OnPropertyChanged(nameof(HasTaggedPhotos));
+        ((RelayCommand)MoveTaggedToFoldersCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)SortByTagCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ClearTagsCommand).RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Applies a quick-tag digit to the current selection. Pressing the same
+    /// digit again on an already-tagged selection clears it.
+    /// </summary>
+    public void ApplyTag(int digit)
+    {
+        if (digit < 0 || digit > 9)
             return;
+
+        var targets = _selectedPhotos.Where(p => !p.IsFolder).ToList();
+        if (targets.Count == 0)
+        {
+            StatusMessage = "Select one or more photos to tag";
+            return;
+        }
+
+        // Toggle off only when every selected photo already carries this tag
+        bool clearing = targets.All(p => p.Tag == digit);
+        int? newTag = clearing ? null : digit;
+
+        foreach (var photo in targets)
+        {
+            photo.Tag = newTag;
+        }
+
+        _tagService.Save(DirectoryPath, Photos);
+        RaiseTagCommandsCanExecuteChanged();
+
+        StatusMessage = clearing
+            ? $"Cleared tag from {targets.Count} photo(s)"
+            : $"Tagged {targets.Count} photo(s) with {digit}";
+    }
+
+    private void SortByTag()
+    {
+        var sorted = TagSorter.SortByTag(Photos);
+
+        // Clear the selection before the collection, so SelectionChanged can't
+        // repopulate it with stale references (same ordering as LoadPhotosAsync)
+        _selectedPhotos.Clear();
+        SelectedPhoto = null;
+
+        // Rebuild the collection in place (same idiom as ImportPhotosAsync)
+        Photos.Clear();
+        foreach (var photo in sorted)
+        {
+            Photos.Add(photo);
+        }
+
+        // Sorting is a genuine reorder, so let it mark unsaved changes
+        UpdateDisplayOrder();
+
+        StatusMessage = "Sorted photos by tag";
+    }
+
+    private void ClearTags()
+    {
+        var tagged = Photos.Where(p => !p.IsFolder && p.Tag.HasValue).ToList();
+        if (tagged.Count == 0)
+            return;
+
+        var result = MessageBox.Show(
+            $"Clear tags from {tagged.Count} photo(s)?",
+            "Clear Tags",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        foreach (var photo in tagged)
+        {
+            photo.Tag = null;
+        }
+
+        _tagService.Save(DirectoryPath, Photos);
+        RaiseTagCommandsCanExecuteChanged();
+
+        StatusMessage = $"Cleared tags from {tagged.Count} photo(s)";
+    }
+
+    private async Task MoveTaggedToFoldersAsync()
+    {
+        var tagged = Photos.Where(p => !p.IsFolder && p.Tag.HasValue).ToList();
+        if (tagged.Count == 0)
+            return;
+
+        var counts = tagged
+            .GroupBy(p => p.Tag!.Value)
+            .OrderBy(g => g.Key)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var dialog = new TagFolderDialog(counts)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var folderNames = dialog.FolderNames;
+
+        // Validate every folder name before touching the filesystem
+        var invalidChars = Path.GetInvalidFileNameChars();
+        foreach (var entry in folderNames)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Value) || entry.Value.Any(c => invalidChars.Contains(c)))
+            {
+                MessageBox.Show(
+                    $"'{entry.Value}' is not a valid folder name for tag {entry.Key}.",
+                    "Invalid Folder Name",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        // Warn once about name clashes rather than silently overwriting
+        var existingFiles = new List<string>();
+        foreach (var photo in tagged)
+        {
+            if (!folderNames.TryGetValue(photo.Tag!.Value, out var folder))
+                continue;
+
+            var candidate = Path.Combine(DirectoryPath, folder, Path.GetFileName(photo.FilePath));
+            if (File.Exists(candidate))
+            {
+                existingFiles.Add(Path.Combine(folder, photo.FileName));
+            }
+        }
+
+        var overwriteOption = OverwriteOption.OverwriteAll;
+        if (existingFiles.Count > 0)
+        {
+            var choice = MessageBox.Show(
+                $"{existingFiles.Count} file(s) already exist in the target sub-folder(s):\n\n" +
+                $"{string.Join("\n", existingFiles.Take(10))}" +
+                (existingFiles.Count > 10 ? $"\n...and {existingFiles.Count - 10} more" : string.Empty) +
+                "\n\nOverwrite them?\n\nYes = overwrite, No = skip those files, Cancel = abort",
+                "Files Already Exist",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            overwriteOption = choice switch
+            {
+                MessageBoxResult.Yes => OverwriteOption.OverwriteAll,
+                MessageBoxResult.No => OverwriteOption.SkipExisting,
+                _ => OverwriteOption.Cancel
+            };
+
+            if (overwriteOption == OverwriteOption.Cancel)
+                return;
+        }
+
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+        progressDialog.TitleText.Text = "Moving tagged photos";
+
+        var cts = new CancellationTokenSource();
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        progressDialog.Show();
+
+        IsLoading = true;
+        int movedCount = 0;
+        int skippedCount = 0;
+        var failedFiles = new List<string>();
 
         try
         {
-            string targetPath = targetFolder.FilePath;
-
-            // Validate target directory exists
-            if (!Directory.Exists(targetPath))
+            for (int i = 0; i < tagged.Count; i++)
             {
-                MessageBox.Show($"Target folder does not exist: {targetPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
+                if (cts.IsCancellationRequested)
+                    break;
 
-            IsLoading = true;
-            StatusMessage = $"Moving {photosToMove.Count} file(s) to {targetFolder.FileName}...";
+                var photo = tagged[i];
+                progressDialog.UpdateProgress(i, tagged.Count, photo.FileName);
 
-            int movedCount = 0;
-            List<string> failedFiles = new List<string>();
-
-            foreach (var photo in photosToMove)
-            {
                 try
                 {
                     if (!File.Exists(photo.FilePath))
                         continue;
 
-                    string fileName = Path.GetFileName(photo.FilePath);
-                    string destinationPath = Path.Combine(targetPath, fileName);
+                    if (!folderNames.TryGetValue(photo.Tag!.Value, out var folderName))
+                        continue;
 
-                    // Check if file already exists in destination
-                    if (File.Exists(destinationPath))
+                    var targetDirectory = Path.Combine(DirectoryPath, folderName);
+                    Directory.CreateDirectory(targetDirectory);
+
+                    var fileName = Path.GetFileName(photo.FilePath);
+                    var destinationPath = Path.Combine(targetDirectory, fileName);
+
+                    if (overwriteOption == OverwriteOption.SkipExisting && File.Exists(destinationPath))
                     {
-                        var result = MessageBox.Show(
-                            $"File '{fileName}' already exists in the target folder.\n\nDo you want to overwrite it?",
-                            "File Exists",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Question);
-
-                        if (result != MessageBoxResult.Yes)
-                            continue;
+                        skippedCount++;
+                        continue;
                     }
 
-                    // Move the file
-                    File.Move(photo.FilePath, destinationPath, overwrite: true);
+                    await Task.Run(() =>
+                    {
+                        File.Move(photo.FilePath, destinationPath, overwrite: true);
+
+                        // Keep the sibling .txt caption with its image
+                        var captionPath = Path.ChangeExtension(photo.FilePath, ".txt");
+                        if (File.Exists(captionPath))
+                        {
+                            var captionDestination = Path.Combine(
+                                targetDirectory, Path.GetFileName(captionPath));
+                            File.Move(captionPath, captionDestination, overwrite: true);
+                        }
+                    }, cts.Token);
+
+                    // The sub-folder now encodes the tag, so drop it
+                    photo.Tag = null;
                     movedCount++;
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -1865,39 +2076,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 }
             }
 
-            // Refresh the current directory view
-            await LoadPhotosAsync();
-
-            // Update status message
-            if (movedCount == 1)
-            {
-                StatusMessage = $"Moved {photosToMove[0].FileName} to {targetFolder.FileName}";
-            }
-            else
-            {
-                StatusMessage = $"Moved {movedCount} file(s) to {targetFolder.FileName}";
-            }
-
-            // Show errors if any files failed to move
-            if (failedFiles.Count > 0)
-            {
-                MessageBox.Show(
-                    $"Failed to move {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles)}",
-                    "Move Errors",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
+            progressDialog.UpdateProgress(tagged.Count, tagged.Count, "Complete");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to move files: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = $"Failed to move files";
+            MessageBox.Show($"Failed to move tagged photos: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
+            progressDialog.Close();
+            cts.Dispose();
             IsLoading = false;
         }
+
+        // Persist the remaining tags before the reload picks them up again
+        _tagService.Save(DirectoryPath, Photos);
+
+        await LoadPhotosAsync();
+
+        StatusMessage = skippedCount > 0
+            ? $"Moved {movedCount} tagged photo(s) into sub-folder(s), skipped {skippedCount}"
+            : $"Moved {movedCount} tagged photo(s) into sub-folder(s)";
+
+        if (failedFiles.Count > 0)
+        {
+            MessageBox.Show(
+                $"Failed to move {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles)}",
+                "Move Errors",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
+
+    #endregion
 
     public async Task ExportFilesDirectlyAsync(List<string> filePaths)
     {

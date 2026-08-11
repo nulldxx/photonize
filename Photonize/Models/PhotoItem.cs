@@ -12,6 +12,7 @@ public class PhotoItem : INotifyPropertyChanged
     private BitmapImage? _thumbnail;
     private int _displayOrder;
     private bool _isFolder;
+    private int? _tag;
 
     public string FilePath
     {
@@ -62,6 +63,24 @@ public class PhotoItem : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// Quick-tag digit (0-9) applied by the user, or null when untagged.
+    /// </summary>
+    public int? Tag
+    {
+        get => _tag;
+        set
+        {
+            _tag = value;
+            OnPropertyChanged();
+            // Computed properties don't notify on their own, so raise this explicitly
+            // or the thumbnail badge won't appear/disappear.
+            OnPropertyChanged(nameof(HasTag));
+        }
+    }
+
+    public bool HasTag => _tag.HasValue;
 
     public string Extension => IsFolder ? string.Empty : Path.GetExtension(FilePath);
 

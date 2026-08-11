@@ -275,6 +275,24 @@
                                                             <TextBlock Text="💬" FontSize="14"/>
                                                         </MenuItem.Icon>
                                                     </MenuItem>
+                                                    <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                        <MenuItem.Header>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="Tags" Margin="0,0,8,0"/>
+                                                                <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                        </MenuItem.Header>
+                                                        <MenuItem.Icon>
+                                                            <TextBlock Text="🏷️" FontSize="14"/>
+                                                        </MenuItem.Icon>
+                                                        <MenuItem Header="Move tagged images into sub-folders"
+                                                                  Command="{Binding MoveTaggedToFoldersCommand}"/>
+                                                        <MenuItem Header="Sort by tag"
+                                                                  Command="{Binding SortByTagCommand}"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Clear tags"
+                                                                  Command="{Binding ClearTagsCommand}"/>
+                                                    </MenuItem>
                                                     <Separator/>
                                                     <MenuItem Header="Delete"
                                                               Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -297,6 +315,24 @@
                                                                 <MenuItem.Icon>
                                                                     <TextBlock Text="📁" FontSize="14"/>
                                                                 </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                <MenuItem.Header>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="Tags" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    </StackPanel>
+                                                                </MenuItem.Header>
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="🏷️" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                                <MenuItem Header="Move tagged images into sub-folders"
+                                                                          Command="{Binding MoveTaggedToFoldersCommand}"/>
+                                                                <MenuItem Header="Sort by tag"
+                                                                          Command="{Binding SortByTagCommand}"/>
+                                                                <Separator/>
+                                                                <MenuItem Header="Clear tags"
+                                                                          Command="{Binding ClearTagsCommand}"/>
                                                             </MenuItem>
                                                             <Separator/>
                                                             <MenuItem Header="Delete"
@@ -336,6 +372,24 @@
                                                                           Command="{Binding ExportPhotoAICommand}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                             </MenuItem>
+                                                            <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                <MenuItem.Header>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="Tags" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    </StackPanel>
+                                                                </MenuItem.Header>
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="🏷️" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                                <MenuItem Header="Move tagged images into sub-folders"
+                                                                          Command="{Binding MoveTaggedToFoldersCommand}"/>
+                                                                <MenuItem Header="Sort by tag"
+                                                                          Command="{Binding SortByTagCommand}"/>
+                                                                <Separator/>
+                                                                <MenuItem Header="Clear tags"
+                                                                          Command="{Binding ClearTagsCommand}"/>
+                                                            </MenuItem>
                                                             <Separator/>
                                                             <MenuItem Header="Delete"
                                                                       Command="{Binding PlacementTarget.Tag.DeletePhotoCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -352,10 +406,19 @@
                                     </Style>
                                 </Border.Style>
                                 <StackPanel>
-                                    <Image Source="{Binding Thumbnail}"
-                                           Width="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                           Height="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                           Stretch="Uniform"/>
+                                    <Grid>
+                                        <Image Source="{Binding Thumbnail}"
+                                               Width="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                               Height="{Binding DataContext.ThumbnailSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                               Stretch="Uniform"/>
+                                        <Border Style="{StaticResource TagBadgeStyle}"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Visibility="{Binding HasTag, Converter={StaticResource BoolToVisConverter}}">
+                                            <TextBlock Text="{Binding Tag}"
+                                                       Style="{StaticResource TagBadgeTextStyle}"/>
+                                        </Border>
+                                    </Grid>
                                     <TextBlock Text="{Binding FileName}"
                                                TextAlignment="Center"
                                                TextWrapping="Wrap"

@@ -168,6 +168,26 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Tag Badge (overlaid on tagged thumbnails) -->
+        <Style TargetType="Border" x:Key="TagBadgeStyle">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <!-- Set explicitly so this doesn't inherit the default Border outline -->
+            <Setter Property="BorderBrush" Value="{StaticResource DarkBackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Margin" Value="4"/>
+        </Style>
+
+        <Style TargetType="TextBlock" x:Key="TagBadgeTextStyle">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
         <!-- ProgressBar Style -->
         <Style TargetType="ProgressBar">
             <Setter Property="Background" Value="{StaticResource ControlBackgroundBrush}"/>

@@ -125,6 +125,17 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         }
+        // Quick-tag the current selection with 0-9.
+        // Handled here rather than via Window.InputBindings so digits typed in
+        // the directory box or the text editor pane aren't swallowed.
+        else if (Keyboard.Modifiers == ModifierKeys.None && TryGetTagDigit(e.Key, out var digit))
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ApplyTag(digit);
+                e.Handled = true;
+            }
+        }
         // Handle arrow key navigation with row wrapping
         else if ((e.Key == Key.Right || e.Key == Key.Left) &&
                  Keyboard.Modifiers == ModifierKeys.None &&
@@ -133,6 +144,24 @@ public partial class MainWindow : Window
             HandleRowWrappingNavigation(e.Key);
             e.Handled = true;
         }
+    }
+
+    private static bool TryGetTagDigit(Key key, out int digit)
+    {
+        if (key >= Key.D0 && key <= Key.D9)
+        {
+            digit = key - Key.D0;
+            return true;
+        }
+
+        if (key >= Key.NumPad0 && key <= Key.NumPad9)
+        {
+            digit = key - Key.NumPad0;
+            return true;
+        }
+
+        digit = -1;
+        return false;
     }
 
     private void HandleRowWrappingNavigation(Key key)
