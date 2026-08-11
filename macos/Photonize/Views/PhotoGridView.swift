@@ -165,8 +165,8 @@ struct GridDropDelegate: DropDelegate {
         // Reorder: live-move the dragged photo to the hovered photo's slot, the
         // same animation slice 03 used. Folders never reorder.
         guard let target, !target.isFolder, !dragging.isFolder, target.id != dragging.id else { return }
-        guard let from = items.firstIndex(of: dragging),
-              let to = items.firstIndex(of: target) else { return }
+        guard let from = items.firstIndex(where: { $0.id == dragging.id }),
+              let to = items.firstIndex(where: { $0.id == target.id }) else { return }
         withAnimation(.default) {
             items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
         }
@@ -212,7 +212,7 @@ struct GridDropDelegate: DropDelegate {
 
         // A reorder onto the background lands the dragged photo at the end; onto a
         // photo, dropEntered already positioned it. Either way, commit the order.
-        if target == nil, !dragged.isFolder, let from = items.firstIndex(of: dragged) {
+        if target == nil, !dragged.isFolder, let from = items.firstIndex(where: { $0.id == dragged.id }) {
             let last = items.count - 1
             items.move(fromOffsets: IndexSet(integer: from), toOffset: last + 1)
         }
@@ -224,7 +224,7 @@ struct GridDropDelegate: DropDelegate {
     /// of image tiles before it; on the background (or a folder), the end.
     private func importInsertIndex() -> Int {
         let imageCount = items.filter { !$0.isFolder }.count
-        guard let target, let gridIndex = items.firstIndex(of: target) else { return imageCount }
+        guard let target, let gridIndex = items.firstIndex(where: { $0.id == target.id }) else { return imageCount }
         return items.prefix(gridIndex).filter { !$0.isFolder }.count
     }
 
@@ -425,6 +425,9 @@ struct PhotoItemView: View {
                 .exclusively(before:
                     TapGesture()
                         .onEnded {
+                            // End any text-field editing so the following 0-9 tags
+                            // the selection instead of landing in the address bar.
+                            NSApp.keyWindow?.makeFirstResponder(nil)
                             viewModel.handleClick(
                                 on: photo,
                                 commandKey: NSEvent.modifierFlags.contains(.command),

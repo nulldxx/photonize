@@ -15,13 +15,17 @@ enum GridKey: Equatable {
     case digit(Int)
 }
 
-/// A zero-size first-responder view that turns `keyDown` into `GridKey` values.
+/// A zero-size view that routes the grid's keys (arrows, Return, 0-9) to the
+/// view model.
 ///
-/// We roll our own rather than reach for `.onKeyPress` (macOS 14+, and the
-/// deployment target is 13) or a global `NSEvent` monitor (which would fire
-/// while the user is typing in the directory field or, from slice 09, the text
-/// editor — precisely the bug the Windows build avoids by scoping key handling
-/// to the photo list rather than the window).
+/// It listens with a **local `NSEvent` keyDown monitor** rather than relying on
+/// being the first responder: on macOS the directory `TextField` readily grabs
+/// and keeps keyboard focus (SwiftUI auto-focuses the first text field), so a
+/// first-responder-only catcher silently lost 0-9 to the address bar. The
+/// monitor fires before the event reaches whoever holds focus, but it yields
+/// whenever the user is genuinely editing text (the path/prefix fields or the
+/// caption editor), so typing still works — the same scoping the Windows build
+/// gets by attaching key handling to the photo list rather than the window.
 struct KeyCatcher: NSViewRepresentable {
     /// Return `true` if the key was handled and should not propagate further.
     var onKey: (GridKey) -> Bool
@@ -35,18 +39,29 @@ struct KeyCatcher: NSViewRepresentable {
     func updateNSView(_ nsView: KeyCatcherView, context: Context) {
         nsView.onKey = onKey
     }
+
+    static func dismantleNSView(_ nsView: KeyCatcherView, coordinator: ()) {
+        nsView.removeMonitor()
+    }
 }
 
 final class KeyCatcherView: NSView {
     var onKey: ((GridKey) -> Bool)?
+    private var monitor: Any?
 
     override var acceptsFirstResponder: Bool { true }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        // Grab focus once we're in a window so arrow keys reach us without the
-        // user having to click a photo first. Only take it if nothing more
-        // specific (e.g. the prefix field's editor) already holds it.
+        if window == nil {
+            removeMonitor()
+            return
+        }
+        installMonitorIfNeeded()
+
+        // Take focus off any auto-focused text field at launch so arrow keys and
+        // 0-9 reach the grid without the user having to click a photo first. Only
+        // if nothing more specific already holds it.
         DispatchQueue.main.async { [weak self] in
             guard let self, let window = self.window else { return }
             if window.firstResponder === window || window.firstResponder === window.contentView {
@@ -55,11 +70,29 @@ final class KeyCatcherView: NSView {
         }
     }
 
-    override func keyDown(with event: NSEvent) {
-        guard let key = KeyCatcherView.decode(event), onKey?(key) == true else {
-            super.keyDown(with: event)
-            return
+    deinit { removeMonitor() }
+
+    private func installMonitorIfNeeded() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handle(event) ?? event
         }
+    }
+
+    func removeMonitor() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+
+    /// Decide the fate of a keyDown. Acts only for our own key window, and never
+    /// while a text field or the caption editor is being edited (first responder
+    /// is an `NSText`), so those keystrokes pass straight through. Returns `nil`
+    /// to swallow a key the grid handled, or the event to let it continue.
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        guard let window, window.isKeyWindow else { return event }
+        if window.firstResponder is NSText { return event }
+        guard let key = KeyCatcherView.decode(event), onKey?(key) == true else { return event }
+        return nil
     }
 
     /// Map a raw key event to a `GridKey`. Command/Control/Option chords are left

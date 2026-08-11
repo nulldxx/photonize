@@ -25,8 +25,7 @@ struct PhotoItem: Identifiable, Equatable {
     var isVideo: Bool = false
     /// Quick-tag digit 0-9 the user applied, or nil when untagged (slice 10). A
     /// default keeps the synthesized initializer usable at the many call sites
-    /// that build plain images and folders. Ignored by `==` (which is id-only),
-    /// exactly like `thumbnail`, so mutating it still republishes the array.
+    /// that build plain images and folders.
     var tag: Int? = nil
 
     var hasTag: Bool { tag != nil }
@@ -42,8 +41,23 @@ struct PhotoItem: Identifiable, Equatable {
         return isVideo ? .video : .image
     }
 
+    /// Value equality across every rendered field, not just `id`. SwiftUI uses
+    /// this to decide whether a grid cell needs redrawing: an id-only `==` makes
+    /// it treat a late-arriving `thumbnail` (or a new `tag`, or a rename) as "no
+    /// change" and keep showing the placeholder until an unrelated relayout forces
+    /// a rebuild. `thumbnail` is compared by identity (`===`) since `NSImage`
+    /// isn't `Equatable` and the loader always hands back a fresh instance.
+    /// Grid reordering keys off `id` (`firstIndex(where:)`), never this `==`, so
+    /// a thumbnail arriving mid-drag can't disturb a move.
     static func == (lhs: PhotoItem, rhs: PhotoItem) -> Bool {
         lhs.id == rhs.id
+            && lhs.filePath == rhs.filePath
+            && lhs.fileName == rhs.fileName
+            && lhs.displayOrder == rhs.displayOrder
+            && lhs.isFolder == rhs.isFolder
+            && lhs.isVideo == rhs.isVideo
+            && lhs.tag == rhs.tag
+            && lhs.thumbnail === rhs.thumbnail
     }
 }
 

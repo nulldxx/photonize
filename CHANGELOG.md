@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **macOS: Thumbnails stuck on the loading placeholder**: grid cells kept showing the spinner/grey placeholder until an unrelated relayout (e.g. toggling the inspector) forced a redraw. `PhotoItem`'s equality only compared `id`, so SwiftUI treated a late-arriving thumbnail (and new tags or renames) as "no change" and skipped repainting the cell. Equality now covers every rendered field; drag-reordering keys off `id` so it is unaffected.
+- **macOS: Quick-tag digits (0-9) went to the address bar**: the directory field held keyboard focus, so pressing a digit to tag a selected photo typed into the path instead. The grid now catches its keys with a local event monitor that yields only while a text field is actually being edited, and clicking a photo takes focus off the address/prefix fields.
+
 ### Added
 - **macOS: Launch and Finder integration**: Photonize can now be opened straight into a folder from outside the app, matching the Windows Explorer verbs
   - `open -a Photonize <folder>`, dragging a folder onto the Dock icon or the app in Finder, and **Open With → Photonize** all navigate to that folder
