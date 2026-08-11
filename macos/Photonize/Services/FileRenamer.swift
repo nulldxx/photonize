@@ -87,8 +87,12 @@ class FileRenamer {
         }
 
         do {
-            // Use temporary names to avoid conflicts during rename
-            var tempOperations: [(tempPath: URL, finalPath: URL)] = []
+            // Use temporary names to avoid conflicts during rename. A photo's
+            // caption sidecar (photo.jpg -> photo.txt, slice 09) rides along in
+            // lockstep: the same two-pass shuffle keeps its name in sync and
+            // avoids clobbering when the target .txt is another photo's current
+            // sidecar. Windows leaves these orphaned; the Mac client renames them.
+            var tempOperations: [(tempPath: URL, finalPath: URL, sidecar: (temp: URL, final: URL)?)] = []
 
             // First pass: rename to temporary names
             for operation in renameOperations {
@@ -98,12 +102,24 @@ class FileRenamer {
 
                 let tempPath = operation.oldPath.appendingPathExtension("tmp_rename")
                 try FileManager.default.moveItem(at: operation.oldPath, to: tempPath)
-                tempOperations.append((tempPath: tempPath, finalPath: operation.newPath))
+
+                var sidecarMove: (temp: URL, final: URL)? = nil
+                let sidecarOld = PromptFileStore.url(for: operation.oldPath)
+                if FileManager.default.fileExists(atPath: sidecarOld.path) {
+                    let sidecarTemp = sidecarOld.appendingPathExtension("tmp_rename")
+                    try FileManager.default.moveItem(at: sidecarOld, to: sidecarTemp)
+                    sidecarMove = (sidecarTemp, PromptFileStore.url(for: operation.newPath))
+                }
+
+                tempOperations.append((tempPath: tempPath, finalPath: operation.newPath, sidecar: sidecarMove))
             }
 
             // Second pass: rename from temporary to final names
             for operation in tempOperations {
                 try FileManager.default.moveItem(at: operation.tempPath, to: operation.finalPath)
+                if let sidecar = operation.sidecar {
+                    try FileManager.default.moveItem(at: sidecar.temp, to: sidecar.final)
+                }
             }
 
             // Every item ends at its computed target (unchanged items included), so

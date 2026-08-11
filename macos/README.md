@@ -8,7 +8,8 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 - **Drag-and-Drop Reordering**: Reorder photos by dragging them into your desired sequence
 - **Batch Rename**: Rename multiple files at once with customizable prefix (e.g., `vacation-00001`, `vacation-00002`)
 - **Smart Prefix Detection**: Automatically detects common filename patterns from existing files
-- **Preview Pane**: View full-size image previews with detailed file information
+- **Inspector Pane**: A right-hand pane with **Preview** and **Text** tabs — full-size previews with file details, or a prompt editor — toggled as a whole with the sidebar button
+- **Prompt Editor**: Each image can carry a caption in a `.txt` sidecar file (`photo.jpg` ↔ `photo.txt`) for AI-training workflows; the Text tab loads it, auto-saves as you type (debounced), deletes the file when you empty it, and the caption follows its image through renames and moves
 - **Video Support**: MP4, MOV and M4V clips appear as thumbnails and play in the preview pane with a scrubbable timeline, play/pause and volume — decoded natively by AVFoundation, so no FFmpeg install is required
 - **Settings Persistence**: Remembers your last directory, prefix, thumbnail size, and preferences
 - **Two-Pass Rename Algorithm**: Safely renames files without conflicts, even when reordering
@@ -99,10 +100,11 @@ A macOS desktop application for visually organizing and batch-renaming photograp
    - Click "Apply Rename" to rename all photos in display order
    - Files will be renamed as: `vacation-00001.jpg`, `vacation-00002.jpg`, etc.
 
-4. **Preview Images**:
-   - Click the preview toggle button (sidebar icon) to show/hide the preview pane
-   - Select a photo to see its full-size preview
-   - Preview pane shows image details (name, type, dimensions, file size)
+4. **Preview & Caption Images**:
+   - Click the toggle button (sidebar icon) to show/hide the inspector pane
+   - Use the **Preview** / **Text** tabs at the top of the inspector to switch between the full-size preview and the prompt editor; the tab you last used is remembered
+   - Preview tab shows image details (name, type, dimensions, file size)
+   - Text tab edits the image's `.txt` caption: type and it saves automatically, and clearing it removes the file. Emptying the caption deletes the `.txt`; folders and videos have no caption and show a disabled message
 
 ### Keyboard Shortcuts
 
@@ -135,12 +137,14 @@ The app follows a strict MVVM (Model-View-ViewModel) architecture:
 - `PhotoGridViewModel.swift` - Central state management and business logic
 
 ### Views
-- `ContentView.swift` - Main application layout with toolbar and status bar
+- `ContentView.swift` - Main application layout with toolbar, status bar, and the tabbed inspector (`InspectorPane`)
 - `PhotoGridView.swift` - Photo grid with thumbnails
-- `PreviewPane.swift` - Image preview, video playback surface, and file information panel
+- `PreviewPane.swift` - Image preview, video playback surface, and file information panel (the inspector's Preview tab)
+- `PromptEditorPane.swift` - Monospaced `.txt` caption editor (the inspector's Text tab)
 
 ### Services
-- `FileRenamer.swift` - Two-pass atomic rename algorithm
+- `FileRenamer.swift` - Two-pass atomic rename algorithm (carries each photo's `.txt` caption across the rename)
+- `PromptFileStore.swift` - Canonical `.txt` sidecar path plus load / save / delete-on-empty
 - `ThumbnailGenerator.swift` - Async image loading, video frame extraction (AVFoundation), and thumbnail generation
 - `SettingsManager.swift` - UserDefaults persistence
 
@@ -164,11 +168,13 @@ macos/
 │   ├── ViewModels/
 │   │   └── PhotoGridViewModel.swift # State management
 │   ├── Views/
-│   │   ├── ContentView.swift       # Main UI
+│   │   ├── ContentView.swift       # Main UI + tabbed inspector
 │   │   ├── PhotoGridView.swift     # Photo grid
-│   │   └── PreviewPane.swift       # Preview panel
+│   │   ├── PreviewPane.swift       # Preview tab
+│   │   └── PromptEditorPane.swift  # Text (caption) tab
 │   ├── Services/
 │   │   ├── FileRenamer.swift       # Rename logic
+│   │   ├── PromptFileStore.swift   # .txt caption load/save/delete
 │   │   ├── ThumbnailGenerator.swift # Image loading
 │   │   └── SettingsManager.swift   # Settings persistence
 │   ├── Info.plist                  # App metadata
@@ -278,6 +284,8 @@ See the main repository LICENSE file.
 | Drag into Folders | ✓ | ✓ |
 | Batch Rename | ✓ | ✓ |
 | Preview Pane | ✓ | ✓ |
+| Prompt/Caption Editor (`.txt`) | ✓ | ✓ |
+| Caption follows image on rename | ✗ | ✓ |
 | Folder Navigation | ✓ | ✓ |
 | Settings Persistence | ✓ | ✓ |
 | WebP Export | ✓ | ✓ |

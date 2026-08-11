@@ -108,6 +108,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// `MainWindow_Closing` guard. Deleting does not arm `hasUnsavedChanges`, so
     /// trashing a photo never triggers this.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Land any pending caption edit before we consider quitting, so a ⌘Q
+        // straight after typing never loses the last few keystrokes (slice 09).
+        viewModel?.flushPromptSave()
+
         guard let viewModel, viewModel.hasUnsavedChanges else { return .terminateNow }
 
         let alert = NSAlert()

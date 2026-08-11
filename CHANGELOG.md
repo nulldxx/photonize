@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Prompt/caption text editor**: Each image can carry a caption in a `.txt` sidecar file (`photo.jpg` ↔ `photo.txt`) for AI-training workflows, matching Windows
+  - The right-hand pane is now an inspector with **Preview** and **Text** tabs (a segmented switch), replacing the Windows two-panes/two-toggles arrangement; the tab you last used is remembered
+  - The Text tab loads the selected image's caption, auto-saves as you type (debounced, not per keystroke), and deletes the `.txt` file when you empty it so a trainer never sees a blank caption
+  - Switching photos mid-edit saves the outgoing caption against its own file before loading the next, so text can't cross-contaminate
+  - Folders and videos show a disabled message rather than an editor
+  - **The caption follows its image through a rename** — Apply Rename now renames `photo.txt` alongside `photo.jpg` instead of leaving it orphaned (a correctness improvement over the Windows client)
 - **macOS: Video support**: MP4, MOV and M4V clips now appear and behave like photos, matching Windows — and with no FFmpeg dependency (AVFoundation decodes them natively)
   - Videos show real thumbnails with correct aspect ratio (portrait phone clips appear upright); a play-triangle badge marks them at a glance, and an unplayable file shows a broken-video placeholder
   - Selecting a video plays it in the preview pane with custom transport controls: play/pause, a scrubbable timeline that seeks on release, an `mm:ss / mm:ss` label, and a volume slider (default 0.8)

@@ -1,4 +1,11 @@
 import SwiftUI
+import AppKit
+
+/// Which inspector tab is showing. Persisted via `isTextEditorVisible` so the
+/// last-used tab is restored when the inspector is reopened.
+enum InspectorTab: Hashable {
+    case preview, text
+}
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
@@ -18,7 +25,7 @@ struct ContentView: View {
                     PhotoGridView()
                         .frame(minWidth: 400)
 
-                    PreviewPane()
+                    InspectorPane()
                         .frame(minWidth: 300, idealWidth: 400, maxWidth: .infinity)
                 }
             } else {
@@ -33,6 +40,11 @@ struct ContentView: View {
                 .padding(.vertical, 8)
                 .background(Color(NSColor.controlBackgroundColor))
         }
+        // Flush any pending caption edit when the window loses key focus (e.g. the
+        // user clicks another app), a cheap safety net beyond the debounce.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            viewModel.flushPromptSave()
+        }
         // Modal-to-the-window progress for export/import/tag-move batches.
         .sheet(item: $viewModel.operationProgress) { progress in
             ProgressSheet(progress: progress)
@@ -42,6 +54,38 @@ struct ContentView: View {
         .sheet(item: $viewModel.importModeRequest) { request in
             ImportModeSheet(request: request)
         }
+    }
+}
+
+/// The right-hand inspector: a segmented Preview/Text switch over the two tabs.
+/// Where Windows uses two 500 px panes with two toolbar toggles that close each
+/// other, the Mac client keeps one pane, one visibility toggle, and a tab picker
+/// — both surfaces are one click away and the layout never shuffles (plans/09).
+struct InspectorPane: View {
+    @EnvironmentObject var viewModel: PhotoGridViewModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: Binding(
+                get: { viewModel.isTextEditorVisible ? InspectorTab.text : .preview },
+                set: { viewModel.isTextEditorVisible = ($0 == .text) }
+            )) {
+                Text("Preview").tag(InspectorTab.preview)
+                Text("Text").tag(InspectorTab.text)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(8)
+
+            Divider()
+
+            if viewModel.isTextEditorVisible {
+                PromptEditorPane()
+            } else {
+                PreviewPane()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -79,7 +123,7 @@ struct ToolbarView: View {
                 }) {
                     Image(systemName: viewModel.isPreviewVisible ? "sidebar.right" : "sidebar.left")
                 }
-                .help("Toggle Preview")
+                .help("Toggle Inspector")
             }
 
             if !viewModel.directoryPath.isEmpty {

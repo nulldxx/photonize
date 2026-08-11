@@ -79,6 +79,49 @@ final class FileRenamerTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("trip-00002.jpg").path))
     }
 
+    // MARK: - Caption sidecar (slice 09)
+
+    /// Each photo's `.txt` follows it through the rename, keeping its content and
+    /// matching the new number, with no originals or temp files left behind.
+    func testRenameCarriesCaptionSidecar() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // b=0 -> trip-00001, a=1 -> trip-00002 (display order set by makeFiles).
+        let items = try makeFiles(named: ["b.jpg", "a.jpg"], in: dir)
+        try "beta".write(to: dir.appendingPathComponent("b.txt"), atomically: true, encoding: .utf8)
+        try "alpha".write(to: dir.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+
+        let result = await renamer.renameFiles(items, prefix: "trip")
+        XCTAssertTrue(result.success, result.message)
+
+        let fm = FileManager.default
+        XCTAssertEqual(try String(contentsOf: dir.appendingPathComponent("trip-00001.txt"), encoding: .utf8), "beta")
+        XCTAssertEqual(try String(contentsOf: dir.appendingPathComponent("trip-00002.txt"), encoding: .utf8), "alpha")
+        // Originals gone; nothing stuck at a temporary name.
+        XCTAssertFalse(fm.fileExists(atPath: dir.appendingPathComponent("a.txt").path))
+        XCTAssertFalse(fm.fileExists(atPath: dir.appendingPathComponent("b.txt").path))
+        let leftovers = try fm.contentsOfDirectory(atPath: dir.path)
+        XCTAssertFalse(leftovers.contains { $0.hasSuffix("tmp_rename") }, "temp files left behind: \(leftovers)")
+    }
+
+    /// A photo without a `.txt` renames fine; the rename never invents one.
+    func testRenameLeavesImagesWithoutCaptionsAlone() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // a=0 (captioned), z=1 (no caption).
+        let items = try makeFiles(named: ["a.jpg", "z.jpg"], in: dir)
+        try "solo".write(to: dir.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+
+        let result = await renamer.renameFiles(items, prefix: "trip")
+        XCTAssertTrue(result.success, result.message)
+
+        let fm = FileManager.default
+        XCTAssertTrue(fm.fileExists(atPath: dir.appendingPathComponent("trip-00001.txt").path))
+        XCTAssertFalse(fm.fileExists(atPath: dir.appendingPathComponent("trip-00002.txt").path))
+    }
+
     // MARK: - Helpers
 
     private func makeTempDir() throws -> URL {

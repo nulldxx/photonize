@@ -14,7 +14,11 @@ class PhotoGridViewModel: ObservableObject {
     @Published var isPreviewVisible: Bool = false { didSet { scheduleSave() } }
     @Published var isTextEditorVisible: Bool = false { didSet { scheduleSave() } }
     @Published var restoreLastFolderOnLaunch: Bool = true { didSet { scheduleSave() } }
-    @Published var previewPhoto: PhotoItem?
+    @Published var previewPhoto: PhotoItem? { didSet { onPreviewChanged() } }
+    /// The prompt/caption text bound to the editor tab. Edits are debounced onto
+    /// the `.txt` sidecar of `promptTarget`, never of the live `previewPhoto`, so
+    /// switching photos mid-edit can't cross-contaminate (slice 09).
+    @Published var promptText: String = "" { didSet { onPromptEdited() } }
     @Published var hasUnsavedChanges: Bool = false
     /// Drives the shared progress sheet. Non-nil while a batch operation (export,
     /// and later import/tag-move) is running; setting it to nil dismisses the sheet.
@@ -68,6 +72,21 @@ class PhotoGridViewModel: ObservableObject {
     private var saveTask: Task<Void, Never>?
     /// Suppresses `didSet` saves while settings are being applied at launch.
     private var isApplyingSettings = false
+
+    // MARK: - Prompt editor (slice 09)
+
+    private let promptStore = PromptFileStore()
+    /// The image `promptText` currently belongs to. The debounced save and the
+    /// flush both target *this*, never the live `previewPhoto`, so a selection
+    /// change mid-edit lands A's text on A's file (the `f9943e0` bug class).
+    private var promptTarget: URL?
+    /// True while `loadPrompt` is replacing `promptText`; suppresses the resulting
+    /// `didSet` so loading a file never schedules a save against it.
+    private var isLoadingPrompt = false
+    /// Set when the user edits, cleared once written, so plain navigation between
+    /// photos never rewrites unchanged `.txt` files.
+    private var promptDirty = false
+    private var promptSaveTask: Task<Void, Never>?
 
     init() {
         loadSettings()
@@ -356,6 +375,10 @@ class PhotoGridViewModel: ObservableObject {
             }
         }
 
+        // Land any pending caption edit on the pre-rename .txt so the rename can
+        // carry it across to the new name (FileRenamer renames the sidecar too).
+        flushPromptSave()
+
         isLoading = true
         statusMessage = "Renaming files..."
 
@@ -372,6 +395,12 @@ class PhotoGridViewModel: ObservableObject {
                     photos[photoIndex].filePath = entry.url
                     photos[photoIndex].fileName = entry.url.lastPathComponent
                 }
+            }
+
+            // Repoint the inspector at the renamed file so the editor keeps
+            // showing the (now relocated) caption rather than a stale path.
+            if let pid = previewPhoto?.id, let updated = photos.first(where: { $0.id == pid }) {
+                previewPhoto = updated
             }
 
             hasUnsavedChanges = false
@@ -1000,6 +1029,74 @@ class PhotoGridViewModel: ObservableObject {
         } else {
             previewPhoto = nil
         }
+    }
+
+    // MARK: - Prompt editor (slice 09)
+
+    /// The image whose prompt the editor is bound to — the last-touched preview
+    /// item, but only when it is an editable image. Folders and videos have no
+    /// meaningful prompt file, so the editor shows an unavailable state for them.
+    var promptImage: PhotoItem? {
+        guard let photo = previewPhoto, photo.kind == .image else { return nil }
+        return photo
+    }
+
+    /// React to the inspector's target changing: flush the outgoing prompt against
+    /// its own file, then load the incoming one. A same-target reassignment
+    /// (re-clicking the selected photo, or a thumbnail write-back mutating the
+    /// array) is a no-op, so an in-progress edit is never reloaded away.
+    private func onPreviewChanged() {
+        let newTarget = promptImage?.filePath
+        guard newTarget != promptTarget else { return }
+        flushPromptSave()
+        loadPrompt(for: newTarget)
+    }
+
+    /// Replace `promptText` with `target`'s caption (or clear it), without arming
+    /// a save. `isLoadingPrompt` guards the `didSet` that the assignment triggers.
+    private func loadPrompt(for target: URL?) {
+        promptSaveTask?.cancel()
+        promptSaveTask = nil
+        promptDirty = false
+        isLoadingPrompt = true
+        defer { isLoadingPrompt = false }
+
+        promptTarget = target
+        promptText = target.flatMap { try? promptStore.load(for: $0) } ?? ""
+    }
+
+    /// A user keystroke (not a programmatic load): mark dirty and (re)arm the
+    /// debounce.
+    private func onPromptEdited() {
+        guard !isLoadingPrompt else { return }
+        promptDirty = true
+        schedulePromptSave()
+    }
+
+    /// Debounced save, ~500 ms after the last keystroke — writing per character
+    /// would be a write storm on a network volume. Captures the target and text
+    /// so a save already in flight can't be redirected by a later selection change.
+    private func schedulePromptSave() {
+        guard let target = promptTarget else { return }
+        let text = promptText
+        promptSaveTask?.cancel()
+        promptSaveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled, let self else { return }
+            try? self.promptStore.save(text, for: target)
+            self.promptDirty = false
+        }
+    }
+
+    /// Write any pending edit immediately, cancelling the debounce. Called on a
+    /// selection change (before loading the next prompt), on window resign-key,
+    /// and on quit, so nothing typed is ever lost.
+    func flushPromptSave() {
+        promptSaveTask?.cancel()
+        promptSaveTask = nil
+        guard promptDirty, let target = promptTarget else { return }
+        try? promptStore.save(promptText, for: target)
+        promptDirty = false
     }
 
     // MARK: - Image compare
