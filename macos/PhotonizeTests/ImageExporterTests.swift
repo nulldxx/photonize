@@ -16,16 +16,21 @@ final class ImageExporterTests: XCTestCase {
         XCTAssertEqual(ExportFormat.jpg.folderName, "JPG")
     }
 
-    /// Round-trip a fixture through `WebPEncoder`: the output decodes via ImageIO,
-    /// has the source's pixel dimensions, and is smaller than the source PNG.
+    /// Round-trip a fixture through `WebPEncoder`: the output is non-empty, decodes
+    /// via ImageIO, and preserves the source's pixel dimensions. We do not assert
+    /// WebP undercuts the source PNG — that is input-dependent (PNG's per-channel
+    /// filters can beat lossy WebP on synthetic gradients), so instead we assert the
+    /// encoder property that actually holds for any image: lower quality yields a
+    /// smaller file.
     func testWebPRoundTrip() throws {
         let width = 256, height = 192
         let cgImage = Self.makeTestImage(width: width, height: height)
-        let sourcePNG = try Self.encodePNG(cgImage)
 
         let webp = try WebPEncoder.encode(cgImage, quality: 90)
         XCTAssertFalse(webp.isEmpty)
-        XCTAssertLessThan(webp.count, sourcePNG.count, "lossy WebP should undercut the source PNG")
+
+        let lowQuality = try WebPEncoder.encode(cgImage, quality: 20)
+        XCTAssertLessThan(lowQuality.count, webp.count, "lower WebP quality should produce a smaller file")
 
         guard let src = CGImageSourceCreateWithData(webp as CFData, nil),
               let decoded = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
@@ -125,9 +130,9 @@ final class ImageExporterTests: XCTestCase {
         func markCancelPoint() { cancelPoint = true }
     }
 
-    /// A high-frequency gradient-plus-noise pattern: too busy for PNG to flatten,
-    /// so lossy WebP is genuinely smaller — unlike a few flat bands, which PNG
-    /// compresses to almost nothing.
+    /// A high-frequency gradient-plus-noise pattern — busy enough that lossy WebP
+    /// quality changes move the output size measurably, which the round-trip test
+    /// relies on.
     private static func makeTestImage(width: Int, height: Int) -> CGImage {
         let bytesPerRow = width * 4
         var buffer = [UInt8](repeating: 0, count: bytesPerRow * height)
