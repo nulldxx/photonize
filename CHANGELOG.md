@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Settings window (⌘,)**: A native Settings scene with a default thumbnail size control and a "restore last folder on launch" toggle
+- **macOS: App icon**: The app now ships with the Photonize icon in the Dock and Finder
 - **Quick tagging with the 0-9 keys**: Select one or more photos in the grid and press a number key to tag them
   - The tag appears as a small badge in the top-right corner of each thumbnail
   - One tag per photo — pressing a different digit replaces it, pressing the same digit again clears it
@@ -29,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Toggle between preview and text editor modes with dedicated TXT button
   - Monospace font (Consolas) for better prompt editing
   - Seamless switching between images updates the text editor with corresponding prompt files
+
+### Changed
+- **macOS: Sandbox-safe folder restore**: The last-opened folder is now reopened via a security-scoped bookmark, so it survives relaunch under the App Sandbox
+- **macOS: Preferences persist immediately**: Thumbnail size and preview toggle are now saved as you change them, not only when a folder is loaded or renamed
+- **macOS: Single File menu**: Open Folder… (⌘O) and Refresh (⌘R) now live in the standard File menu instead of a duplicate one
+- **macOS: Project generation**: The Xcode project is now generated from `macos/project.yml` with XcodeGen
 
 ## [0.1.23] - 2026-01-09
 

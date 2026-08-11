@@ -5,19 +5,34 @@ import UniformTypeIdentifiers
 @MainActor
 class PhotoGridViewModel: ObservableObject {
     @Published var photos: [PhotoItem] = []
-    @Published var directoryPath: String = ""
-    @Published var renamePrefix: String = ""
-    @Published var thumbnailSize: Double = 200
+    @Published var directoryPath: String = "" { didSet { scheduleSave() } }
+    @Published var renamePrefix: String = "" { didSet { scheduleSave() } }
+    @Published var thumbnailSize: Double = 200 { didSet { scheduleSave() } }
     @Published var statusMessage: String = "Ready"
     @Published var isLoading: Bool = false
     @Published var selectedPhotos: Set<PhotoItem.ID> = []
-    @Published var isPreviewVisible: Bool = false
+    @Published var isPreviewVisible: Bool = false { didSet { scheduleSave() } }
+    @Published var isTextEditorVisible: Bool = false { didSet { scheduleSave() } }
+    @Published var restoreLastFolderOnLaunch: Bool = true { didSet { scheduleSave() } }
     @Published var previewPhoto: PhotoItem?
     @Published var hasUnsavedChanges: Bool = false
 
     private let fileRenamer = FileRenamer()
     private let thumbnailGenerator = ThumbnailGenerator()
     private let settingsManager = SettingsManager()
+    private let directoryAccess = DirectoryAccess()
+
+    /// The single security-scoped root folder currently being accessed, if any.
+    private var scopedURL: URL?
+    /// Security-scoped bookmark for `scopedURL`, persisted so the folder can be
+    /// reopened on the next launch under the sandbox.
+    private var directoryBookmark: Data?
+
+    /// Debounces persistence so continuous changes (e.g. dragging the thumbnail
+    /// slider) coalesce into a single write.
+    private var saveTask: Task<Void, Never>?
+    /// Suppresses `didSet` saves while settings are being applied at launch.
+    private var isApplyingSettings = false
 
     init() {
         loadSettings()
@@ -30,10 +45,21 @@ class PhotoGridViewModel: ObservableObject {
         panel.allowsMultipleSelection = false
 
         if panel.runModal() == .OK, let url = panel.url {
-            directoryPath = url.path
-            Task {
-                await loadPhotos()
-            }
+            setRootDirectory(url)
+        }
+    }
+
+    /// Adopt a folder the user picked as the new security-scoped root: relinquish
+    /// the previous root, bookmark this one for relaunch, and load it.
+    private func setRootDirectory(_ url: URL) {
+        if let scopedURL {
+            directoryAccess.relinquish(scopedURL)
+        }
+        scopedURL = url
+        directoryBookmark = directoryAccess.makeBookmark(for: url)
+        directoryPath = url.path
+        Task {
+            await loadPhotos()
         }
     }
 
@@ -123,7 +149,6 @@ class PhotoGridViewModel: ObservableObject {
             let folderCount = photos.filter { $0.isFolder && $0.fileName != ".." }.count
             statusMessage = "Loaded \(folderCount) folder(s) and \(photoCount) photo(s)"
 
-            saveSettings()
             hasUnsavedChanges = false
         } catch {
             statusMessage = "Error loading photos: \(error.localizedDescription)"
@@ -178,7 +203,6 @@ class PhotoGridViewModel: ObservableObject {
                 }
             }
 
-            saveSettings()
             hasUnsavedChanges = false
         } else {
             showAlert(title: "Error", message: result.message)
@@ -378,18 +402,59 @@ class PhotoGridViewModel: ObservableObject {
     private func loadSettings() {
         let settings = settingsManager.loadSettings()
 
-        if !settings.lastDirectoryPath.isEmpty && FileManager.default.fileExists(atPath: settings.lastDirectoryPath) {
-            directoryPath = settings.lastDirectoryPath
-            Task {
-                await loadPhotos()
-            }
-        }
-
+        // Apply persisted preferences without triggering a debounced re-save.
+        isApplyingSettings = true
         thumbnailSize = settings.lastThumbnailSize
         if !settings.lastPrefix.isEmpty {
             renamePrefix = settings.lastPrefix
         }
         isPreviewVisible = settings.isPreviewVisible
+        isTextEditorVisible = settings.isTextEditorVisible
+        restoreLastFolderOnLaunch = settings.restoreLastFolderOnLaunch
+
+        guard settings.restoreLastFolderOnLaunch else {
+            // Remember the bookmark so it is not wiped by the next save, but do
+            // not reopen the folder.
+            directoryBookmark = settings.lastDirectoryBookmark
+            isApplyingSettings = false
+            return
+        }
+
+        // Prefer the security-scoped bookmark: under the sandbox it is the only
+        // way to regain access to a folder outside the app container. Fall back
+        // to the raw path for non-sandboxed debug builds.
+        if let bookmark = settings.lastDirectoryBookmark,
+           let resolved = directoryAccess.resolve(bookmark) {
+            scopedURL = resolved.url
+            directoryBookmark = resolved.refreshedBookmark ?? bookmark
+            directoryPath = resolved.url.path
+            isApplyingSettings = false
+            Task {
+                await loadPhotos()
+            }
+        } else if !settings.lastDirectoryPath.isEmpty
+                    && FileManager.default.fileExists(atPath: settings.lastDirectoryPath) {
+            directoryPath = settings.lastDirectoryPath
+            isApplyingSettings = false
+            Task {
+                await loadPhotos()
+            }
+        } else {
+            if settings.lastDirectoryBookmark != nil {
+                statusMessage = "Last folder is unavailable. Open a folder to begin."
+            }
+            isApplyingSettings = false
+        }
+    }
+
+    private func scheduleSave() {
+        guard !isApplyingSettings else { return }
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            self?.saveSettings()
+        }
     }
 
     private func saveSettings() {
@@ -397,7 +462,9 @@ class PhotoGridViewModel: ObservableObject {
             lastDirectoryPath: directoryPath,
             lastThumbnailSize: thumbnailSize,
             lastPrefix: renamePrefix,
-            isPreviewVisible: isPreviewVisible
+            isPreviewVisible: isPreviewVisible,
+            isTextEditorVisible: isTextEditorVisible,
+            lastDirectoryBookmark: directoryBookmark
         )
         settingsManager.saveSettings(settings)
     }

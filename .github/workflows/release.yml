@@ -148,11 +148,15 @@ jobs:
           NUMERIC_VERSION=$(echo "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}" | sed 's/^v//')
           echo "NUMERIC_VERSION=$NUMERIC_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update version in project
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
         run: |
           cd macos
-          # Update the marketing version in the project file
-          sed -i '' 's/MARKETING_VERSION = 0.1.0;/MARKETING_VERSION = ${{ steps.version.outputs.NUMERIC_VERSION }};/g' Photonize.xcodeproj/project.pbxproj
+          # Update the marketing version in the XcodeGen spec, then generate.
+          sed -i '' "s/MARKETING_VERSION: 0.1.0/MARKETING_VERSION: ${{ steps.version.outputs.NUMERIC_VERSION }}/" project.yml
+          xcodegen generate
 
       - name: Build macOS app (Intel only)
         run: |

@@ -416,3 +416,12 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# macOS (Xcode) build outputs
+macos/build/
+macos/Photonize.app/
+macos/dmg-contents/
+macos/*.dmg
+macos/Photonize.xcodeproj/xcuserdata/
+macos/Photonize.xcodeproj/project.xcworkspace/xcuserdata/
+.DS_Store

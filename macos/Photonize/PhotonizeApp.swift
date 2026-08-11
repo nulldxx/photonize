@@ -12,8 +12,9 @@ struct PhotonizeApp: App {
                 .frame(minWidth: 800, minHeight: 600)
         }
         .commands {
-            CommandGroup(replacing: .newItem) {}
-            CommandMenu("File") {
+            // Replace the built-in "New" items so our commands land in the
+            // real File menu instead of adding a second one.
+            CommandGroup(replacing: .newItem) {
                 Button("Open Folder...") {
                     viewModel.browseDirectory()
                 }
@@ -31,6 +32,11 @@ struct PhotonizeApp: App {
             }
         }
         .defaultSize(width: 1200, height: 800)
+
+        Settings {
+            SettingsView()
+                .environmentObject(viewModel)
+        }
     }
 }
 

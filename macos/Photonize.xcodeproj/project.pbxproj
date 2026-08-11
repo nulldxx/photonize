@@ -3,109 +3,108 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		100000000000000000000001 /* PhotonizeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* PhotonizeApp.swift */; };
-		100000000000000000000002 /* PhotoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* PhotoItem.swift */; };
-		100000000000000000000003 /* PhotoGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* PhotoGridViewModel.swift */; };
-		100000000000000000000004 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* ContentView.swift */; };
-		100000000000000000000005 /* PhotoGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* PhotoGridView.swift */; };
-		100000000000000000000006 /* PreviewPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* PreviewPane.swift */; };
-		100000000000000000000007 /* FileRenamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* FileRenamer.swift */; };
-		100000000000000000000008 /* ThumbnailGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* ThumbnailGenerator.swift */; };
-		100000000000000000000009 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000009 /* SettingsManager.swift */; };
+		02F34948AE7F4D1895334D6B /* FileRenamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */; };
+		0932FEFAC6E7D66FDECFF49F /* PhotoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC931E15F60CBC45FFCB65C2 /* PhotoItem.swift */; };
+		1D7FB74E7A7DC1B6488467A3 /* DirectoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11AE64381E32DD412EEECC1 /* DirectoryAccess.swift */; };
+		52403704E6873A011DC2B2C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F676B6D514ABEBA1D2DCFF71 /* Assets.xcassets */; };
+		59B9F27D421E7BB9250ACB53 /* ThumbnailGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */; };
+		82068DFAA4C09137E2D08C8C /* PhotoGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427DDCD1A3DA2B951CD47189 /* PhotoGridViewModel.swift */; };
+		8BE4DC9435F90DFFE779E6AD /* PhotonizeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3814ECBEDCCFEAF083B66DD2 /* PhotonizeApp.swift */; };
+		B0666EA55F1688F6E029B87E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360CE3B3949110ACCAE11F5A /* ContentView.swift */; };
+		B4E7E2FBB54533D397FC871E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2594223FB8DAFF650D8AE5C /* SettingsView.swift */; };
+		B7451916C372989BF1A6262B /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */; };
+		D5460CEF92695B095F74C6B6 /* PhotoGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A8D518DBBAD70D000C228E /* PhotoGridView.swift */; };
+		F46B45599B1E653B3DF3379F /* PreviewPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C4852E64CDC73596AB23B1 /* PreviewPane.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		300000000000000000000001 /* Photonize.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Photonize.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		200000000000000000000001 /* PhotonizeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotonizeApp.swift; sourceTree = "<group>"; };
-		200000000000000000000002 /* PhotoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoItem.swift; sourceTree = "<group>"; };
-		200000000000000000000003 /* PhotoGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGridViewModel.swift; sourceTree = "<group>"; };
-		200000000000000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		200000000000000000000005 /* PhotoGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGridView.swift; sourceTree = "<group>"; };
-		200000000000000000000006 /* PreviewPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPane.swift; sourceTree = "<group>"; };
-		200000000000000000000007 /* FileRenamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRenamer.swift; sourceTree = "<group>"; };
-		200000000000000000000008 /* ThumbnailGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
-		200000000000000000000009 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
-		400000000000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		400000000000000000000002 /* Photonize.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Photonize.entitlements; sourceTree = "<group>"; };
+		2043591CDCDC131D6B2D969D /* Photonize.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Photonize.entitlements; sourceTree = "<group>"; };
+		29B27009BE4CC215D1FB57D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		360CE3B3949110ACCAE11F5A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		3814ECBEDCCFEAF083B66DD2 /* PhotonizeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotonizeApp.swift; sourceTree = "<group>"; };
+		3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRenamer.swift; sourceTree = "<group>"; };
+		427DDCD1A3DA2B951CD47189 /* PhotoGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGridViewModel.swift; sourceTree = "<group>"; };
+		5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
+		7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		89C4852E64CDC73596AB23B1 /* PreviewPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPane.swift; sourceTree = "<group>"; };
+		9B3EFEF85859849A66C198AF /* Photonize.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Photonize.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A11AE64381E32DD412EEECC1 /* DirectoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryAccess.swift; sourceTree = "<group>"; };
+		A4A8D518DBBAD70D000C228E /* PhotoGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGridView.swift; sourceTree = "<group>"; };
+		B2594223FB8DAFF650D8AE5C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DC931E15F60CBC45FFCB65C2 /* PhotoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoItem.swift; sourceTree = "<group>"; };
+		F676B6D514ABEBA1D2DCFF71 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFrameworksBuildPhase section */
-		500000000000000000000001 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
 /* Begin PBXGroup section */
-		600000000000000000000001 = {
+		09D9098345DFE0C5CBC2316D /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				700000000000000000000001 /* Photonize */,
-				800000000000000000000001 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		700000000000000000000001 /* Photonize */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000001 /* PhotonizeApp.swift */,
-				700000000000000000000002 /* Models */,
-				700000000000000000000003 /* ViewModels */,
-				700000000000000000000004 /* Views */,
-				700000000000000000000005 /* Services */,
-				400000000000000000000001 /* Info.plist */,
-				400000000000000000000002 /* Photonize.entitlements */,
-			);
-			path = Photonize;
-			sourceTree = "<group>";
-		};
-		700000000000000000000002 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000002 /* PhotoItem.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		700000000000000000000003 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000003 /* PhotoGridViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		700000000000000000000004 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000004 /* ContentView.swift */,
-				200000000000000000000005 /* PhotoGridView.swift */,
-				200000000000000000000006 /* PreviewPane.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		700000000000000000000005 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000007 /* FileRenamer.swift */,
-				200000000000000000000008 /* ThumbnailGenerator.swift */,
-				200000000000000000000009 /* SettingsManager.swift */,
+				A11AE64381E32DD412EEECC1 /* DirectoryAccess.swift */,
+				3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */,
+				7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */,
+				5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
 		};
-		800000000000000000000001 /* Products */ = {
+		3C771B55383EA4DE91C1EC1F /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				300000000000000000000001 /* Photonize.app */,
+				427DDCD1A3DA2B951CD47189 /* PhotoGridViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		69D6EC04793DB82939A549B2 /* Photonize */ = {
+			isa = PBXGroup;
+			children = (
+				F676B6D514ABEBA1D2DCFF71 /* Assets.xcassets */,
+				29B27009BE4CC215D1FB57D8 /* Info.plist */,
+				2043591CDCDC131D6B2D969D /* Photonize.entitlements */,
+				3814ECBEDCCFEAF083B66DD2 /* PhotonizeApp.swift */,
+				A078701397BA1EAC11952E5A /* Models */,
+				09D9098345DFE0C5CBC2316D /* Services */,
+				3C771B55383EA4DE91C1EC1F /* ViewModels */,
+				A31870C4C7ABE8343B98AB67 /* Views */,
+			);
+			path = Photonize;
+			sourceTree = "<group>";
+		};
+		6E1609D2A87D834757E2084A = {
+			isa = PBXGroup;
+			children = (
+				69D6EC04793DB82939A549B2 /* Photonize */,
+				FCCE83A654B700FCFF88B27E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A078701397BA1EAC11952E5A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				DC931E15F60CBC45FFCB65C2 /* PhotoItem.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A31870C4C7ABE8343B98AB67 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				360CE3B3949110ACCAE11F5A /* ContentView.swift */,
+				A4A8D518DBBAD70D000C228E /* PhotoGridView.swift */,
+				89C4852E64CDC73596AB23B1 /* PreviewPane.swift */,
+				B2594223FB8DAFF650D8AE5C /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		FCCE83A654B700FCFF88B27E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9B3EFEF85859849A66C198AF /* Photonize.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -113,94 +112,96 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		900000000000000000000001 /* Photonize */ = {
+		86D1730621BEF60615FFF494 /* Photonize */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A00000000000000000000001 /* Build configuration list for PBXNativeTarget "Photonize" */;
+			buildConfigurationList = 75840D3EA6D43BB9343B8917 /* Build configuration list for PBXNativeTarget "Photonize" */;
 			buildPhases = (
-				B00000000000000000000001 /* Sources */,
-				500000000000000000000001 /* Frameworks */,
-				C00000000000000000000001 /* Resources */,
+				314FD53B8B9B9D47FAF1F8E8 /* Sources */,
+				563830FB393F752DDA57A15E /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = Photonize;
+			packageProductDependencies = (
+			);
 			productName = Photonize;
-			productReference = 300000000000000000000001 /* Photonize.app */;
+			productReference = 9B3EFEF85859849A66C198AF /* Photonize.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		D00000000000000000000001 /* Project object */ = {
+		DA780D2F22CA315E88782B19 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					900000000000000000000001 = {
-						CreatedOnToolsVersion = 15.0;
-					};
 				};
 			};
-			buildConfigurationList = E00000000000000000000001 /* Build configuration list for PBXProject "Photonize" */;
-			compatibilityVersion = "Xcode 14.0";
+			buildConfigurationList = 65AF9B76B88ABB0D2CBAC779 /* Build configuration list for PBXProject "Photonize" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				en,
 			);
-			mainGroup = 600000000000000000000001;
-			productRefGroup = 800000000000000000000001 /* Products */;
+			mainGroup = 6E1609D2A87D834757E2084A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = FCCE83A654B700FCFF88B27E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				900000000000000000000001 /* Photonize */,
+				86D1730621BEF60615FFF494 /* Photonize */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		C00000000000000000000001 /* Resources */ = {
+		563830FB393F752DDA57A15E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52403704E6873A011DC2B2C0 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		B00000000000000000000001 /* Sources */ = {
+		314FD53B8B9B9D47FAF1F8E8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000001 /* PhotonizeApp.swift in Sources */,
-				100000000000000000000002 /* PhotoItem.swift in Sources */,
-				100000000000000000000003 /* PhotoGridViewModel.swift in Sources */,
-				100000000000000000000004 /* ContentView.swift in Sources */,
-				100000000000000000000005 /* PhotoGridView.swift in Sources */,
-				100000000000000000000006 /* PreviewPane.swift in Sources */,
-				100000000000000000000007 /* FileRenamer.swift in Sources */,
-				100000000000000000000008 /* ThumbnailGenerator.swift in Sources */,
-				100000000000000000000009 /* SettingsManager.swift in Sources */,
+				B0666EA55F1688F6E029B87E /* ContentView.swift in Sources */,
+				1D7FB74E7A7DC1B6488467A3 /* DirectoryAccess.swift in Sources */,
+				02F34948AE7F4D1895334D6B /* FileRenamer.swift in Sources */,
+				D5460CEF92695B095F74C6B6 /* PhotoGridView.swift in Sources */,
+				82068DFAA4C09137E2D08C8C /* PhotoGridViewModel.swift in Sources */,
+				0932FEFAC6E7D66FDECFF49F /* PhotoItem.swift in Sources */,
+				8BE4DC9435F90DFFE779E6AD /* PhotonizeApp.swift in Sources */,
+				F46B45599B1E653B3DF3379F /* PreviewPane.swift in Sources */,
+				B7451916C372989BF1A6262B /* SettingsManager.swift in Sources */,
+				B4E7E2FBB54533D397FC871E /* SettingsView.swift in Sources */,
+				59B9F27D421E7BB9250ACB53 /* ThumbnailGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		F00000000000000000000001 /* Debug */ = {
+		109926CA1E7D87CAE13F6DEB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -227,17 +228,78 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		77611B6C69A876D54CCFA534 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
 					"$(inherited)",
+					"DEBUG=1",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -245,148 +307,75 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		F00000000000000000000002 /* Release */ = {
+		A386ACCD83ADA1DECE20187C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Photonize/Photonize.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Photonize/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.photonize.macos;
 				SDKROOT = macosx;
-				SWIFT_COMPILATION_MODE = wholemodule;
-			};
-			name = Release;
-		};
-		F00000000000000000000003 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Photonize/Photonize.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Photonize/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.photonize.macos;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		F00000000000000000000004 /* Release */ = {
+		F584DED0291717910CA03878 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Photonize/Photonize.entitlements;
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Photonize/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.photonize.macos;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A00000000000000000000001 /* Build configuration list for PBXNativeTarget "Photonize" */ = {
+		65AF9B76B88ABB0D2CBAC779 /* Build configuration list for PBXProject "Photonize" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F00000000000000000000003 /* Debug */,
-				F00000000000000000000004 /* Release */,
+				77611B6C69A876D54CCFA534 /* Debug */,
+				109926CA1E7D87CAE13F6DEB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
-		E00000000000000000000001 /* Build configuration list for PBXProject "Photonize" */ = {
+		75840D3EA6D43BB9343B8917 /* Build configuration list for PBXNativeTarget "Photonize" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F00000000000000000000001 /* Debug */,
-				F00000000000000000000002 /* Release */,
+				A386ACCD83ADA1DECE20187C /* Debug */,
+				F584DED0291717910CA03878 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = D00000000000000000000001 /* Project object */;
+	rootObject = DA780D2F22CA315E88782B19 /* Project object */;
 }
