@@ -14,6 +14,7 @@
 		59B9F27D421E7BB9250ACB53 /* ThumbnailGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */; };
 		82068DFAA4C09137E2D08C8C /* PhotoGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427DDCD1A3DA2B951CD47189 /* PhotoGridViewModel.swift */; };
 		8BE4DC9435F90DFFE779E6AD /* PhotonizeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3814ECBEDCCFEAF083B66DD2 /* PhotonizeApp.swift */; };
+		A4336B121270E4A3B4125F9E /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D74CDC7603E94F3D6213A7 /* ThumbnailLoader.swift */; };
 		B0666EA55F1688F6E029B87E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360CE3B3949110ACCAE11F5A /* ContentView.swift */; };
 		B4E7E2FBB54533D397FC871E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2594223FB8DAFF650D8AE5C /* SettingsView.swift */; };
 		B7451916C372989BF1A6262B /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */; };
@@ -29,6 +30,7 @@
 		3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRenamer.swift; sourceTree = "<group>"; };
 		427DDCD1A3DA2B951CD47189 /* PhotoGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGridViewModel.swift; sourceTree = "<group>"; };
 		5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
+		63D74CDC7603E94F3D6213A7 /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		89C4852E64CDC73596AB23B1 /* PreviewPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPane.swift; sourceTree = "<group>"; };
 		9B3EFEF85859849A66C198AF /* Photonize.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Photonize.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -47,6 +49,7 @@
 				3BB2F3A44D1F55C253469C49 /* FileRenamer.swift */,
 				7D9AF8048426F667AD79B1E9 /* SettingsManager.swift */,
 				5A7AEDA0F7650F87D976BD56 /* ThumbnailGenerator.swift */,
+				63D74CDC7603E94F3D6213A7 /* ThumbnailLoader.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -187,6 +190,7 @@
 				B7451916C372989BF1A6262B /* SettingsManager.swift in Sources */,
 				B4E7E2FBB54533D397FC871E /* SettingsView.swift in Sources */,
 				59B9F27D421E7BB9250ACB53 /* ThumbnailGenerator.swift in Sources */,
+				A4336B121270E4A3B4125F9E /* ThumbnailLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

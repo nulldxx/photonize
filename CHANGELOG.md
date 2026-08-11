@@ -37,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **macOS: Preferences persist immediately**: Thumbnail size and preview toggle are now saved as you change them, not only when a folder is loaded or renamed
 - **macOS: Single File menu**: Open Folder… (⌘O) and Refresh (⌘R) now live in the standard File menu instead of a duplicate one
 - **macOS: Project generation**: The Xcode project is now generated from `macos/project.yml` with XcodeGen
+- **macOS: Faster, progressive thumbnails**: Opening a folder now shows the grid immediately with placeholders that fill in as thumbnails decode, instead of waiting for the whole folder. Thumbnails are decoded through a bounded, cancellable loader so switching folders no longer leaves stale loads running, and memory use stays bounded regardless of the folder's pixel count. Folders now use the system folder icon (including custom icons set in Finder).
+
+### Fixed
+- **macOS: Sideways photos**: Photos with EXIF orientation now appear upright in both the grid and the preview pane
+- **macOS: Blurry thumbnails after resizing**: Enlarging the thumbnail slider now re-renders sharp thumbnails automatically instead of upscaling a small bitmap until the next Refresh
 
 ## [0.1.23] - 2026-01-09
 

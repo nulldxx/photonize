@@ -94,9 +94,15 @@ struct PhotoItemView: View {
                     .frame(width: viewModel.thumbnailSize, height: viewModel.thumbnailSize)
                     .cornerRadius(8)
                     .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
+                        // Subtle progress treatment so a slow thumbnail reads as
+                        // loading rather than broken.
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray)
+                            ProgressView()
+                                .controlSize(.small)
+                        }
                     )
             }
 

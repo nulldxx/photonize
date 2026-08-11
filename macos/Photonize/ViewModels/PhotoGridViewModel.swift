@@ -7,7 +7,7 @@ class PhotoGridViewModel: ObservableObject {
     @Published var photos: [PhotoItem] = []
     @Published var directoryPath: String = "" { didSet { scheduleSave() } }
     @Published var renamePrefix: String = "" { didSet { scheduleSave() } }
-    @Published var thumbnailSize: Double = 200 { didSet { scheduleSave() } }
+    @Published var thumbnailSize: Double = 200 { didSet { scheduleSave(); scheduleThumbnailResize() } }
     @Published var statusMessage: String = "Ready"
     @Published var isLoading: Bool = false
     @Published var selectedPhotos: Set<PhotoItem.ID> = []
@@ -19,8 +19,26 @@ class PhotoGridViewModel: ObservableObject {
 
     private let fileRenamer = FileRenamer()
     private let thumbnailGenerator = ThumbnailGenerator()
+    private let thumbnailLoader = ThumbnailLoader()
     private let settingsManager = SettingsManager()
     private let directoryAccess = DirectoryAccess()
+
+    /// Generation of the current fill pass. Every thumbnail request carries it;
+    /// results stamped with a stale generation are dropped. Bumped whenever we
+    /// start loading a folder or re-render at a larger size.
+    private var loadGeneration = 0
+    /// The `maxSize` the visible thumbnails were last decoded at, so a slider
+    /// *increase* can re-request sharper bitmaps while a decrease is a no-op.
+    private var renderedThumbnailSize = 0
+
+    /// Completed thumbnails waiting to be written back into `photos`. Buffered and
+    /// flushed on a timer so a 500-photo folder republishes the array in batches
+    /// rather than once per photo.
+    private var pendingThumbnails: [(id: PhotoItem.ID, image: NSImage)] = []
+    private var flushTask: Task<Void, Never>?
+    /// Debounces slider drags so we re-render once the user settles, not on every
+    /// intermediate step.
+    private var resizeTask: Task<Void, Never>?
 
     /// The single security-scoped root folder currently being accessed, if any.
     private var scopedURL: URL?
@@ -77,14 +95,20 @@ class PhotoGridViewModel: ObservableObject {
 
         selectedPhotos.removeAll()
         previewPhoto = nil
-        isLoading = true
+        pendingThumbnails.removeAll()
+        flushTask?.cancel()
+        flushTask = nil
         statusMessage = "Loading photos..."
-        photos.removeAll()
 
+        let size = Int(thumbnailSize)
         var displayOrder = 0
         var newPhotos: [PhotoItem] = []
 
         do {
+            // --- Phase 1: enumerate and publish placeholders immediately. ---
+            // Folders get their icon up front (cheap); images start with a nil
+            // thumbnail so the grid renders at once and fills in during phase 2.
+
             // Add parent directory navigation
             if let parentURL = dirURL.deletingLastPathComponent().path != "/" ? dirURL.deletingLastPathComponent() : nil {
                 let parentItem = PhotoItem(
@@ -92,13 +116,12 @@ class PhotoGridViewModel: ObservableObject {
                     fileName: "..",
                     displayOrder: displayOrder,
                     isFolder: true,
-                    thumbnail: thumbnailGenerator.generateFolderThumbnail(size: Int(thumbnailSize))
+                    thumbnail: thumbnailGenerator.folderIcon(for: parentURL, size: size)
                 )
                 newPhotos.append(parentItem)
                 displayOrder += 1
             }
 
-            // Load subfolders
             let contents = try FileManager.default.contentsOfDirectory(
                 at: dirURL,
                 includingPropertiesForKeys: [.isDirectoryKey],
@@ -115,13 +138,12 @@ class PhotoGridViewModel: ObservableObject {
                     fileName: folder.lastPathComponent,
                     displayOrder: displayOrder,
                     isFolder: true,
-                    thumbnail: thumbnailGenerator.generateFolderThumbnail(size: Int(thumbnailSize))
+                    thumbnail: thumbnailGenerator.folderIcon(for: folder, size: size)
                 )
                 newPhotos.append(folderItem)
                 displayOrder += 1
             }
 
-            // Load image files
             let imageFiles = contents.filter { url in
                 guard (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == false else {
                     return false
@@ -130,13 +152,12 @@ class PhotoGridViewModel: ObservableObject {
             }.sorted { $0.lastPathComponent < $1.lastPathComponent }
 
             for imageFile in imageFiles {
-                let thumbnail = await thumbnailGenerator.generateThumbnail(for: imageFile, maxSize: Int(thumbnailSize))
                 let photoItem = PhotoItem(
                     filePath: imageFile,
                     fileName: imageFile.lastPathComponent,
                     displayOrder: displayOrder,
                     isFolder: false,
-                    thumbnail: thumbnail
+                    thumbnail: nil
                 )
                 newPhotos.append(photoItem)
                 displayOrder += 1
@@ -152,9 +173,97 @@ class PhotoGridViewModel: ObservableObject {
             hasUnsavedChanges = false
         } catch {
             statusMessage = "Error loading photos: \(error.localizedDescription)"
+            isLoading = false
+            return
         }
 
+        // --- Phase 2: decode thumbnails through the bounded loader. ---
+        await fillThumbnails(size: size)
+    }
+
+    /// Decode a thumbnail for every image photo currently in `photos`, writing
+    /// each result back by `id` as it arrives. Shared by the initial load and by
+    /// a slider increase; a fresh generation supersedes any pass still running.
+    private func fillThumbnails(size: Int) async {
+        let gen = await thumbnailLoader.cancelAll()
+        loadGeneration = gen
+        renderedThumbnailSize = size
+
+        let jobs = photos.filter { !$0.isFolder }.map { ($0.id, $0.filePath) }
+        guard !jobs.isEmpty else {
+            isLoading = false
+            return
+        }
+
+        isLoading = true
+        await withTaskGroup(of: Void.self) { group in
+            for (id, url) in jobs {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    if let image = await self.thumbnailLoader.request(url, size: size, generation: gen) {
+                        await self.enqueueThumbnail(id: id, image: image, generation: gen)
+                    }
+                }
+            }
+        }
+
+        // Only the pass that is still current gets to declare the load finished;
+        // a superseded pass leaves the newer one's state untouched.
+        guard gen == loadGeneration else { return }
+        flushPendingThumbnails()
         isLoading = false
+    }
+
+    /// Buffer a completed thumbnail and arm the coalescing flush timer. Stale
+    /// generations are dropped here as a second line of defence (the loader
+    /// already drops them).
+    private func enqueueThumbnail(id: PhotoItem.ID, image: NSImage, generation gen: Int) {
+        guard gen == loadGeneration else { return }
+        pendingThumbnails.append((id, image))
+
+        guard flushTask == nil else { return }
+        flushTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            guard !Task.isCancelled else { return }
+            self?.flushPendingThumbnails()
+        }
+    }
+
+    /// Write every buffered thumbnail into `photos` in one go — write-back is by
+    /// `id`, not index, because reordering may have moved items since the request
+    /// was enqueued.
+    private func flushPendingThumbnails() {
+        flushTask?.cancel()
+        flushTask = nil
+        guard !pendingThumbnails.isEmpty else { return }
+
+        let batch = pendingThumbnails
+        pendingThumbnails.removeAll(keepingCapacity: true)
+        for (id, image) in batch {
+            if let index = photos.firstIndex(where: { $0.id == id }) {
+                photos[index].thumbnail = image
+            }
+        }
+    }
+
+    /// Re-render thumbnails when the slider settles on a *larger* size. Shrinking
+    /// keeps the existing (sharper-than-needed) bitmaps, so it is a no-op beyond
+    /// recording the new size.
+    private func scheduleThumbnailResize() {
+        guard !isApplyingSettings, !photos.isEmpty else { return }
+
+        resizeTask?.cancel()
+        resizeTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled, let self else { return }
+
+            let newSize = Int(self.thumbnailSize)
+            if newSize > self.renderedThumbnailSize {
+                await self.fillThumbnails(size: newSize)
+            } else {
+                self.renderedThumbnailSize = newSize
+            }
+        }
     }
 
     func applyRename() async {

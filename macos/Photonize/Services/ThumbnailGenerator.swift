@@ -1,9 +1,20 @@
 import Foundation
 import AppKit
+import ImageIO
 import UniformTypeIdentifiers
 
 class ThumbnailGenerator {
     private static let supportedExtensions = ["jpg", "jpeg", "png", "bmp", "gif", "tiff", "tif", "webp", "heic", "heif"]
+
+    /// Shared across instances (PreviewPane spins up its own generator) and keyed
+    /// by `path|mtime|size`: the mtime component re-renders an edited file, the
+    /// size component gives each slider bucket its own entry. `NSCache` evicts
+    /// under memory pressure on top of the count cap.
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 400
+        return cache
+    }()
 
     func isImageFile(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
@@ -11,14 +22,19 @@ class ThumbnailGenerator {
     }
 
     func generateThumbnail(for url: URL, maxSize: Int) async -> NSImage? {
+        // Keep the key a Swift `String` (Sendable) across the closure boundary and
+        // bridge to `NSString` only at the cache calls.
+        let key = Self.cacheKey(for: url, size: maxSize)
+        if let cached = Self.cache.object(forKey: key as NSString) {
+            return cached
+        }
+
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                guard let image = NSImage(contentsOf: url) else {
-                    continuation.resume(returning: nil)
-                    return
+                let thumbnail = Self.decodeThumbnail(url: url, maxSize: maxSize)
+                if let thumbnail {
+                    Self.cache.setObject(thumbnail, forKey: key as NSString)
                 }
-
-                let thumbnail = self.resizeImage(image, maxSize: maxSize)
                 continuation.resume(returning: thumbnail)
             }
         }
@@ -27,81 +43,72 @@ class ThumbnailGenerator {
     func generatePreview(for url: URL) async -> NSImage? {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let image = NSImage(contentsOf: url)
-                continuation.resume(returning: image)
+                continuation.resume(returning: Self.decodeOrientedFull(url: url))
             }
         }
     }
 
-    func generateFolderThumbnail(size: Int) -> NSImage {
-        let image = NSImage(size: NSSize(width: size, height: size))
-
-        image.lockFocus()
-
-        // Draw folder icon
-        let folderColor = NSColor(red: 1.0, green: 0.76, blue: 0.03, alpha: 1.0) // Yellow/gold
-        let borderColor = NSColor(red: 0.78, green: 0.59, blue: 0.0, alpha: 1.0)
-
-        // Folder tab (top part)
-        let tabRect = NSRect(
-            x: CGFloat(size) * 0.1,
-            y: CGFloat(size) * 0.5,
-            width: CGFloat(size) * 0.4,
-            height: CGFloat(size) * 0.15
-        )
-        let tabPath = NSBezierPath(roundedRect: tabRect, xRadius: 3, yRadius: 3)
-        folderColor.setFill()
-        borderColor.setStroke()
-        tabPath.lineWidth = 2
-        tabPath.fill()
-        tabPath.stroke()
-
-        // Folder body (main part)
-        let bodyRect = NSRect(
-            x: CGFloat(size) * 0.1,
-            y: CGFloat(size) * 0.2,
-            width: CGFloat(size) * 0.8,
-            height: CGFloat(size) * 0.5
-        )
-        let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 5, yRadius: 5)
-        folderColor.setFill()
-        borderColor.setStroke()
-        bodyPath.lineWidth = 2
-        bodyPath.fill()
-        bodyPath.stroke()
-
-        image.unlockFocus()
-
-        return image
+    /// System folder icon for `url` — one line, matches light/dark appearance and
+    /// picks up any custom icon the folder has been given in Finder, which the old
+    /// hand-drawn bezier art could not. Multi-representation, so it stays crisp at
+    /// any display size without re-baking.
+    func folderIcon(for url: URL, size: Int) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: size, height: size)
+        return icon
     }
 
-    private func resizeImage(_ image: NSImage, maxSize: Int) -> NSImage {
-        let size = image.size
-        let aspectRatio = size.width / size.height
+    // MARK: - Decoding
 
-        var newWidth: CGFloat
-        var newHeight: CGFloat
+    /// Downscaled decode via ImageIO. Never materialises the full image, reuses an
+    /// embedded thumbnail when one is large enough, and applies EXIF orientation.
+    private static func decodeThumbnail(url: URL, maxSize: Int) -> NSImage? {
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSize,
+            kCGImageSourceCreateThumbnailWithTransform: true,   // honours EXIF orientation
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
+        else { return nil }
+        return NSImage(cgImage: cg, size: .zero)
+    }
 
-        if size.width > size.height {
-            newWidth = CGFloat(maxSize)
-            newHeight = newWidth / aspectRatio
-        } else {
-            newHeight = CGFloat(maxSize)
-            newWidth = newHeight * aspectRatio
+    /// Full-resolution decode for the preview pane, with EXIF orientation applied.
+    /// Uses ImageIO with the transform flag but no downscale so a sideways phone
+    /// photo appears upright; falls back to `NSImage(contentsOf:)` if ImageIO
+    /// cannot read the file.
+    private static func decodeOrientedFull(url: URL) -> NSImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return NSImage(contentsOf: url)
         }
 
-        let newSize = NSSize(width: newWidth, height: newHeight)
-        let newImage = NSImage(size: newSize)
+        let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
+        let pixelWidth = props?[kCGImagePropertyPixelWidth] as? Int ?? 0
+        let pixelHeight = props?[kCGImagePropertyPixelHeight] as? Int ?? 0
 
-        newImage.lockFocus()
-        image.draw(
-            in: NSRect(origin: .zero, size: newSize),
-            from: NSRect(origin: .zero, size: size),
-            operation: .sourceOver,
-            fraction: 1.0
-        )
-        newImage.unlockFocus()
+        var opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        let maxDimension = max(pixelWidth, pixelHeight)
+        if maxDimension > 0 {
+            opts[kCGImageSourceThumbnailMaxPixelSize] = maxDimension
+        }
 
-        return newImage
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else {
+            return NSImage(contentsOf: url)
+        }
+        return NSImage(cgImage: cg, size: .zero)
+    }
+
+    /// Internal rather than private so slice 12's tests can assert the key
+    /// changes with mtime and size.
+    static func cacheKey(for url: URL, size: Int) -> String {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        return "\(url.path)|\(mtime)|\(size)"
     }
 }
