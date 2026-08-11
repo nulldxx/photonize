@@ -1,6 +1,17 @@
 import Foundation
 import SwiftUI
 
+/// The kind of a grid item, used to pick the right context menu and to gate
+/// operations (e.g. the `..` tile is never deletable). Keeping this a single
+/// enum lets slices 05, 07, 08 and 10 add menu entries per-kind without
+/// re-tangling one big `ViewBuilder`.
+enum PhotoKind {
+    case image
+    case video   // reachable once slice 08 recognises video files
+    case folder
+    case parent  // the ".." navigation tile
+}
+
 struct PhotoItem: Identifiable, Equatable {
     let id = UUID()
     var filePath: URL
@@ -11,6 +22,14 @@ struct PhotoItem: Identifiable, Equatable {
 
     var fileExtension: String {
         isFolder ? "" : filePath.pathExtension.lowercased()
+    }
+
+    var kind: PhotoKind {
+        if isFolder {
+            return fileName == ".." ? .parent : .folder
+        }
+        // Video recognition arrives in slice 08; every file is an image today.
+        return .image
     }
 
     static func == (lhs: PhotoItem, rhs: PhotoItem) -> Bool {

@@ -42,10 +42,12 @@ struct ToolbarView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                // Directory selection
+                // Editable path: type or paste a folder and press Return to load it.
                 TextField("Directory Path", text: $viewModel.directoryPath)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(true)
+                    .onSubmit {
+                        viewModel.submitDirectoryPath()
+                    }
 
                 Button("Browse...") {
                     viewModel.browseDirectory()
@@ -69,6 +71,10 @@ struct ToolbarView: View {
                     Image(systemName: viewModel.isPreviewVisible ? "sidebar.right" : "sidebar.left")
                 }
                 .help("Toggle Preview")
+            }
+
+            if !viewModel.directoryPath.isEmpty {
+                BreadcrumbView(path: viewModel.directoryPath)
             }
 
             HStack {
@@ -104,6 +110,57 @@ struct ToolbarView: View {
         !viewModel.photos.filter({ !$0.isFolder }).isEmpty &&
         !viewModel.renamePrefix.isEmpty &&
         viewModel.hasUnsavedChanges
+    }
+}
+
+/// Clickable path breadcrumb — a native alternative to climbing with `..` one
+/// level at a time. Each component jumps straight to that ancestor.
+struct BreadcrumbView: View {
+    @EnvironmentObject var viewModel: PhotoGridViewModel
+    let path: String
+
+    var body: some View {
+        let crumbs = Self.crumbs(for: path)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(Array(crumbs.enumerated()), id: \.element.path) { index, crumb in
+                    if index == crumbs.count - 1 {
+                        // Current folder: not a navigation target.
+                        Text(crumb.name)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.primary)
+                    } else {
+                        Button(crumb.name) {
+                            viewModel.navigateToPath(crumb.path)
+                        }
+                        .buttonStyle(.link)
+                        .font(.system(size: 11))
+
+                        Text("›")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Split a path into (display name, absolute path) pairs, e.g.
+    /// "/Users/ben/Trip" → [("/", "/"), ("Users", "/Users"), …].
+    static func crumbs(for path: String) -> [(name: String, path: String)] {
+        guard !path.isEmpty else { return [] }
+        let components = URL(fileURLWithPath: path).standardizedFileURL.pathComponents
+        var result: [(name: String, path: String)] = []
+        var accumulated = URL(fileURLWithPath: "/")
+        for component in components {
+            if component == "/" {
+                result.append((name: "/", path: "/"))
+            } else {
+                accumulated.appendPathComponent(component)
+                result.append((name: component, path: accumulated.path))
+            }
+        }
+        return result
     }
 }
 

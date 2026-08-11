@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: File operations and context-menu parity**: The right-click menu now matches Windows per item kind
+  - Images and videos offer Open, Show in Finder and Delete; folders add folder deletion; the `..` tile only offers Open
+  - **Folders can now be deleted** — right-click a subfolder and Delete moves it and all its contents to the Trash (restorable with ⌘Z in Finder); previously there was no way to remove a subfolder from inside the app
+  - Delete confirmations use per-kind wording (files, folders-and-contents, or a mixed count)
+  - On a volume with no Trash (e.g. a network share) you are asked once whether to delete permanently, and the answer applies to the rest of the batch
+  - **The directory field is editable** — type or paste a folder path and press Return to load it; invalid or inaccessible paths report in the status bar instead of interrupting with an alert
+  - **Path breadcrumb** — a clickable trail above the grid jumps straight to any ancestor folder
 - **macOS: Grid keyboard and selection parity**: The photo grid now behaves like a Finder icon view
   - Arrow keys move the selection and wrap at row edges; ⇧+arrow extends the selection from the anchor
   - Shift-click selects the inclusive range from the last-clicked photo (previously it only added the one photo)

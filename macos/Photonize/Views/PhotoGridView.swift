@@ -172,31 +172,64 @@ struct PhotoItemView: View {
     }
 }
 
+/// The right-click menu, built from the item's `kind`. Each case lists only the
+/// entries in the slice-04 table; later slices drop their items at the marked
+/// insertion points, keeping this a one-line change for them.
 struct PhotoContextMenu: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
     let photo: PhotoItem
 
+    @ViewBuilder
     var body: some View {
-        Button("Open") {
-            viewModel.openPhoto(photo)
+        switch photo.kind {
+        case .parent:
+            // The ".." tile only navigates; it cannot be shown-in-Finder or deleted.
+            openButton
+
+        case .folder:
+            openButton
+            showInFinderButton
+            // INSERTION POINT — slice 05: Export ▸ (PhotoAI Upscale Folder)
+            // INSERTION POINT — slice 10: Tags ▸
+            Divider()
+            deleteButton
+
+        case .video:
+            openButton
+            showInFinderButton
+            // INSERTION POINT — slice 10: Tags ▸
+            Divider()
+            deleteButton
+
+        case .image:
+            openButton
+            showInFinderButton
+            // INSERTION POINT — slice 07: Image Compare
+            // INSERTION POINT — slice 05: Export ▸
+            // INSERTION POINT — slice 10: Tags ▸
+            Divider()
+            deleteButton
         }
+    }
 
-        Button("Show in Finder") {
-            viewModel.showInFinder(photo)
-        }
+    private var openButton: some View {
+        Button("Open") { viewModel.openPhoto(photo) }
+    }
 
-        Divider()
+    private var showInFinderButton: some View {
+        Button("Show in Finder") { viewModel.showInFinder(photo) }
+    }
 
+    private var deleteButton: some View {
         Button("Delete") {
-            // Ensure this photo is selected
+            // Windows rule: a right-click on an item outside the current
+            // selection acts on that item alone.
             if !viewModel.selectedPhotos.contains(photo.id) {
                 viewModel.selectedPhotos = [photo.id]
             }
-
             Task {
                 await viewModel.deleteSelectedPhotos()
             }
         }
-        .disabled(photo.isFolder)
     }
 }

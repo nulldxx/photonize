@@ -91,6 +91,47 @@ class PhotoGridViewModel: ObservableObject {
         }
     }
 
+    /// Load whatever the user typed or pasted into the path field (Enter commits,
+    /// matching Windows). Invalid or inaccessible paths set `statusMessage` and
+    /// leave the grid untouched rather than throwing an alert.
+    func submitDirectoryPath() {
+        navigateToPath(directoryPath)
+    }
+
+    /// Navigate to `path` (also used by the breadcrumb). Expands a leading `~`,
+    /// checks the folder exists and is readable, then loads it. Reuses the
+    /// current security scope — a successful read means the folder is inside the
+    /// scoped root (or this is a non-sandboxed build); a folder we hold no
+    /// bookmark for is unreadable under the sandbox and gets a Browse… nudge.
+    func navigateToPath(_ path: String) {
+        let trimmed = path.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+
+        let expanded = (trimmed as NSString).expandingTildeInPath
+
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expanded, isDirectory: &isDir) else {
+            statusMessage = "No such folder: \(trimmed)"
+            return
+        }
+        guard isDir.boolValue else {
+            statusMessage = "Not a folder: \(trimmed)"
+            return
+        }
+
+        // Probe access: NSOpenPanel (Browse…) is the only way to grant the
+        // sandbox access to a brand-new folder, so point the user there.
+        guard (try? FileManager.default.contentsOfDirectory(atPath: expanded)) != nil else {
+            statusMessage = "Can't open \(trimmed) — use Browse… to grant access."
+            return
+        }
+
+        directoryPath = expanded
+        Task {
+            await loadPhotos()
+        }
+    }
+
     func loadPhotos() async {
         guard !directoryPath.isEmpty else {
             statusMessage = "Invalid directory path"
@@ -286,8 +327,10 @@ class PhotoGridViewModel: ObservableObject {
             return
         }
 
-        guard !renamePrefix.trimmingCharacters(in: .whitespaces).isEmpty else {
-            showAlert(title: "Warning", message: "Please enter a prefix for the files.")
+        // Surface the specific reason (reserved name, hidden-dot, illegal char)
+        // rather than a generic message, and bail before the confirmation prompt.
+        if let reason = fileRenamer.validatePrefix(renamePrefix) {
+            showAlert(title: "Invalid Prefix", message: reason)
             return
         }
 
@@ -312,15 +355,12 @@ class PhotoGridViewModel: ObservableObject {
         isLoading = false
 
         if result.success {
-            // Update photo items with new paths and names
-            for (index, oldItem) in photoItems.enumerated() {
-                if let photoIndex = photos.firstIndex(where: { $0.id == oldItem.id }) {
-                    let fileExtension = oldItem.filePath.pathExtension
-                    let newFileName = "\(renamePrefix)-\(String(format: "%05d", index + 1)).\(fileExtension)"
-                    let newPath = oldItem.filePath.deletingLastPathComponent().appendingPathComponent(newFileName)
-
-                    photos[photoIndex].filePath = newPath
-                    photos[photoIndex].fileName = newFileName
+            // Update the model from what actually landed on disk, not a second
+            // computation of the naming rule.
+            for entry in result.mapping {
+                if let photoIndex = photos.firstIndex(where: { $0.id == entry.id }) {
+                    photos[photoIndex].filePath = entry.url
+                    photos[photoIndex].fileName = entry.url.lastPathComponent
                 }
             }
 
@@ -330,92 +370,97 @@ class PhotoGridViewModel: ObservableObject {
         }
     }
 
+    /// How the batch handles a volume where the Trash is unavailable. Decided
+    /// lazily, the first time `trashItem` actually fails, then applied to the
+    /// rest of the batch.
+    private enum TrashFallback { case undecided, permanent, declined }
+
     func deleteSelectedPhotos() async {
-        let photosToDelete = photos.filter { selectedPhotos.contains($0.id) && !$0.isFolder }
+        // Folders are deletable (recursively, via the Trash); the ".." tile never is.
+        let itemsToDelete = photos.filter { selectedPhotos.contains($0.id) && $0.kind != .parent }
 
-        guard !photosToDelete.isEmpty else { return }
+        guard !itemsToDelete.isEmpty else { return }
 
-        // Check if we can use Trash (fails on network drives)
-        let canUseTrash = await checkIfCanUseTrash(for: photosToDelete.first!)
+        let folders = itemsToDelete.filter { $0.isFolder }
+        let files = itemsToDelete.filter { !$0.isFolder }
 
+        // Per-kind confirmation wording, mirroring Windows.
         let message: String
-        let title: String
-
-        if canUseTrash {
-            title = "Move to Trash"
-            if photosToDelete.count == 1 {
-                message = "Are you sure you want to move this file to Trash?\n\n\(photosToDelete[0].fileName)"
-            } else {
-                message = "Are you sure you want to move \(photosToDelete.count) files to Trash?"
-            }
+        if itemsToDelete.count == 1 {
+            let item = itemsToDelete[0]
+            message = item.isFolder
+                ? "Move this folder and all its contents to the Trash?\n\n\(item.fileName)"
+                : "Move this file to the Trash?\n\n\(item.fileName)"
         } else {
-            title = "Permanently Delete"
-            if photosToDelete.count == 1 {
-                message = "This file is on a network drive where Trash is not available.\n\nAre you sure you want to PERMANENTLY delete this file?\n\n\(photosToDelete[0].fileName)\n\nThis action cannot be undone."
-            } else {
-                message = "These files are on a network drive where Trash is not available.\n\nAre you sure you want to PERMANENTLY delete \(photosToDelete.count) files?\n\nThis action cannot be undone."
-            }
+            var parts: [String] = []
+            if !files.isEmpty { parts.append("\(files.count) file(s)") }
+            if !folders.isEmpty { parts.append("\(folders.count) folder(s) and all their contents") }
+            message = "Move \(parts.joined(separator: " and ")) to the Trash?"
         }
 
-        let confirmed = await showConfirmation(title: title, message: message)
+        let confirmed = await showConfirmation(title: "Move to Trash", message: message)
         guard confirmed else { return }
 
-        var deletedCount = 0
-        var failedFiles: [String] = []
+        var deletedNames: [String] = []
+        var failedItems: [String] = []
+        var fallback: TrashFallback = .undecided
 
-        for photo in photosToDelete {
+        for item in itemsToDelete {
+            // The user was asked once and said no to permanent deletion: stop.
+            if fallback == .declined { break }
+
             do {
-                if canUseTrash {
-                    // Try to move to Trash
-                    try FileManager.default.trashItem(at: photo.filePath, resultingItemURL: nil)
+                if fallback == .permanent {
+                    try FileManager.default.removeItem(at: item.filePath)
                 } else {
-                    // Permanently delete
-                    try FileManager.default.removeItem(at: photo.filePath)
+                    do {
+                        try FileManager.default.trashItem(at: item.filePath, resultingItemURL: nil)
+                    } catch {
+                        // The honest warning, at the moment it actually matters: a
+                        // volume with no Trash (e.g. an SMB share). Ask once and
+                        // apply the answer to the whole batch.
+                        let permit = await showConfirmation(
+                            title: "Can't Use the Trash Here",
+                            message: "The Trash isn't available on this volume (for example a network share).\n\nDelete permanently instead? This cannot be undone."
+                        )
+                        guard permit else {
+                            fallback = .declined
+                            break
+                        }
+                        fallback = .permanent
+                        try FileManager.default.removeItem(at: item.filePath)
+                    }
                 }
 
-                if let index = photos.firstIndex(where: { $0.id == photo.id }) {
+                if let index = photos.firstIndex(where: { $0.id == item.id }) {
                     photos.remove(at: index)
                 }
-                deletedCount += 1
+                deletedNames.append(item.fileName)
             } catch {
-                failedFiles.append("\(photo.fileName): \(error.localizedDescription)")
+                failedItems.append("\(item.fileName): \(error.localizedDescription)")
             }
         }
 
         // Deleting renumbers but must not arm the quit guard (matches Windows).
         updateDisplayOrder(updateUnsavedChanges: false)
 
-        if deletedCount == 1 {
-            statusMessage = canUseTrash ? "Moved \(photosToDelete[0].fileName) to Trash" : "Deleted \(photosToDelete[0].fileName)"
-        } else {
-            statusMessage = canUseTrash ? "Moved \(deletedCount) file(s) to Trash" : "Deleted \(deletedCount) file(s)"
+        let trashed = fallback != .permanent
+        if deletedNames.count == 1 {
+            statusMessage = trashed ? "Moved \(deletedNames[0]) to Trash" : "Deleted \(deletedNames[0])"
+        } else if !deletedNames.isEmpty {
+            statusMessage = trashed ? "Moved \(deletedNames.count) item(s) to Trash" : "Deleted \(deletedNames.count) item(s)"
         }
 
-        if !failedFiles.isEmpty {
+        if !failedItems.isEmpty {
             showAlert(
                 title: "Delete Errors",
-                message: "Failed to delete \(failedFiles.count) file(s):\n\n\(failedFiles.joined(separator: "\n"))"
+                message: "Failed to delete \(failedItems.count) item(s):\n\n\(failedItems.joined(separator: "\n"))"
             )
         }
 
         selectedPhotos.removeAll()
         selectionAnchor = nil
         focusedPhotoID = nil
-    }
-
-    private func checkIfCanUseTrash(for photo: PhotoItem) async -> Bool {
-        do {
-            // Try to get the trash URL for this volume
-            let volumeURL = photo.filePath.deletingLastPathComponent()
-            _ = try FileManager.default.url(for: .trashDirectory,
-                                           in: .userDomainMask,
-                                           appropriateFor: volumeURL,
-                                           create: false)
-            return true
-        } catch {
-            // Trash is not available (likely network drive)
-            return false
-        }
     }
 
     func openPhoto(_ photo: PhotoItem) {
