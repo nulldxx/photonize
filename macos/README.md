@@ -105,8 +105,12 @@ JPG, JPEG, PNG, BMP, GIF, TIFF, WebP, HEIC, HEIF
 
 - `Cmd+O` - Open folder
 - `Cmd+R` - Refresh current folder
+- `Cmd+A` - Select all photos (folders excluded)
 - `Cmd+Click` - Toggle selection of individual photos
-- `Shift+Click` - Extend selection
+- `Shift+Click` - Select the range from the last-clicked photo
+- `Arrow keys` - Move the selection, wrapping at row edges
+- `Shift+Arrow` - Extend the selection from the anchor
+- `Return` - Open the focused photo, or enter the focused folder
 - `Delete` or `Backspace` - Move selected photos to Trash
 
 ### Context Menu

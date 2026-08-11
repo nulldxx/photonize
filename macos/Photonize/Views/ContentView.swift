@@ -124,6 +124,10 @@ struct StatusBarView: View {
 
             Spacer()
 
+            Text("Photos: \(viewModel.photos.filter { !$0.isFolder }.count)")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
             if !viewModel.selectedPhotos.isEmpty {
                 Text("\(viewModel.selectedPhotos.count) selected")
                     .font(.system(size: 12))

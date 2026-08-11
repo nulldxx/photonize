@@ -1,34 +1,32 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-extension View {
-    @ViewBuilder
-    func `if`<Transform: View>(_ condition: Bool, transform: (Self) -> Transform) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
-    }
-}
-
 struct PhotoGridView: View {
     @EnvironmentObject var viewModel: PhotoGridViewModel
     @State private var draggingItem: PhotoItem?
 
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 400), spacing: 16)]
+    // Layout constants. The column count is derived from these so that
+    // keyboard row-wrapping matches what the grid actually draws.
+    private static let gridSpacing: CGFloat = 16
+    private static let cellPadding: CGFloat = 16   // PhotoItemView's 8pt on each side
+    private static let outerPadding: CGFloat = 16  // grid inset, per edge
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(viewModel.photos) { photo in
-                    PhotoItemView(photo: photo, draggingItem: $draggingItem)
-                        .contextMenu {
-                            PhotoContextMenu(photo: photo)
-                        }
-                        .if(!photo.isFolder) { view in
-                            view
+        GeometryReader { geo in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(columns: columns(forWidth: geo.size.width), spacing: Self.gridSpacing) {
+                        ForEach(viewModel.photos) { photo in
+                            PhotoItemView(photo: photo, draggingItem: $draggingItem)
+                                .id(photo.id)
+                                .contextMenu {
+                                    PhotoContextMenu(photo: photo)
+                                }
                                 .onDrag {
+                                    // Folders are not drag sources yet (slice 06 makes
+                                    // them move targets); hand back an empty provider so
+                                    // no reorder starts, but keep the cell a drop target.
+                                    guard !photo.isFolder else { return NSItemProvider() }
                                     draggingItem = photo
                                     return NSItemProvider(object: photo.id.uuidString as NSString)
                                 }
@@ -41,11 +39,40 @@ struct PhotoGridView: View {
                                     }
                                 ))
                         }
+                    }
+                    .padding(Self.outerPadding)
+                }
+                .background(KeyCatcher { viewModel.handleKey($0) })
+                .background(Color(NSColor.windowBackgroundColor))
+                .onChange(of: viewModel.focusedPhotoID) { id in
+                    guard let id else { return }
+                    withAnimation { proxy.scrollTo(id, anchor: .center) }
                 }
             }
-            .padding()
+            .onAppear { viewModel.columnCount = columnCount(forWidth: geo.size.width) }
+            .onChange(of: geo.size.width) { viewModel.columnCount = columnCount(forWidth: $0) }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private func cellWidth() -> CGFloat {
+        viewModel.thumbnailSize + Self.cellPadding
+    }
+
+    /// Number of columns that fit at `width`. Floors so each column is at least a
+    /// cell wide (content never clips); building exactly this many `.flexible`
+    /// columns means the view model's count matches the drawn layout.
+    private func columnCount(forWidth width: CGFloat) -> Int {
+        let available = width - Self.outerPadding * 2
+        let cell = cellWidth()
+        guard available > 0, cell > 0 else { return 1 }
+        return max(1, Int((available + Self.gridSpacing) / (cell + Self.gridSpacing)))
+    }
+
+    private func columns(forWidth width: CGFloat) -> [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: Self.gridSpacing),
+            count: columnCount(forWidth: width)
+        )
     }
 }
 
@@ -62,15 +89,18 @@ struct PhotoDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        guard let draggingItem = draggingItem else { return }
+        guard let draggingItem, draggingItem.id != item.id else { return }
+        // No folder reordering in this slice; a folder target is inert (but the
+        // drag still passes over it rather than being blocked).
+        guard !draggingItem.isFolder, !item.isFolder else { return }
 
-        if draggingItem.id != item.id {
-            let from = items.firstIndex(of: draggingItem)!
-            let to = items.firstIndex(of: item)!
+        // Guard the lookups: the dragged item can vanish mid-drag (a delete, or a
+        // Finder move) and force-unwrapping would crash.
+        guard let from = items.firstIndex(of: draggingItem),
+              let to = items.firstIndex(of: item) else { return }
 
-            withAnimation(.default) {
-                items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
-            }
+        withAnimation(.default) {
+            items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
         }
     }
 }
@@ -122,35 +152,23 @@ struct PhotoItemView: View {
                 .stroke(viewModel.selectedPhotos.contains(photo.id) ? Color.accentColor : Color.clear, lineWidth: 2)
         )
         .opacity(draggingItem?.id == photo.id ? 0.5 : 1.0)
-        .onTapGesture {
-            handleSelection()
-        }
-        .onTapGesture(count: 2) {
-            viewModel.openPhoto(photo)
-        }
-    }
-
-    private func handleSelection() {
-        if NSEvent.modifierFlags.contains(.command) {
-            // Command+Click: Toggle selection
-            if viewModel.selectedPhotos.contains(photo.id) {
-                viewModel.selectedPhotos.remove(photo.id)
-            } else {
-                viewModel.selectedPhotos.insert(photo.id)
-            }
-        } else if NSEvent.modifierFlags.contains(.shift) {
-            // Shift+Click: Range selection
-            // For simplicity, just add to selection
-            viewModel.selectedPhotos.insert(photo.id)
-        } else {
-            // Regular click: Single selection
-            viewModel.selectedPhotos = [photo.id]
-        }
-
-        // Update preview
-        if let firstSelected = viewModel.photos.first(where: { viewModel.selectedPhotos.contains($0.id) }) {
-            viewModel.previewPhoto = firstSelected
-        }
+        // Double-tap must win over the selection tap, or double-click-to-open is
+        // unreliable — the earlier code attached them in the order that let the
+        // single tap swallow the double.
+        .gesture(
+            TapGesture(count: 2)
+                .onEnded { viewModel.openPhoto(photo) }
+                .exclusively(before:
+                    TapGesture()
+                        .onEnded {
+                            viewModel.handleClick(
+                                on: photo,
+                                commandKey: NSEvent.modifierFlags.contains(.command),
+                                shiftKey: NSEvent.modifierFlags.contains(.shift)
+                            )
+                        }
+                )
+        )
     }
 }
 

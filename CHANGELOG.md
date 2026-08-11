@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Grid keyboard and selection parity**: The photo grid now behaves like a Finder icon view
+  - Arrow keys move the selection and wrap at row edges; ⇧+arrow extends the selection from the anchor
+  - Shift-click selects the inclusive range from the last-clicked photo (previously it only added the one photo)
+  - ⌘A (Edit ▸ Select All) selects every file, excluding folders
+  - Delete/Backspace (File ▸ Delete) moves the selection to the Trash — now wired to the key, not just the context menu
+  - Return opens the focused photo or navigates into the focused folder
+  - Status bar now shows the total photo count alongside the selection count
+  - Quitting with an un-applied reorder now warns first (deleting does not trigger the warning)
 - **macOS: Settings window (⌘,)**: A native Settings scene with a default thumbnail size control and a "restore last folder on launch" toggle
 - **macOS: App icon**: The app now ships with the Photonize icon in the Dock and Finder
 - **Quick tagging with the 0-9 keys**: Select one or more photos in the grid and press a number key to tag them
@@ -40,6 +48,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **macOS: Faster, progressive thumbnails**: Opening a folder now shows the grid immediately with placeholders that fill in as thumbnails decode, instead of waiting for the whole folder. Thumbnails are decoded through a bounded, cancellable loader so switching folders no longer leaves stale loads running, and memory use stays bounded regardless of the folder's pixel count. Folders now use the system folder icon (including custom icons set in Finder).
 
 ### Fixed
+- **macOS: Unreliable double-click**: Double-clicking a photo or folder now reliably opens/navigates instead of being swallowed by the selection click
+- **macOS: Folder drag dead zone**: A folder tile in the middle of the grid no longer blocks reordering a photo past it
+- **macOS: Crash when dragging a removed photo**: Deleting or moving a photo mid-drag no longer crashes the app
 - **macOS: Sideways photos**: Photos with EXIF orientation now appear upright in both the grid and the preview pane
 - **macOS: Blurry thumbnails after resizing**: Enlarging the thumbnail slider now re-renders sharp thumbnails automatically instead of upscaling a small bitmap until the next Refresh
 

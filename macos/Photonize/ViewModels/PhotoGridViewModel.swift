@@ -16,6 +16,16 @@ class PhotoGridViewModel: ObservableObject {
     @Published var restoreLastFolderOnLaunch: Bool = true { didSet { scheduleSave() } }
     @Published var previewPhoto: PhotoItem?
     @Published var hasUnsavedChanges: Bool = false
+    /// The focus cursor for keyboard navigation. Published so the grid can scroll
+    /// it into view as it moves.
+    @Published var focusedPhotoID: PhotoItem.ID?
+
+    /// The fixed point of a range selection: shift-click and shift-arrow extend
+    /// from here without moving it.
+    private var selectionAnchor: PhotoItem.ID?
+    /// Columns currently laid out in the grid, published from the view on resize
+    /// so up/down navigation knows how far a row jump is.
+    var columnCount: Int = 1
 
     private let fileRenamer = FileRenamer()
     private let thumbnailGenerator = ThumbnailGenerator()
@@ -94,6 +104,8 @@ class PhotoGridViewModel: ObservableObject {
         }
 
         selectedPhotos.removeAll()
+        selectionAnchor = nil
+        focusedPhotoID = nil
         previewPhoto = nil
         pendingThumbnails.removeAll()
         flushTask?.cancel()
@@ -370,7 +382,8 @@ class PhotoGridViewModel: ObservableObject {
             }
         }
 
-        updateDisplayOrder()
+        // Deleting renumbers but must not arm the quit guard (matches Windows).
+        updateDisplayOrder(updateUnsavedChanges: false)
 
         if deletedCount == 1 {
             statusMessage = canUseTrash ? "Moved \(photosToDelete[0].fileName) to Trash" : "Deleted \(photosToDelete[0].fileName)"
@@ -386,6 +399,8 @@ class PhotoGridViewModel: ObservableObject {
         }
 
         selectedPhotos.removeAll()
+        selectionAnchor = nil
+        focusedPhotoID = nil
     }
 
     private func checkIfCanUseTrash(for photo: PhotoItem) async -> Bool {
@@ -423,11 +438,158 @@ class PhotoGridViewModel: ObservableObject {
         updateDisplayOrder()
     }
 
-    func updateDisplayOrder() {
+    /// Renumber `displayOrder` to match the current array order. Reordering arms
+    /// the unsaved-changes guard; deletion passes `updateUnsavedChanges: false`
+    /// so trashing a photo never blocks quit, matching the Windows behaviour.
+    func updateDisplayOrder(updateUnsavedChanges: Bool = true) {
         for (index, _) in photos.enumerated() {
             photos[index].displayOrder = index
         }
-        hasUnsavedChanges = !photos.filter({ !$0.isFolder }).isEmpty && !renamePrefix.isEmpty
+        if updateUnsavedChanges {
+            hasUnsavedChanges = !photos.filter({ !$0.isFolder }).isEmpty && !renamePrefix.isEmpty
+        }
+    }
+
+    // MARK: - Selection & keyboard navigation
+
+    /// Single entry point for keys forwarded by `KeyCatcher`. Returns `true` when
+    /// the key was consumed. ⌘A and Delete arrive via the menu bar, not here.
+    func handleKey(_ key: GridKey) -> Bool {
+        switch key {
+        case .arrow(let direction, let shift):
+            moveFocus(direction, extending: shift)
+            return true
+        case .returnKey:
+            guard let id = focusedPhotoID, let photo = photos.first(where: { $0.id == id }) else {
+                return false
+            }
+            openPhoto(photo)
+            return true
+        case .digit:
+            return false // reserved for slice 10
+        }
+    }
+
+    /// Handle a click on a photo. Modifier flags are read from the event by the
+    /// view; folders are legal click targets (they can be opened/navigated).
+    func handleClick(on photo: PhotoItem, commandKey: Bool, shiftKey: Bool) {
+        guard let index = photos.firstIndex(where: { $0.id == photo.id }) else { return }
+
+        if commandKey {
+            if selectedPhotos.contains(photo.id) {
+                selectedPhotos.remove(photo.id)
+            } else {
+                selectedPhotos.insert(photo.id)
+            }
+            selectionAnchor = photo.id
+            focusedPhotoID = photo.id
+        } else if shiftKey,
+                  let anchor = selectionAnchor,
+                  let anchorIndex = photos.firstIndex(where: { $0.id == anchor }) {
+            // Range from the anchor to here; the anchor stays put.
+            selectedPhotos = Self.rangeSelection(in: photos, from: anchorIndex, to: index)
+            focusedPhotoID = photo.id
+        } else {
+            selectedPhotos = [photo.id]
+            selectionAnchor = photo.id
+            focusedPhotoID = photo.id
+        }
+
+        updatePreview(touchedID: photo.id)
+    }
+
+    /// ⌘A — select every file, folders (and the `..` entry) excluded.
+    func selectAllFiles() {
+        let ids = Self.fileIDs(in: photos)
+        selectedPhotos = Set(ids)
+        selectionAnchor = ids.first
+        focusedPhotoID = ids.first
+        if let firstID = ids.first {
+            updatePreview(touchedID: firstID)
+        } else {
+            previewPhoto = nil
+        }
+    }
+
+    /// Move the focus cursor one step, wrapping across rows. `extending` grows the
+    /// selection from the anchor; otherwise the selection collapses to the cursor.
+    func moveFocus(_ direction: FocusDirection, extending: Bool) {
+        guard !photos.isEmpty else { return }
+
+        guard let focus = focusedPhotoID,
+              let currentIndex = photos.firstIndex(where: { $0.id == focus }) else {
+            // No cursor yet: land on the first item.
+            let first = photos[0]
+            selectedPhotos = [first.id]
+            selectionAnchor = first.id
+            focusedPhotoID = first.id
+            updatePreview(touchedID: first.id)
+            return
+        }
+
+        guard let nextIndex = Self.nextFocusIndex(
+            from: currentIndex,
+            direction: direction,
+            columnCount: columnCount,
+            count: photos.count
+        ) else { return }
+
+        let nextID = photos[nextIndex].id
+
+        if extending {
+            let anchorID = selectionAnchor ?? focus
+            selectionAnchor = anchorID
+            if let anchorIndex = photos.firstIndex(where: { $0.id == anchorID }) {
+                selectedPhotos = Self.rangeSelection(in: photos, from: anchorIndex, to: nextIndex)
+            }
+        } else {
+            selectedPhotos = [nextID]
+            selectionAnchor = nextID
+        }
+
+        focusedPhotoID = nextID
+        updatePreview(touchedID: nextID)
+    }
+
+    /// The preview follows the *last* item touched, not the first in document
+    /// order — ⌘-clicking a later photo should show that photo, not jump back.
+    private func updatePreview(touchedID: PhotoItem.ID) {
+        if selectedPhotos.contains(touchedID) {
+            previewPhoto = photos.first(where: { $0.id == touchedID })
+        } else if let remaining = photos.first(where: { selectedPhotos.contains($0.id) }) {
+            previewPhoto = remaining
+        } else {
+            previewPhoto = nil
+        }
+    }
+
+    // MARK: - Pure selection helpers (window-free, so slice 12 can unit-test them)
+
+    /// Every non-folder id, in document order.
+    static func fileIDs(in photos: [PhotoItem]) -> [PhotoItem.ID] {
+        photos.filter { !$0.isFolder }.map { $0.id }
+    }
+
+    /// The inclusive set of ids between two indices, order-independent.
+    static func rangeSelection(in photos: [PhotoItem], from anchorIndex: Int, to targetIndex: Int) -> Set<PhotoItem.ID> {
+        guard !photos.isEmpty else { return [] }
+        let lower = max(0, min(anchorIndex, targetIndex))
+        let upper = min(photos.count - 1, max(anchorIndex, targetIndex))
+        guard lower <= upper else { return [] }
+        return Set(photos[lower...upper].map { $0.id })
+    }
+
+    /// Where the focus cursor lands for a direction, or `nil` at a grid edge.
+    /// Left/right walk linearly (which is also row wrapping); up/down jump a row.
+    static func nextFocusIndex(from index: Int, direction: FocusDirection, columnCount: Int, count: Int) -> Int? {
+        guard count > 0, index >= 0, index < count else { return nil }
+        let columns = max(1, columnCount)
+        switch direction {
+        case .right: return index + 1 < count ? index + 1 : nil
+        case .left:  return index - 1 >= 0 ? index - 1 : nil
+        case .down:  let target = index + columns; return target < count ? target : nil
+        case .up:    let target = index - columns; return target >= 0 ? target : nil
+        }
     }
 
     private func detectCommonPrefix() {
