@@ -92,8 +92,144 @@ class PhotoGridViewModel: ObservableObject {
     private var promptDirty = false
     private var promptSaveTask: Task<Void, Never>?
 
+    /// Set by `AppDelegate.applicationWillFinishLaunching` from the command line,
+    /// before this view model is created. `init` consumes it once so a `-d`/`-e`
+    /// launch skips the saved-folder restore and acts on the argument instead of
+    /// loading the last folder and then jumping away from it (slice 11).
+    static var pendingLaunchIntent: LaunchIntent = .none
+
     init() {
-        loadSettings()
+        let intent = Self.pendingLaunchIntent
+        Self.pendingLaunchIntent = .none
+
+        // A launch argument owns the directory, so don't restore the saved folder
+        // underneath it — but keep every other preference (size, prefix, panes).
+        loadSettings(skipDirectoryRestore: intent.suppressesDirectoryRestore)
+
+        if intent != .none {
+            Task { await applyLaunchIntent(intent) }
+        }
+    }
+
+    // MARK: - Launch / open integration (slice 11)
+
+    /// Act on a launch- or open-time intent: navigate to a folder, navigate to a
+    /// folder and pre-select some of its images, or export images straight to
+    /// WebP. Routed here from the command line, `application(_:open:)`, the Dock,
+    /// "Open With", and the Finder Services.
+    func applyLaunchIntent(_ intent: LaunchIntent) async {
+        switch intent {
+        case .none:
+            break
+        case .openDirectory(let url):
+            await openDirectory(url)
+        case .openImages(let urls):
+            guard let first = urls.first else { return }
+            await openDirectory(first.deletingLastPathComponent(), selecting: urls)
+        case .exportImages(let urls):
+            await exportFilesToWebP(urls)
+        }
+    }
+
+    /// Adopt `url` as the security-scoped root, load it, and optionally pre-select
+    /// some of its files. The single entry point for `open`, the Dock, "Open
+    /// With", and the Finder "Open in Photonize" service. URLs arriving from those
+    /// paths carry a transient Powerbox grant, so we bookmark immediately and
+    /// persist, keeping the folder reachable on the next launch.
+    func openDirectory(_ url: URL, selecting selection: [URL] = []) async {
+        setScopedRoot(url)
+        directoryPath = url.path
+        await loadPhotos()
+        if !selection.isEmpty {
+            selectFiles(matching: selection)
+        }
+    }
+
+    /// Relinquish the previous security-scoped root, adopt `url`, and bookmark it
+    /// for relaunch. Shared by the Browse… panel and every launch/open path.
+    private func setScopedRoot(_ url: URL) {
+        if let scopedURL {
+            directoryAccess.relinquish(scopedURL)
+        }
+        scopedURL = url
+        directoryBookmark = directoryAccess.makeBookmark(for: url)
+    }
+
+    /// Select the grid items whose files match `urls` (by standardized path),
+    /// focus the first and preview it — reflecting a Finder "open these images"
+    /// selection once the containing folder has loaded.
+    private func selectFiles(matching urls: [URL]) {
+        let wanted = Set(urls.map { $0.standardizedFileURL.path })
+        let matched = photos.filter { !$0.isFolder && wanted.contains($0.filePath.standardizedFileURL.path) }
+        guard let firstID = matched.first?.id else { return }
+
+        selectedPhotos = Set(matched.map { $0.id })
+        selectionAnchor = firstID
+        focusedPhotoID = firstID
+        updatePreview(touchedID: firstID)
+    }
+
+    /// Export image files straight to WebP — the `-e` command-line verb and the
+    /// Finder "Export to WebP" service. Unlike Windows (one app instance per file),
+    /// this single instance handles the whole selection. Opens the containing
+    /// folder as the scoped root, runs the batch behind the progress sheet, then
+    /// reveals the WebP output folder (via `finishExport`).
+    func exportFilesToWebP(_ urls: [URL]) async {
+        let images = urls.filter {
+            thumbnailGenerator.isImageFile($0) && FileManager.default.fileExists(atPath: $0.path)
+        }
+        guard let first = images.first else {
+            showAlert(title: "No Images", message: "No supported image files found in the selection.")
+            return
+        }
+
+        let baseDirectory = first.deletingLastPathComponent()
+        // Adopt the containing folder so the WebP subfolder can be written and the
+        // post-export navigation lands somewhere we can read.
+        setScopedRoot(baseDirectory)
+
+        let sources = images.map {
+            PhotoItem(filePath: $0, fileName: $0.lastPathComponent, displayOrder: 0, isFolder: false, thumbnail: nil)
+        }
+
+        let progress = OperationProgress(
+            title: "Exporting to \(ExportFormat.webp.folderName)",
+            status: "Preparing…",
+            total: sources.count
+        )
+        let exporter = imageExporter
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await exporter.export(
+                    sources,
+                    in: baseDirectory,
+                    as: .webp,
+                    overwrite: { [weak self] existing in
+                        self?.promptOverwrite(existing, format: .webp) ?? .cancel
+                    },
+                    progress: { [weak self] current, total, status in
+                        self?.operationProgress?.update(current: current, total: total, status: status)
+                    }
+                )
+                self.operationProgress = nil
+                self.finishExport(result)
+            } catch is CancellationError {
+                self.operationProgress = nil
+                self.statusMessage = "Export cancelled."
+            } catch ExportError.cancelled {
+                self.operationProgress = nil
+                self.statusMessage = "Export cancelled."
+            } catch {
+                self.operationProgress = nil
+                self.statusMessage = "Export failed: \(error.localizedDescription)"
+                self.showAlert(title: "Export Failed", message: error.localizedDescription)
+            }
+        }
+
+        progress.task = task
+        operationProgress = progress
     }
 
     func browseDirectory() {
@@ -110,14 +246,8 @@ class PhotoGridViewModel: ObservableObject {
     /// Adopt a folder the user picked as the new security-scoped root: relinquish
     /// the previous root, bookmark this one for relaunch, and load it.
     private func setRootDirectory(_ url: URL) {
-        if let scopedURL {
-            directoryAccess.relinquish(scopedURL)
-        }
-        scopedURL = url
-        directoryBookmark = directoryAccess.makeBookmark(for: url)
-        directoryPath = url.path
         Task {
-            await loadPhotos()
+            await openDirectory(url)
         }
     }
 
@@ -1526,7 +1656,11 @@ class PhotoGridViewModel: ObservableObject {
         return result
     }
 
-    private func loadSettings() {
+    /// Load persisted preferences. `skipDirectoryRestore` (set for a `-d`/`-e`
+    /// launch) applies every preference *except* reopening the last folder — the
+    /// launch intent owns the directory — while preserving the saved bookmark so
+    /// the next plain launch still restores it (slice 11).
+    private func loadSettings(skipDirectoryRestore: Bool = false) {
         let settings = settingsManager.loadSettings()
 
         // Apply persisted preferences without triggering a debounced re-save.
@@ -1539,7 +1673,7 @@ class PhotoGridViewModel: ObservableObject {
         isTextEditorVisible = settings.isTextEditorVisible
         restoreLastFolderOnLaunch = settings.restoreLastFolderOnLaunch
 
-        guard settings.restoreLastFolderOnLaunch else {
+        guard !skipDirectoryRestore, settings.restoreLastFolderOnLaunch else {
             // Remember the bookmark so it is not wiped by the next save, but do
             // not reopen the folder.
             directoryBookmark = settings.lastDirectoryBookmark

@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS: Launch and Finder integration**: Photonize can now be opened straight into a folder from outside the app, matching the Windows Explorer verbs
+  - `open -a Photonize <folder>`, dragging a folder onto the Dock icon or the app in Finder, and **Open With → Photonize** all navigate to that folder
+  - Command-line flags via `--args`: `-d`/`--directory <folder>` opens a folder *instead of* restoring the last-used one (while keeping thumbnail size, prefix and pane layout), and `-e`/`--export-webp <file…>` exports images straight to WebP and reveals the output folder
+  - Opening images (rather than a folder) navigates to their containing folder and pre-selects them
+  - Two Finder right-click **Services** appear once the app has been launched from `/Applications`: **Open in Photonize** (folders) and **Export to WebP** (images)
+  - **Export to WebP handles the whole selection in one app instance** — an improvement over the Windows verb, which launches one instance per selected file
+  - A folder opened this way is bookmarked, so it still reopens on the next launch under the App Sandbox; unknown arguments (e.g. Xcode's debugger flags) are ignored, and every entry point reuses the existing window rather than opening a second one
 - **macOS: Prompt/caption text editor**: Each image can carry a caption in a `.txt` sidecar file (`photo.jpg` ↔ `photo.txt`) for AI-training workflows, matching Windows
   - The right-hand pane is now an inspector with **Preview** and **Text** tabs (a segmented switch), replacing the Windows two-panes/two-toggles arrangement; the tab you last used is remembered
   - The Text tab loads the selected image's caption, auto-saves as you type (debounced, not per keystroke), and deletes the `.txt` file when you empty it so a trainer never sees a blank caption

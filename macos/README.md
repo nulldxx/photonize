@@ -128,6 +128,48 @@ Right-click on any photo to access:
 - **Tags** - Move tagged images into sub-folders, sort by tag, or clear tags (enabled once something is tagged)
 - **Delete** - Move the photo to Trash
 
+### Opening From Finder and the Command Line
+
+Photonize doesn't have to be launched from the Dock. Any of these open it straight
+into the folder you care about, reusing the existing window rather than opening a
+second one:
+
+- **`open`** — `open -a Photonize ~/Pictures/holiday` navigates to that folder.
+- **Dock / Finder drag** — drop a folder onto the Dock icon or onto the app in
+  Finder.
+- **Open With** — right-click a folder in Finder → **Open With** → **Photonize**.
+- **Command-line flags** (via `--args`):
+  - `open -a Photonize --args -d <folder>` (or `--directory`) opens that folder
+    *instead of* restoring your last-used one — but keeps your thumbnail size,
+    prefix and pane layout.
+  - `open -a Photonize --args -e <file…>` (or `--export-webp`) exports the given
+    images straight to WebP and then reveals the output folder.
+
+  Unknown arguments are ignored, so running under the Xcode debugger (which injects
+  flags such as `-NSDocumentRevisionsDebugMode YES`) is harmless.
+
+Opening a folder this way bookmarks it, so it still reopens on the next launch even
+under the macOS App Sandbox.
+
+### Finder Services
+
+Once Photonize has been launched from `/Applications` at least once, two entries
+appear in Finder's right-click **Services** submenu:
+
+- **Open in Photonize** — on a folder, navigates Photonize to it.
+- **Export to WebP** — on one or more images, exports them all to a `WebP`
+  subfolder. Because Finder hands the whole selection to a single app instance,
+  multi-file export works in one pass — an improvement over the Windows Explorer
+  verb, which launches one app instance per selected file.
+
+If the Services entries don't appear:
+
+- Log out and back in, or run
+  `/System/Library/CoreServices/pbs -flush` in Terminal, to make Launch Services
+  re-scan. Services are only registered once the app is seen in `/Applications`.
+- On some macOS versions Services are off by default. Enable them under
+  **System Settings → Keyboard → Keyboard Shortcuts → Services**.
+
 ## Architecture
 
 The app follows a strict MVVM (Model-View-ViewModel) architecture:
@@ -301,6 +343,8 @@ See the main repository LICENSE file.
 | Image Compare | ✓ | ✓ |
 | Quick Tagging (0-9) | ✓ | ✓ |
 | Tags sidecar (`.photonize-tags.json`) | ✓ | ✓ (shared format) |
+| Open folder from shell / Finder | ✓ (`-d`, Explorer verb) | ✓ (`-d`, `open`, Dock, Service) |
+| Export to WebP from Finder | ✓ (one instance per file) | ✓ (one instance, whole selection) |
 
 ## Credits
 
