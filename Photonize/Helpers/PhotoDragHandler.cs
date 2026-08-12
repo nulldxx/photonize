@@ -1,10 +1,13 @@
 using System.Collections.Specialized;
 using System.IO;
+using System.Reflection;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using GongSolutions.Wpf.DragDrop;
 using Photonize.Models;
 using Photonize.ViewModels;
+using GongDragDrop = GongSolutions.Wpf.DragDrop.DragDrop;
 
 namespace Photonize.Helpers;
 
@@ -102,6 +105,10 @@ public class PhotoDragHandler : DefaultDragHandler
     {
         base.DragDropOperationFinished(operationResult, dragInfo);
 
+        // Must happen before any early return, or a drop into Explorer leaves the drag
+        // thumbnail floating over the desktop for the life of the process.
+        ClearDragPreview();
+
         var items = _draggedItems;
         var handledInternally = _droppedInsidePhotonize;
 
@@ -132,6 +139,44 @@ public class PhotoDragHandler : DefaultDragHandler
                     await viewModel.CompleteExternalMoveAsync(items, targetReportedMove);
                 }
             }));
+    }
+
+    /// <summary>
+    /// Tears down the floating preview gong shows under the cursor during a drag.
+    /// <para>
+    /// gong only does this itself on two paths: when the drop is cancelled, and when it
+    /// lands on one of its own drop targets. A successful drop into Explorer takes
+    /// neither, so the preview popup is orphaned and sits over the desktop until the
+    /// process exits. Dragging out of the window clears the effect preview and the target
+    /// adorner (via its drag-leave handling) but never the preview itself.
+    /// </para>
+    /// <para>
+    /// These are private statics, so reflection is the only way to reach them. Assigning
+    /// null goes through the property setters, which is what closes the popups and
+    /// detaches the adorner. Should a future gong version rename them, the worst case is
+    /// the stray preview comes back - never a crash.
+    /// </para>
+    /// </summary>
+    private static void ClearDragPreview()
+    {
+        foreach (var name in new[] { "DragDropPreview", "DragDropEffectPreview", "DropTargetAdorner" })
+        {
+            try
+            {
+                typeof(GongDragDrop)
+                    .GetProperty(name, BindingFlags.NonPublic | BindingFlags.Static)
+                    ?.SetValue(null, null);
+            }
+            catch
+            {
+                // Cosmetic cleanup - never let it break the drag
+            }
+        }
+
+        // gong forces an arrow cursor while its effect preview is up and only restores it
+        // on the same two paths, so put the cursor back too.
+        if (Mouse.OverrideCursor != null)
+            Mouse.OverrideCursor = null;
     }
 
     /// <summary>
