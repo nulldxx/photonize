@@ -7,6 +7,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using Photonize.Helpers;
 using Photonize.Models;
 using Photonize.Services;
 using Photonize.Views;
@@ -1001,15 +1002,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private bool CanDeletePhoto(PhotoItem? photo)
+    /// <summary>
+    /// Works out what a delete would act on, in the same precedence order the command
+    /// itself uses. The ".." tile is filtered out: it points at the parent directory, so
+    /// deleting it would recursively destroy the folder we are sitting inside.
+    /// </summary>
+    private List<PhotoItem> ResolveItemsToDelete(PhotoItem? photo)
     {
-        // Allow delete if we have a parameter (from context menu) or if we have selected photos
-        return photo != null || SelectedPhoto != null || _selectedPhotos.Count > 0;
-    }
-
-    private void DeletePhoto(PhotoItem? photo)
-    {
-        // Determine which items to delete (both files and folders)
         List<PhotoItem> itemsToDelete = new List<PhotoItem>();
 
         // If there are selected items in the list, delete all of them
@@ -1027,6 +1026,23 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             itemsToDelete.Add(SelectedPhoto);
         }
+
+        return itemsToDelete
+            .Where(item => !DragPayloadBuilder.IsParentNavigationItem(item))
+            .ToList();
+    }
+
+    private bool CanDeletePhoto(PhotoItem? photo)
+    {
+        // Allow delete if we have a parameter (from context menu) or if we have selected
+        // photos - but not when the ".." tile is all there is to act on
+        return ResolveItemsToDelete(photo).Count > 0;
+    }
+
+    private void DeletePhoto(PhotoItem? photo)
+    {
+        // Determine which items to delete (both files and folders)
+        var itemsToDelete = ResolveItemsToDelete(photo);
 
         if (itemsToDelete.Count == 0)
             return;

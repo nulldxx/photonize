@@ -223,6 +223,42 @@ public class SelectDraggableItemsTests
     }
 }
 
+public class ParentNavigationItemTests
+{
+    // This predicate guards a recursive directory delete (MainViewModel.DeletePhoto)
+    // as well as the drag payload, so it is worth pinning down directly.
+
+    [Fact]
+    public void IsTrue_ForTheParentTile()
+    {
+        var tile = new PhotoItem { FilePath = @"C:\photos", FileName = "..", IsFolder = true };
+
+        Assert.True(DragPayloadBuilder.IsParentNavigationItem(tile));
+    }
+
+    [Fact]
+    public void IsFalse_ForARealFolder()
+    {
+        var folder = new PhotoItem { FilePath = @"C:\photos\sub", FileName = "sub", IsFolder = true };
+
+        Assert.False(DragPayloadBuilder.IsParentNavigationItem(folder));
+    }
+
+    [Fact]
+    public void IsFalse_ForAFileOddlyNamedDotDot()
+    {
+        var file = new PhotoItem { FilePath = @"C:\photos\..", FileName = "..", IsFolder = false };
+
+        Assert.False(DragPayloadBuilder.IsParentNavigationItem(file));
+    }
+
+    [Fact]
+    public void IsFalse_ForNull()
+    {
+        Assert.False(DragPayloadBuilder.IsParentNavigationItem(null));
+    }
+}
+
 public class CaptionPathTests
 {
     [Fact]
