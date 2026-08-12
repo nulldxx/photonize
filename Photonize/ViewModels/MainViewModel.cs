@@ -1830,6 +1830,82 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>
+    /// Finishes a drag that ended outside Photonize. Explorer performs an "optimised
+    /// move" - it moves the files itself and hands control back once they have gone -
+    /// so there is nothing to delete here, only to notice and refresh.
+    /// </summary>
+    /// <param name="draggedItems">The items that were offered to the drop target.</param>
+    /// <param name="targetReportedMove">
+    /// True when the target claimed it performed the move. Only a hint about whether to
+    /// refresh: for a large batch Explorer shows its own progress window and can return
+    /// before the files have actually gone.
+    /// </param>
+    public async Task CompleteExternalMoveAsync(List<PhotoItem> draggedItems, bool targetReportedMove)
+    {
+        if (draggedItems == null || draggedItems.Count == 0)
+            return;
+
+        // The filesystem is the only trustworthy account of what happened.
+        var departed = draggedItems.Where(item => !ItemStillExists(item)).ToList();
+        var remained = draggedItems.Count - departed.Count;
+
+        // Nothing left and no claim to the contrary means nothing happened - most
+        // likely a drop we didn't handle. Bail out without reloading, which would
+        // otherwise discard any manual ordering the user has built up.
+        if (departed.Count == 0 && !targetReportedMove)
+            return;
+
+        try
+        {
+            IsLoading = true;
+
+            // Drop the departed items before saving tags, or the reload would write
+            // their digits straight back and a later file of the same name inherits them.
+            if (departed.Count > 0)
+            {
+                foreach (var item in departed)
+                {
+                    Photos.Remove(item);
+                }
+
+                _tagService.Save(DirectoryPath, Photos);
+            }
+
+            await LoadPhotosAsync();
+
+            if (departed.Count == 1)
+            {
+                StatusMessage = $"Moved {departed[0].FileName} out of this folder";
+            }
+            else if (departed.Count > 1)
+            {
+                StatusMessage = $"Moved {departed.Count} item(s) out of this folder";
+            }
+            else
+            {
+                StatusMessage = "Refreshed after moving items out of this folder";
+            }
+
+            if (remained > 0 && departed.Count > 0)
+            {
+                StatusMessage += $" - {remained} item(s) were copied, not moved";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to refresh after the move: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusMessage = "Failed to refresh after the move";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private static bool ItemStillExists(PhotoItem item) =>
+        item.IsFolder ? Directory.Exists(item.FilePath) : File.Exists(item.FilePath);
+
     #region Quick tagging
 
     public bool HasTaggedPhotos => Photos.Any(p => !p.IsFolder && p.Tag.HasValue);

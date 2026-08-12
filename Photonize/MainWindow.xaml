@@ -11,6 +11,7 @@
 
     <Window.Resources>
         <helpers:PhotoDropHandler x:Key="PhotoDropHandler"/>
+        <helpers:PhotoDragHandler x:Key="PhotoDragHandler"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
     </Window.Resources>
 
@@ -175,6 +176,7 @@
                          dd:DragDrop.IsDragSource="True"
                          dd:DragDrop.IsDropTarget="True"
                          dd:DragDrop.DropHandler="{StaticResource PhotoDropHandler}"
+                         dd:DragDrop.DragHandler="{StaticResource PhotoDragHandler}"
                          dd:DragDrop.UseDefaultDragAdorner="True"
                          dd:DragDrop.DefaultDragAdornerOpacity="0.5"
                          IsEnabled="{Binding IsNotLoading}"

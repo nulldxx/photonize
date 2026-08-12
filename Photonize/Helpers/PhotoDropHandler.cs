@@ -19,10 +19,26 @@ public class PhotoDropHandler : IDropTarget
     private const double ScrollMargin = 50.0; // Distance from edge to trigger scroll
     private const double MaxScrollSpeed = 10.0; // Maximum scroll speed per tick
 
+    /// <summary>
+    /// True when the payload is one of our own PhotoItems. Drags leaving Photonize also
+    /// advertise CF_HDROP so Explorer can take the files, and gong resolves its own
+    /// format first - but check explicitly so our own drag can never be mistaken for an
+    /// import of the very files we are exporting.
+    /// </summary>
+    private static bool IsOwnPayload(IDropInfo dropInfo)
+    {
+        if (dropInfo.Data is PhotoItem)
+            return true;
+
+        return dropInfo.Data is IEnumerable items && dropInfo.Data is not string &&
+               items.Cast<object>().FirstOrDefault() is PhotoItem;
+    }
+
     public void DragOver(IDropInfo dropInfo)
     {
         // Check if this is an external file drop from Windows Explorer
-        if (dropInfo.Data is System.Windows.IDataObject dataObject &&
+        if (!IsOwnPayload(dropInfo) &&
+            dropInfo.Data is System.Windows.IDataObject dataObject &&
             dataObject.GetDataPresent(DataFormats.FileDrop))
         {
             // Show insert cursor between photos so the user can choose where to drop
@@ -111,7 +127,8 @@ public class PhotoDropHandler : IDropTarget
             return;
 
         // Check if this is an external file drop from Windows Explorer
-        if (dropInfo.Data is System.Windows.IDataObject dataObject &&
+        if (!IsOwnPayload(dropInfo) &&
+            dropInfo.Data is System.Windows.IDataObject dataObject &&
             dataObject.GetDataPresent(DataFormats.FileDrop))
         {
             var files = dataObject.GetData(DataFormats.FileDrop) as string[];

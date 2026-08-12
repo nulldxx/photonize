@@ -118,10 +118,13 @@ The Windows application follows strict MVVM separation:
 - `FileRenamer` - Implements two-pass atomic rename algorithm (ported from `~/dot-files/scripts/auto-rename`)
 - `SettingsService` - JSON persistence to `%APPDATA%/Photonize/settings.json`
 
-**Drag-and-Drop** (`Helpers/PhotoDropHandler.cs`):
-- Implements `IDropTarget` from GongSolutions.Wpf.DragDrop
+**Drag-and-Drop** (`Helpers/`):
+- `PhotoDropHandler` implements `IDropTarget` from GongSolutions.Wpf.DragDrop — it handles reordering, dropping onto a folder tile (move), and files arriving from Explorer (import)
 - Calls `MainViewModel.UpdateDisplayOrder()` after drop to update PhotoItem.DisplayOrder sequence
 - This order determines final rename sequence
+- `PhotoDragHandler` derives from gong's `DefaultDragHandler` and supplies the outbound payload. One `DataObject` carries **two** payloads: gong's own format (`dragInfo.DataFormat.Name`) so in-app drops are unchanged, and `CF_HDROP` via `SetFileDropList` so Explorer sees real files. `"Preferred DropEffect"` is set to `DROPEFFECT_MOVE` so Explorer defaults to moving rather than copying.
+- **The drag source never deletes anything.** Explorer performs an "optimised move" — the files are already gone by the time `DragDropOperationFinished` runs — so `MainViewModel.CompleteExternalMoveAsync` just checks which paths actually disappeared, prunes their tags and reloads. Deleting on the strength of a reported drop effect would put the user's photos one wrong flag away from being destroyed by an ordinary in-app reorder.
+- `DragPayloadBuilder` holds the pure rules (which files go into the drop list, `.txt` sidecar inclusion, excluding the `..` tile). Keep it **free of `System.Windows` types** — that is what lets `Photonize.Tests` exercise it.
 
 ### Rename Algorithm
 The FileRenamer service uses a critical two-pass strategy to avoid file conflicts:

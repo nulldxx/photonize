@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **macOS: Quick-tag digits (0-9) went to the address bar**: the directory field held keyboard focus, so pressing a digit to tag a selected photo typed into the path instead. The grid now catches its keys with a local event monitor that yields only while a text field is actually being edited, and clicking a photo takes focus off the address/prefix fields.
 
 ### Added
+- **Windows: Drag photos out to File Explorer**: Photos and folders can now be dragged from the grid straight into an Explorer window, which **moves** them there
+  - A photo's `.txt` caption travels with it, so captions are never orphaned
+  - Multi-select drags the whole selection; hold **Ctrl** while dropping to copy instead of move
+  - The `..` tile can't be dragged, so a drag can never hand Explorer the parent folder — and it is filtered out of a mixed selection
+  - The grid refreshes once the files have gone and their quick-tags are pruned from `.photonize-tags.json`
+  - Photonize never deletes the originals itself: it advertises the move and lets Explorer perform it, so a cancelled or misread drop can't lose files. A drop target that only copies leaves the original in place
+
 - **macOS: Launch and Finder integration**: Photonize can now be opened straight into a folder from outside the app, matching the Windows Explorer verbs
   - `open -a Photonize <folder>`, dragging a folder onto the Dock icon or the app in Finder, and **Open With → Photonize** all navigate to that folder
   - Command-line flags via `--args`: `-d`/`--directory <folder>` opens a folder *instead of* restoring the last-used one (while keeping thumbnail size, prefix and pane layout), and `-e`/`--export-webp <file…>` exports images straight to WebP and reveals the output folder

@@ -200,7 +200,7 @@ Move logic:
 
 ## Out of scope
 
-- Dragging photos *out* of Photonize into Finder or another app. Windows does not do this either.
+- Dragging photos *out* of Photonize into Finder or another app. (Windows gained this later; see `13-drag-out-to-finder.md` for the macOS half.)
 - Importing whole folders by dropping them (Windows filters folders out of imports — `1a609d2`).
 - Copy-vs-move choice on import. Windows always copies; matching that avoids a destructive default.
 - Undo. Neither client has it; Trash and the Finder's own undo are the safety net.
