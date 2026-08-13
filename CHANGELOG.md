@@ -16,6 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **macOS: Quick-tag digits (0-9) went to the address bar**: the directory field held keyboard focus, so pressing a digit to tag a selected photo typed into the path instead. The grid now catches its keys with a local event monitor that yields only while a text field is actually being edited, and clicking a photo takes focus off the address/prefix fields.
 
 ### Added
+- **"Send to" context menu (Windows and macOS)**: right-clicking a photo or video now offers **Send to ▸ Front / Back**, moving it within the grid without a drag. This is list position — the order Apply Rename numbers by — not stacking order
+  - **Front** means the first *photo* slot: the `..` tile and any folders keep the top of the grid, so a photo can never be sent above them. **Back** appends to the end
+  - Multi-select moves the whole selection and preserves its relative order at the destination. Right-clicking a tile that is outside the current selection moves that tile alone, as Delete already does
+  - Folder tiles have no Send to menu, and are never moved as part of a mixed selection
+  - Entries disable themselves when the item is already at that end, so no spurious unsaved-changes prompt
+  - As with drag-reordering, a later **Sort by tag** rebuilds the list and discards the move
 - **Windows: Drag photos out to File Explorer**: Photos and folders can now be dragged from the grid straight into an Explorer window, which **moves** them there
   - A photo's `.txt` caption travels with it, so captions are never orphaned
   - Multi-select drags the whole selection; hold **Ctrl** while dropping to copy instead of move

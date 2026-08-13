@@ -513,6 +513,7 @@ struct PhotoContextMenu: View {
         case .video:
             openButton
             showInFinderButton
+            sendToMenu
             tagsMenu
             Divider()
             deleteButton
@@ -522,6 +523,7 @@ struct PhotoContextMenu: View {
             showInFinderButton
             compareButton
             exportMenu
+            sendToMenu
             tagsMenu
             Divider()
             deleteButton
@@ -559,6 +561,24 @@ struct PhotoContextMenu: View {
                     viewModel.exportSelection(photo, as: format)
                 }
             }
+        }
+    }
+
+    /// Send to ▸ Front / Back — list position, not z-order. "Front" is the first
+    /// media slot, below the ".." tile and any folders. Present on images and
+    /// videos, never on folder tiles (which are not movable). Each entry disables
+    /// itself when the item is already at that end.
+    private var sendToMenu: some View {
+        Menu("Send to") {
+            Button("Front") {
+                viewModel.sendTo(.front, photo: photo)
+            }
+            .disabled(!viewModel.canSendTo(.front, photo: photo))
+
+            Button("Back") {
+                viewModel.sendTo(.back, photo: photo)
+            }
+            .disabled(!viewModel.canSendTo(.back, photo: photo))
         }
     }
 
