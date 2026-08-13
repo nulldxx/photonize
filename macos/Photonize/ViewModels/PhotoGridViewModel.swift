@@ -1111,6 +1111,34 @@ class PhotoGridViewModel: ObservableObject {
             : "Tagged \(targetIDs.count) photo(s) with \(digit)"
     }
 
+    /// Send to ▸ Front / Back. "Front" is the first *media* slot, so a photo can
+    /// never land above the ".." tile or a folder; "Back" appends. Selection-aware
+    /// via `dragSet(startingFrom:)`: a right-click on an item outside the current
+    /// selection acts on that item alone, matching Delete on both platforms.
+    /// A genuine reorder, so it arms the unsaved-changes guard.
+    func sendTo(_ edge: SendToEdge, photo: PhotoItem) {
+        let targets = dragSet(startingFrom: photo)
+        guard ListReorder.wouldChangeOrder(photos, moving: targets, to: edge) else { return }
+
+        let moved = ListReorder.sendTo(photos, moving: targets, to: edge)
+        let movedCount = photos.filter { targets.contains($0.id) && !$0.isFolder }.count
+
+        withAnimation(.default) {
+            photos = moved
+        }
+        updateDisplayOrder()
+
+        statusMessage = edge == .front
+            ? "Sent \(movedCount) photo(s) to the front"
+            : "Sent \(movedCount) photo(s) to the back"
+    }
+
+    /// Whether a "Send to" from this tile would do anything — drives the menu
+    /// entries' disabled state so an already-at-the-edge item is not offered.
+    func canSendTo(_ edge: SendToEdge, photo: PhotoItem) -> Bool {
+        ListReorder.wouldChangeOrder(photos, moving: dragSet(startingFrom: photo), to: edge)
+    }
+
     /// Tags ▸ Sort by tag. Folders first, then tagged photos by ascending digit,
     /// then untagged (see `TagSorter`). A genuine reorder, so it arms the
     /// unsaved-changes guard and Apply Rename follows naturally.

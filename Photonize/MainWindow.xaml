@@ -280,6 +280,23 @@
                                                     <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                                         <MenuItem.Header>
                                                             <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="Send to" Margin="0,0,8,0"/>
+                                                                <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                        </MenuItem.Header>
+                                                        <MenuItem.Icon>
+                                                            <TextBlock Text="↕️" FontSize="14"/>
+                                                        </MenuItem.Icon>
+                                                        <MenuItem Header="Front"
+                                                                  Command="{Binding SendToFrontCommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                        <MenuItem Header="Back"
+                                                                  Command="{Binding SendToBackCommand}"
+                                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                    </MenuItem>
+                                                    <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                        <MenuItem.Header>
+                                                            <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="Tags" Margin="0,0,8,0"/>
                                                                 <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
                                                             </StackPanel>
@@ -317,6 +334,23 @@
                                                                 <MenuItem.Icon>
                                                                     <TextBlock Text="📁" FontSize="14"/>
                                                                 </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                <MenuItem.Header>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="Send to" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    </StackPanel>
+                                                                </MenuItem.Header>
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="↕️" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                                <MenuItem Header="Front"
+                                                                          Command="{Binding SendToFrontCommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                                <MenuItem Header="Back"
+                                                                          Command="{Binding SendToBackCommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                             </MenuItem>
                                                             <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                                                 <MenuItem.Header>

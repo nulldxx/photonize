@@ -90,6 +90,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         MoveTaggedToFoldersCommand = new RelayCommand(async () => await MoveTaggedToFoldersAsync(), () => HasTaggedPhotos);
         SortByTagCommand = new RelayCommand(SortByTag, () => HasTaggedPhotos);
         ClearTagsCommand = new RelayCommand(ClearTags, () => HasTaggedPhotos);
+        SendToFrontCommand = new RelayCommand<PhotoItem?>(photo => SendTo(photo, SendToEdge.Front), photo => CanSendTo(photo, SendToEdge.Front));
+        SendToBackCommand = new RelayCommand<PhotoItem?>(photo => SendTo(photo, SendToEdge.Back), photo => CanSendTo(photo, SendToEdge.Back));
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -470,6 +472,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         _selectedPhotos = selectedItems?.ToList() ?? new List<PhotoItem>();
         ((RelayCommand<PhotoItem?>)DeletePhotoCommand).RaiseCanExecuteChanged();
+        RaiseSendToCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportWebPCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportPNGCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)ExportJPGCommand).RaiseCanExecuteChanged();
@@ -501,6 +504,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand MoveTaggedToFoldersCommand { get; }
     public ICommand SortByTagCommand { get; }
     public ICommand ClearTagsCommand { get; }
+    public ICommand SendToFrontCommand { get; }
+    public ICommand SendToBackCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -1965,6 +1970,75 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         StatusMessage = clearing
             ? $"Cleared tag from {targets.Count} photo(s)"
             : $"Tagged {targets.Count} photo(s) with {digit}";
+    }
+
+    /// <summary>
+    /// Works out which tiles a "Send to" acts on. A right-click does not change the WPF
+    /// selection, so the clicked tile is only treated as part of a multi-item move when
+    /// it is actually inside the current selection; otherwise it moves on its own.
+    /// Folder tiles (including "..") are never moved.
+    /// </summary>
+    private List<PhotoItem> ResolveItemsToSend(PhotoItem? photo)
+    {
+        List<PhotoItem> targets;
+
+        if (photo != null && _selectedPhotos.Contains(photo))
+        {
+            targets = _selectedPhotos.ToList();
+        }
+        else if (photo != null)
+        {
+            targets = new List<PhotoItem> { photo };
+        }
+        else
+        {
+            targets = _selectedPhotos.Count > 0
+                ? _selectedPhotos.ToList()
+                : (SelectedPhoto != null ? new List<PhotoItem> { SelectedPhoto } : new List<PhotoItem>());
+        }
+
+        return targets.Where(item => item != null && !item.IsFolder).ToList();
+    }
+
+    private bool CanSendTo(PhotoItem? photo, SendToEdge edge)
+    {
+        var targets = ResolveItemsToSend(photo);
+        return targets.Count > 0 && ListReorder.WouldChangeOrder(Photos.ToList(), targets, edge);
+    }
+
+    private void SendTo(PhotoItem? photo, SendToEdge edge)
+    {
+        var targets = ResolveItemsToSend(photo);
+        if (targets.Count == 0)
+            return;
+
+        var reordered = ListReorder.SendTo(Photos.ToList(), targets, edge);
+
+        // Clear the selection before the collection, so SelectionChanged can't
+        // repopulate it while the rebuild is half done (same ordering as SortByTag)
+        _selectedPhotos.Clear();
+        SelectedPhoto = null;
+
+        // Rebuild the collection in place (same idiom as SortByTag)
+        Photos.Clear();
+        foreach (var item in reordered)
+        {
+            Photos.Add(item);
+        }
+
+        // A send-to is a genuine reorder, so let it mark unsaved changes
+        UpdateDisplayOrder();
+        RaiseSendToCanExecuteChanged();
+
+        StatusMessage = edge == SendToEdge.Front
+            ? $"Sent {targets.Count} photo(s) to the front"
+            : $"Sent {targets.Count} photo(s) to the back";
+    }
+
+    private void RaiseSendToCanExecuteChanged()
+    {
+        ((RelayCommand<PhotoItem?>)SendToFrontCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)SendToBackCommand).RaiseCanExecuteChanged();
     }
 
     private void SortByTag()
