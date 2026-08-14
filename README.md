@@ -136,6 +136,9 @@ See [`macos/README.md`](macos/README.md) for full macOS documentation.
 - BMP (.bmp)
 - GIF (.gif)
 - TIFF (.tif, .tiff)
+- Adobe DNG (.dng) — shown from the JPEG preview embedded in the file, so both
+  uncompressed and compressed raw appear. DNGs can be browsed, reordered, tagged
+  and renamed, but not exported, upscaled or auto-captioned.
 
 ## Keyboard Shortcuts
 

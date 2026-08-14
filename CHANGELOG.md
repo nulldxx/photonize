@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Adobe DNG support (Windows and macOS)**: `.dng` files now appear in the grid and behave like any other photo — drag, reorder, tag, rename, move between folders and drag out to Explorer/Finder
+  - **Photonize shows the JPEG preview embedded in the DNG, not a render of the raw sensor data** — the same image Explorer, Finder and Lightroom's grid display. Because every practical DNG carries that preview, this covers uncompressed and compressed raw with one code path, at JPEG speed, and a folder of 60 MP files scrolls as smoothly as one of JPEGs
+  - Portrait shots come out upright: a DNG stores its preview in the raw image's own orientation, which is read and applied
+  - This also un-hides Topaz Photo AI's own output. Topaz converts RAW input to DNG, so results produced through Photonize's PhotoAI Upscale previously vanished from the grid
+  - **DNGs are deliberately kept out of Export (WebP/PNG/JPG), PhotoAI Upscale and Auto-caption**, none of which can read a raw file. Their right-click menu omits those entries, and a mixed selection exports the ordinary images and reports the DNGs as skipped rather than failing them
+  - A DNG that carries no usable preview shows a broken-image tile instead of the blank one that any undecodable image used to leave behind
+  - Windows reads the preview itself rather than relying on a codec being registered, so a DNG looks the same on every machine whether or not Microsoft's Raw Image Extension is installed
+  - Other vendors' raw formats (CR2, NEF, ARW) are not claimed, so the Windows and macOS grids agree on what a folder contains
+
 ### Changed
 - **macOS: Removed the App Sandbox**: Photonize is distributed as a GitHub DMG, not through the Mac App Store, so the sandbox was only ever a liability. Without a paid Developer ID its security-scoped bookmarks could not be validated against a stable code-signing identity, so restoring the last folder, "Open With" on a folder, the Finder "Open in Photonize" service, and dragging files in all failed under the ad-hoc signature — the app had to be pointed at every folder through Browse… each launch. The app now opens any folder the user navigates to directly. The hardened runtime stays enabled (what notarization needs). This fixes: last-folder restore on launch; "Open With Photonize" / Dock / `open -a` / the Finder service on a folder; and drag-to-import.
 

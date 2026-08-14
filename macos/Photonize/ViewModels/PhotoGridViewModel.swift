@@ -184,11 +184,19 @@ class PhotoGridViewModel: ObservableObject {
     /// folder as the scoped root, runs the batch behind the progress sheet, then
     /// reveals the WebP output folder (via `finishExport`).
     func exportFilesToWebP(_ urls: [URL]) async {
+        // Raw is excluded: the Finder Service is offered on anything conforming to
+        // public.image, which includes DNG, but nothing downstream can encode one.
         let images = urls.filter {
-            thumbnailGenerator.isImageFile($0) && FileManager.default.fileExists(atPath: $0.path)
+            thumbnailGenerator.isImageFile($0)
+                && !thumbnailGenerator.isRawFile($0)
+                && FileManager.default.fileExists(atPath: $0.path)
         }
         guard let first = images.first else {
-            showAlert(title: "No Images", message: "No supported image files found in the selection.")
+            showAlert(
+                title: "No Images",
+                message: urls.contains(where: thumbnailGenerator.isRawFile)
+                    ? "Raw files cannot be exported."
+                    : "No supported image files found in the selection.")
             return
         }
 
@@ -382,7 +390,8 @@ class PhotoGridViewModel: ObservableObject {
                     displayOrder: displayOrder,
                     isFolder: false,
                     thumbnail: nil,
-                    isVideo: thumbnailGenerator.isVideoFile(mediaFile)
+                    isVideo: thumbnailGenerator.isVideoFile(mediaFile),
+                    isRaw: thumbnailGenerator.isRawFile(mediaFile)
                 )
                 newPhotos.append(photoItem)
                 displayOrder += 1
@@ -690,13 +699,13 @@ class PhotoGridViewModel: ObservableObject {
             }
         }
 
-        // The image exporter can't read a video, so drop videos from a mixed
-        // selection and report them as skipped rather than failing each clip.
-        let (imageSources, skippedVideos) = Self.partitionExportSources(sources)
+        // The image exporter can read neither a video nor a raw file, so drop both
+        // from a mixed selection and report them as skipped rather than failing each.
+        let (imageSources, unsupported) = Self.partitionExportSources(sources)
 
         guard !imageSources.isEmpty else {
-            statusMessage = skippedVideos > 0
-                ? "Nothing to export — \(skippedVideos) video(s) can't be exported."
+            statusMessage = unsupported > 0
+                ? "Nothing to export — \(unsupported) video or raw file(s) can't be exported."
                 : "No images to export."
             return
         }
@@ -723,7 +732,7 @@ class PhotoGridViewModel: ObservableObject {
                     }
                 )
                 self.operationProgress = nil
-                self.finishExport(result, skippedVideos: skippedVideos)
+                self.finishExport(result, unsupported: unsupported)
             } catch is CancellationError {
                 self.operationProgress = nil
                 self.statusMessage = "Export cancelled."
@@ -741,11 +750,11 @@ class PhotoGridViewModel: ObservableObject {
         operationProgress = progress
     }
 
-    /// Split export sources into the images the exporter can handle and the count
-    /// of videos to report as skipped. Static and pure so slice 12 can assert the
-    /// mixed-selection rule without driving the whole export.
-    nonisolated static func partitionExportSources(_ sources: [PhotoItem]) -> (images: [PhotoItem], skippedVideos: Int) {
-        let images = sources.filter { !$0.isVideo }
+    /// Split export sources into the images the exporter can handle and the count of
+    /// videos and raw files to report as skipped. Static and pure so slice 12 can
+    /// assert the mixed-selection rule without driving the whole export.
+    nonisolated static func partitionExportSources(_ sources: [PhotoItem]) -> (images: [PhotoItem], unsupported: Int) {
+        let images = sources.filter { !$0.isVideo && !$0.isRaw }
         return (images, sources.count - images.count)
     }
 
@@ -762,6 +771,7 @@ class PhotoGridViewModel: ObservableObject {
             .filter { url in
                 (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == false
                     && thumbnailGenerator.isImageFile(url)
+                    && !thumbnailGenerator.isRawFile(url)
             }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { PhotoItem(filePath: $0, fileName: $0.lastPathComponent, displayOrder: 0, isFolder: false, thumbnail: nil) }
@@ -796,11 +806,11 @@ class PhotoGridViewModel: ObservableObject {
 
     /// Report the counts and, when anything was written, navigate into the output
     /// folder to reveal the result (Windows reloads to the same end).
-    private func finishExport(_ result: ExportResult, skippedVideos: Int = 0) {
+    private func finishExport(_ result: ExportResult, unsupported: Int = 0) {
         var parts: [String] = []
         if result.exported > 0 { parts.append("\(result.exported) exported") }
         if result.skipped > 0 { parts.append("\(result.skipped) skipped") }
-        if skippedVideos > 0 { parts.append("\(skippedVideos) video(s) skipped") }
+        if unsupported > 0 { parts.append("\(unsupported) video or raw file(s) skipped") }
         if !result.failed.isEmpty { parts.append("\(result.failed.count) failed") }
         statusMessage = parts.isEmpty ? "Nothing to export." : "Export complete: " + parts.joined(separator: ", ")
 

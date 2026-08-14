@@ -24,6 +24,10 @@ A macOS desktop application for visually organizing and batch-renaming photograp
 
 **Images:** JPG, JPEG, PNG, BMP, GIF, TIFF, WebP, HEIC, HEIF
 
+**Raw:** Adobe DNG — shown from the JPEG preview embedded in the file, so both
+uncompressed and compressed raw appear. DNGs can be browsed, reordered, tagged and
+renamed, but not exported.
+
 **Videos:** MP4, MOV, M4V — decoded natively by AVFoundation, no FFmpeg required
 
 ## Installation

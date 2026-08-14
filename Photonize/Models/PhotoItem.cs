@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
+using Photonize.Services;
 
 namespace Photonize.Models;
 
@@ -9,7 +10,7 @@ public class PhotoItem : INotifyPropertyChanged
 {
     private string _filePath = string.Empty;
     private string _fileName = string.Empty;
-    private BitmapImage? _thumbnail;
+    private BitmapSource? _thumbnail;
     private int _displayOrder;
     private bool _isFolder;
     private int? _tag;
@@ -34,7 +35,7 @@ public class PhotoItem : INotifyPropertyChanged
         }
     }
 
-    public BitmapImage? Thumbnail
+    public BitmapSource? Thumbnail
     {
         get => _thumbnail;
         set
@@ -84,10 +85,13 @@ public class PhotoItem : INotifyPropertyChanged
 
     public string Extension => IsFolder ? string.Empty : Path.GetExtension(FilePath);
 
-    public bool IsVideo => !IsFolder &&
-        (Extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
-         Extension.Equals(".mov", StringComparison.OrdinalIgnoreCase) ||
-         Extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase));
+    public bool IsVideo => !IsFolder && ThumbnailGenerator.IsVideoFile(FilePath);
+
+    /// <summary>
+    /// A raw file (DNG). Shown from its embedded JPEG preview, and kept out of the
+    /// export, PhotoAI and auto-caption paths, none of which can read raw.
+    /// </summary>
+    public bool IsRaw => !IsFolder && ThumbnailGenerator.IsRawFile(FilePath);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -5,11 +5,22 @@ import ImageIO
 import UniformTypeIdentifiers
 
 class ThumbnailGenerator {
-    private static let supportedExtensions = ["jpg", "jpeg", "png", "bmp", "gif", "tiff", "tif", "webp", "heic", "heif"]
+    private static let supportedExtensions = ["jpg", "jpeg", "png", "bmp", "gif", "tiff", "tif", "webp", "heic", "heif", "dng"]
+    /// Raw formats, shown from the JPEG preview embedded in the file rather than by
+    /// demosaicing the sensor data. A subset of `supportedExtensions`. Deliberately
+    /// narrow: ImageIO reads plenty of other raw formats, but the Windows client only
+    /// understands DNG's preview layout and the two grids should agree on what a
+    /// folder contains.
+    private static let rawExtensions = ["dng"]
     /// The Windows three. AVFoundation decodes these natively on every supported
     /// Mac, so — unlike Windows — no FFmpeg is required. Deliberately narrow: a
     /// `.mkv` AVFoundation can't decode would just show a broken tile.
     private static let videoExtensions = ["mp4", "mov", "m4v"]
+
+    /// The largest edge we will render a raw preview at. The sensor dimensions of a
+    /// modern DNG run to 8000 px and asking ImageIO for that many pixels demosaics the
+    /// whole frame; the embedded preview is smaller than this in practice anyway.
+    private static let rawPreviewMaxDimension = 2560
 
     /// Shared across instances (PreviewPane spins up its own generator) and keyed
     /// by `path|mtime|size`: the mtime component re-renders an edited file, the
@@ -26,6 +37,13 @@ class ThumbnailGenerator {
         return Self.supportedExtensions.contains(ext)
     }
 
+    /// A raw file (DNG). Still an image — it belongs in the grid and in a rename — but
+    /// decoded from its embedded preview, and kept out of export.
+    func isRawFile(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return Self.rawExtensions.contains(ext)
+    }
+
     func isVideoFile(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         return Self.videoExtensions.contains(ext)
@@ -39,9 +57,10 @@ class ThumbnailGenerator {
 
     func generateThumbnail(for url: URL, maxSize: Int) async -> NSImage? {
         let isVideo = isVideoFile(url)
+        let isRaw = isRawFile(url)
         // Keep the key a Swift `String` (Sendable) across the closure boundary and
         // bridge to `NSString` only at the cache calls.
-        let key = Self.cacheKey(for: url, size: maxSize, isVideo: isVideo)
+        let key = Self.cacheKey(for: url, size: maxSize, isVideo: isVideo, isRaw: isRaw)
         if let cached = Self.cache.object(forKey: key as NSString) {
             return cached
         }
@@ -57,7 +76,12 @@ class ThumbnailGenerator {
 
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let thumbnail = Self.decodeThumbnail(url: url, maxSize: maxSize)
+                var thumbnail = Self.decodeThumbnail(url: url, maxSize: maxSize, isRaw: isRaw)
+                // A raw file no codec on this Mac could read gets a placeholder rather
+                // than the permanently blank tile other image failures leave behind.
+                if thumbnail == nil, isRaw {
+                    thumbnail = Self.brokenImagePlaceholder(maxSize: maxSize)
+                }
                 if let thumbnail {
                     Self.cache.setObject(thumbnail, forKey: key as NSString)
                 }
@@ -67,9 +91,10 @@ class ThumbnailGenerator {
     }
 
     func generatePreview(for url: URL) async -> NSImage? {
+        let isRaw = isRawFile(url)
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: Self.decodeOrientedFull(url: url))
+                continuation.resume(returning: Self.decodeOrientedFull(url: url, isRaw: isRaw))
             }
         }
     }
@@ -88,24 +113,25 @@ class ThumbnailGenerator {
 
     /// Downscaled decode via ImageIO. Never materialises the full image, reuses an
     /// embedded thumbnail when one is large enough, and applies EXIF orientation.
-    private static func decodeThumbnail(url: URL, maxSize: Int) -> NSImage? {
-        let opts: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxSize,
-            kCGImageSourceCreateThumbnailWithTransform: true,   // honours EXIF orientation
-            kCGImageSourceShouldCacheImmediately: true,
-        ]
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
-        else { return nil }
-        return NSImage(cgImage: cg, size: .zero)
+    private static func decodeThumbnail(url: URL, maxSize: Int, isRaw: Bool) -> NSImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+
+        if isRaw,
+           let cg = decode(src, maxSize: maxSize, fromImageAlways: false),
+           // A few DNGs only expose a 160 px thumbnail; render properly rather than
+           // blowing that up into a blurred tile.
+           max(cg.width, cg.height) >= maxSize / 2 {
+            return NSImage(cgImage: cg, size: .zero)
+        }
+
+        return decode(src, maxSize: maxSize, fromImageAlways: true).map { NSImage(cgImage: $0, size: .zero) }
     }
 
     /// Full-resolution decode for the preview pane, with EXIF orientation applied.
     /// Uses ImageIO with the transform flag but no downscale so a sideways phone
     /// photo appears upright; falls back to `NSImage(contentsOf:)` if ImageIO
     /// cannot read the file.
-    private static func decodeOrientedFull(url: URL) -> NSImage? {
+    private static func decodeOrientedFull(url: URL, isRaw: Bool) -> NSImage? {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return NSImage(contentsOf: url)
         }
@@ -114,20 +140,38 @@ class ThumbnailGenerator {
         let pixelWidth = props?[kCGImagePropertyPixelWidth] as? Int ?? 0
         let pixelHeight = props?[kCGImagePropertyPixelHeight] as? Int ?? 0
 
-        var opts: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-        ]
-        let maxDimension = max(pixelWidth, pixelHeight)
-        if maxDimension > 0 {
-            opts[kCGImageSourceThumbnailMaxPixelSize] = maxDimension
+        // For raw those properties describe the sensor, so asking for that many pixels
+        // would demosaic the whole frame — cap the request and take the preview.
+        var maxDimension = max(pixelWidth, pixelHeight)
+        if isRaw {
+            maxDimension = maxDimension > 0
+                ? min(maxDimension, rawPreviewMaxDimension)
+                : rawPreviewMaxDimension
         }
 
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else {
+        guard let cg = decode(src, maxSize: maxDimension, fromImageAlways: !isRaw) else {
             return NSImage(contentsOf: url)
         }
         return NSImage(cgImage: cg, size: .zero)
+    }
+
+    /// One ImageIO thumbnail request.
+    ///
+    /// `fromImageAlways` is the difference between the two decode strategies. For an
+    /// ordinary photo it must stay on, or ImageIO hands back the tiny low-quality EXIF
+    /// thumbnail. For raw it must be off, so ImageIO serves the full JPEG preview the
+    /// DNG embeds instead of demosaicing the sensor for every tile in the grid.
+    private static func decode(_ src: CGImageSource, maxSize: Int, fromImageAlways: Bool) -> CGImage? {
+        var opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailWithTransform: true,   // honours EXIF orientation
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        opts[fromImageAlways ? kCGImageSourceCreateThumbnailFromImageAlways
+                             : kCGImageSourceCreateThumbnailFromImageIfAbsent] = true
+        if maxSize > 0 {
+            opts[kCGImageSourceThumbnailMaxPixelSize] = maxSize
+        }
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
     }
 
     // MARK: - Video
@@ -179,6 +223,16 @@ class ThumbnailGenerator {
     /// A drawn "broken video" tile for a clip AVFoundation cannot decode (e.g. a
     /// text file renamed to `.mp4`), mirroring the Windows placeholder.
     private static func brokenVideoPlaceholder(maxSize: Int) -> NSImage {
+        placeholder(symbol: "video.slash", label: "Unplayable video", maxSize: maxSize)
+    }
+
+    /// The same tile for an image no codec could read. Raw is what usually lands here:
+    /// a DNG with no embedded preview, on a Mac whose ImageIO cannot demosaic it.
+    private static func brokenImagePlaceholder(maxSize: Int) -> NSImage {
+        placeholder(symbol: "exclamationmark.triangle", label: "Unreadable image", maxSize: maxSize)
+    }
+
+    private static func placeholder(symbol name: String, label: String, maxSize: Int) -> NSImage {
         let side = CGFloat(max(64, maxSize))
         let image = NSImage(size: NSSize(width: side, height: side))
         image.lockFocus()
@@ -186,7 +240,7 @@ class ThumbnailGenerator {
         NSRect(x: 0, y: 0, width: side, height: side).fill()
 
         let config = NSImage.SymbolConfiguration(pointSize: side * 0.4, weight: .regular)
-        if let symbol = NSImage(systemSymbolName: "video.slash", accessibilityDescription: "Unplayable video")?
+        if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: label)?
             .withSymbolConfiguration(config) {
             let symbolSize = symbol.size
             let origin = NSPoint(x: (side - symbolSize.width) / 2, y: (side - symbolSize.height) / 2)
@@ -200,12 +254,12 @@ class ThumbnailGenerator {
     // MARK: - Cache key
 
     /// Internal rather than private so slice 12's tests can assert the key
-    /// changes with mtime and size. The `isVideo` component keeps a video frame
-    /// and an image of the same path/size in distinct slots.
-    static func cacheKey(for url: URL, size: Int, isVideo: Bool = false) -> String {
+    /// changes with mtime and size. The `isVideo`/`isRaw` components keep a video
+    /// frame, a raw preview and an image of the same path/size in distinct slots.
+    static func cacheKey(for url: URL, size: Int, isVideo: Bool = false, isRaw: Bool = false) -> String {
         let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
         let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        let kind = isVideo ? "v" : "i"
+        let kind = isVideo ? "v" : (isRaw ? "r" : "i")
         return "\(url.path)|\(mtime)|\(size)|\(kind)"
     }
 }

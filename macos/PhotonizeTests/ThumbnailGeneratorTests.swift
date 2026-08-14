@@ -52,6 +52,73 @@ final class ThumbnailGeneratorTests: XCTestCase {
         XCTAssertFalse(generator.isMediaFile(URL(fileURLWithPath: "/tmp/a.mkv")))
     }
 
+    /// A DNG is an image for every purpose except export: it must enumerate into the
+    /// grid and be renamed alongside the JPEGs, while also reporting as raw so the
+    /// decode path takes the embedded preview and Export stays off its menu.
+    func testIsRawFileRecognizesDng() {
+        let generator = ThumbnailGenerator()
+        for name in ["shot.dng", "shot.DNG", "shot.DnG"] {
+            let url = URL(fileURLWithPath: "/tmp/\(name)")
+            XCTAssertTrue(generator.isRawFile(url), "\(name) should be recognised as raw")
+            XCTAssertTrue(generator.isImageFile(url), "\(name) should still be an image")
+            XCTAssertTrue(generator.isMediaFile(url), "\(name) should enumerate into the grid")
+            XCTAssertFalse(generator.isVideoFile(url))
+        }
+
+        // Other vendors' raw formats are not claimed — the Windows client only reads
+        // DNG's preview layout, and the two grids must agree on a folder's contents.
+        for name in ["photo.jpg", "photo.tiff", "photo.heic", "shot.cr2", "shot.nef", "shot.arw"] {
+            XCTAssertFalse(generator.isRawFile(URL(fileURLWithPath: "/tmp/\(name)")),
+                           "\(name) should not be recognised as raw")
+        }
+    }
+
+    /// A raw preview and a normal decode of the same file at the same size must not
+    /// share a cache slot, as video and image already do not.
+    func testCacheKeyDistinguishesRaw() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("photonize-raw-\(UUID().uuidString).dng")
+        try "not a real dng".write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let image = ThumbnailGenerator.cacheKey(for: url, size: 200)
+        let raw = ThumbnailGenerator.cacheKey(for: url, size: 200, isRaw: true)
+        let video = ThumbnailGenerator.cacheKey(for: url, size: 200, isVideo: true)
+
+        XCTAssertNotEqual(image, raw)
+        XCTAssertNotEqual(video, raw)
+    }
+
+    /// The kind drives the context menu, so a DNG must classify as `.raw` (Export
+    /// omitted) rather than `.image`, while folders still win over everything.
+    func testPhotoItemKindForRaw() {
+        let raw = PhotoItem(filePath: URL(fileURLWithPath: "/tmp/a.dng"), fileName: "a.dng",
+                            displayOrder: 0, isFolder: false, thumbnail: nil, isRaw: true)
+        let image = PhotoItem(filePath: URL(fileURLWithPath: "/tmp/a.jpg"), fileName: "a.jpg",
+                              displayOrder: 0, isFolder: false, thumbnail: nil)
+
+        XCTAssertEqual(raw.kind, .raw)
+        XCTAssertEqual(image.kind, .image)
+    }
+
+    /// Raw files are dropped from a mixed export selection and counted as skipped,
+    /// exactly as videos are — ImageExporter can read neither.
+    func testExportPartitionSkipsRaw() {
+        let sources = [
+            PhotoItem(filePath: URL(fileURLWithPath: "/tmp/a.jpg"), fileName: "a.jpg",
+                      displayOrder: 0, isFolder: false, thumbnail: nil),
+            PhotoItem(filePath: URL(fileURLWithPath: "/tmp/b.dng"), fileName: "b.dng",
+                      displayOrder: 1, isFolder: false, thumbnail: nil, isRaw: true),
+            PhotoItem(filePath: URL(fileURLWithPath: "/tmp/c.mp4"), fileName: "c.mp4",
+                      displayOrder: 2, isFolder: false, thumbnail: nil, isVideo: true),
+        ]
+
+        let (images, unsupported) = PhotoGridViewModel.partitionExportSources(sources)
+
+        XCTAssertEqual(images.map { $0.fileName }, ["a.jpg"])
+        XCTAssertEqual(unsupported, 2)
+    }
+
     /// The thumbnail frame time is 0.1 s for a very short clip (where 1 s would be
     /// at or past the end) and 1 s for a normal one — matching Windows.
     func testVideoThumbnailTimestamp() {

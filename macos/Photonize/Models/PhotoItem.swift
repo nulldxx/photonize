@@ -8,6 +8,9 @@ import SwiftUI
 enum PhotoKind {
     case image
     case video
+    /// A raw file (DNG). An image for every purpose except export, which cannot
+    /// read one.
+    case raw
     case folder
     case parent  // the ".." navigation tile
 }
@@ -23,6 +26,10 @@ struct PhotoItem: Identifiable, Equatable {
     /// the synthesized memberwise initializer usable by the many call sites that
     /// only ever construct images or folders.
     var isVideo: Bool = false
+    /// Set at enumeration time from the file extension, like `isVideo`. Raw files are
+    /// shown from the JPEG preview embedded in them rather than decoded from sensor
+    /// data, and are excluded from export.
+    var isRaw: Bool = false
     /// Quick-tag digit 0-9 the user applied, or nil when untagged (slice 10). A
     /// default keeps the synthesized initializer usable at the many call sites
     /// that build plain images and folders.
@@ -38,7 +45,8 @@ struct PhotoItem: Identifiable, Equatable {
         if isFolder {
             return fileName == ".." ? .parent : .folder
         }
-        return isVideo ? .video : .image
+        if isVideo { return .video }
+        return isRaw ? .raw : .image
     }
 
     /// Value equality across every rendered field, not just `id`. SwiftUI uses
@@ -56,6 +64,7 @@ struct PhotoItem: Identifiable, Equatable {
             && lhs.displayOrder == rhs.displayOrder
             && lhs.isFolder == rhs.isFolder
             && lhs.isVideo == rhs.isVideo
+            && lhs.isRaw == rhs.isRaw
             && lhs.tag == rhs.tag
             && lhs.thumbnail === rhs.thumbnail
     }

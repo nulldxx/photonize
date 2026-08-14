@@ -14,7 +14,7 @@ public partial class ImageCompareControl : UserControl
         SizeChanged += ImageCompareControl_SizeChanged;
     }
 
-    public void SetImages(BitmapImage imageA, BitmapImage imageB, string labelA, string labelB)
+    public void SetImages(BitmapSource imageA, BitmapSource imageB, string labelA, string labelB)
     {
         ImageA.Source = imageA;
         ImageB.Source = imageB;

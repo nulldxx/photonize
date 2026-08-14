@@ -56,8 +56,8 @@ final class VideoSupportTests: XCTestCase {
             sources.append(PhotoItem(filePath: url, fileName: url.lastPathComponent, displayOrder: 3 + i, isFolder: false, thumbnail: nil, isVideo: true))
         }
 
-        let (images, skippedVideos) = PhotoGridViewModel.partitionExportSources(sources)
-        XCTAssertEqual(skippedVideos, 2, "both videos should be skipped")
+        let (images, unsupported) = PhotoGridViewModel.partitionExportSources(sources)
+        XCTAssertEqual(unsupported, 2, "both videos should be skipped")
         XCTAssertEqual(images.count, 3)
         XCTAssertTrue(images.allSatisfy { !$0.isVideo })
 

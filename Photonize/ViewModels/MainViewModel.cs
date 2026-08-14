@@ -36,7 +36,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private List<PhotoItem> _selectedPhotos = new List<PhotoItem>();
     private bool _isPreviewVisible = false;
     private PhotoItem? _previewPhoto;
-    private BitmapImage? _previewImage;
+    private BitmapSource? _previewImage;
     private bool _hasUnsavedChanges = false;
     private bool _suppressUnsavedChanges = false;
     private bool _isVideoPlaying = false;
@@ -237,7 +237,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public BitmapImage? PreviewImage
+    public BitmapSource? PreviewImage
     {
         get => _previewImage;
         set
@@ -1345,24 +1345,42 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         compareWindow.Show();
     }
 
+    /// <summary>
+    /// The photos an export should actually run over: the current selection, or the
+    /// right-clicked item as a fallback. Folders, videos and raw files are dropped —
+    /// ImageSharp can read none of them, so passing them along would only fill the
+    /// result with failures.
+    /// </summary>
+    private List<PhotoItem> BuildExportSelection(PhotoItem? photo, out int skippedCount)
+    {
+        var candidates = _selectedPhotos.Count > 0
+            ? _selectedPhotos.ToList()
+            : photo != null
+                ? new List<PhotoItem> { photo }
+                : new List<PhotoItem>();
+
+        var exportable = candidates.Where(p => !p.IsFolder && !p.IsVideo && !p.IsRaw).ToList();
+        skippedCount = candidates.Count(p => !p.IsFolder) - exportable.Count;
+        return exportable;
+    }
+
+    /// <summary>Appends a note about files the export could not take, if there were any.</summary>
+    private static string WithSkippedNote(string message, int skippedCount) =>
+        skippedCount == 0
+            ? message
+            : $"{message}\n\n{skippedCount} video or raw file{(skippedCount == 1 ? "" : "s")} skipped — " +
+              "these formats cannot be exported.";
+
     private async Task ExportToWebPAsync(PhotoItem? photo)
     {
-        // Determine which photos to export
-        List<PhotoItem> photosToExport = new List<PhotoItem>();
-
-        // If there are selected photos in the list, export all of them (excluding folders)
-        if (_selectedPhotos.Count > 0)
-        {
-            photosToExport.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
-        }
-        // Otherwise export the single photo from context menu (fallback for right-click without selection)
-        else if (photo != null && !photo.IsFolder)
-        {
-            photosToExport.Add(photo);
-        }
+        var photosToExport = BuildExportSelection(photo, out var skippedCount);
 
         if (photosToExport.Count == 0)
+        {
+            if (skippedCount > 0)
+                StatusMessage = WithSkippedNote("Nothing to export.", skippedCount);
             return;
+        }
 
         // Check for existing files and ask about overwriting BEFORE showing progress dialog
         Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
@@ -1432,7 +1450,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             // Run the export operation
-            var (success, message) = await _webpExporter.ExportToWebPAsync(
+            var (success, exportMessage) = await _webpExporter.ExportToWebPAsync(
                 photosToExport,
                 DirectoryPath,
                 overwriteCallback,
@@ -1442,6 +1460,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Close the progress dialog
             progressDialog.Close();
 
+            var message = WithSkippedNote(exportMessage, skippedCount);
             StatusMessage = message;
 
             // Show result
@@ -1482,22 +1501,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task ExportToFormatAsync(PhotoItem? photo, ImageFormat format)
     {
-        // Determine which photos to export
-        List<PhotoItem> photosToExport = new List<PhotoItem>();
-
-        // If there are selected photos in the list, export all of them (excluding folders)
-        if (_selectedPhotos.Count > 0)
-        {
-            photosToExport.AddRange(_selectedPhotos.Where(p => !p.IsFolder));
-        }
-        // Otherwise export the single photo from context menu (fallback for right-click without selection)
-        else if (photo != null && !photo.IsFolder)
-        {
-            photosToExport.Add(photo);
-        }
+        var photosToExport = BuildExportSelection(photo, out var skippedCount);
 
         if (photosToExport.Count == 0)
+        {
+            if (skippedCount > 0)
+                StatusMessage = WithSkippedNote("Nothing to export.", skippedCount);
             return;
+        }
 
         // Check for existing files and ask about overwriting BEFORE showing progress dialog
         Func<List<string>, OverwriteOption> overwriteCallback = (existingFiles) =>
@@ -1567,7 +1578,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             // Run the export operation
-            var (success, message) = await _imageExporter.ExportToFormatAsync(
+            var (success, exportMessage) = await _imageExporter.ExportToFormatAsync(
                 photosToExport,
                 DirectoryPath,
                 format,
@@ -1578,6 +1589,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Close the progress dialog
             progressDialog.Close();
 
+            var message = WithSkippedNote(exportMessage, skippedCount);
             StatusMessage = message;
 
             // Show result
@@ -1611,13 +1623,15 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         // Determine which photos/folders to export
         List<PhotoItem> photosToExport = new List<PhotoItem>();
 
-        // If there are selected photos in the list, export all of them (including folders)
+        // If there are selected photos in the list, export all of them (including folders).
+        // Raw files are dropped: Topaz emits DNG rather than consuming it, and the
+        // post-process step reads the result with ImageSharp, which cannot open one.
         if (_selectedPhotos.Count > 0)
         {
-            photosToExport.AddRange(_selectedPhotos);
+            photosToExport.AddRange(_selectedPhotos.Where(p => !p.IsRaw));
         }
         // Otherwise export the single photo/folder from context menu (fallback for right-click without selection)
-        else if (photo != null)
+        else if (photo != null && !photo.IsRaw)
         {
             photosToExport.Add(photo);
         }
@@ -2285,14 +2299,22 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            // Filter for supported image files only
+            // Filter for exportable image files only. Raw is excluded: the Explorer verb
+            // is registered against the generic "image" perceived type, so a .dng can
+            // reach here even though ImageSharp cannot read one.
             var supportedFiles = filePaths
-                .Where(f => ThumbnailGenerator.IsImageFile(f) && File.Exists(f))
+                .Where(f => ThumbnailGenerator.IsImageFile(f) && !ThumbnailGenerator.IsRawFile(f) && File.Exists(f))
                 .ToList();
 
             if (supportedFiles.Count == 0)
             {
-                MessageBox.Show("No supported image files found in the selection.", "No Images", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    filePaths.Any(ThumbnailGenerator.IsRawFile)
+                        ? "Raw files cannot be exported to WebP."
+                        : "No supported image files found in the selection.",
+                    "No Images",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 

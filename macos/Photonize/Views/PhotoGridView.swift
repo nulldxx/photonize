@@ -518,6 +518,16 @@ struct PhotoContextMenu: View {
             Divider()
             deleteButton
 
+        case .raw:
+            // The image menu without Export: nothing downstream of it can read raw.
+            openButton
+            showInFinderButton
+            compareButton
+            sendToMenu
+            tagsMenu
+            Divider()
+            deleteButton
+
         case .image:
             openButton
             showInFinderButton

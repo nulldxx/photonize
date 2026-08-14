@@ -85,6 +85,9 @@ jobs:
       - name: Build Photonize Application
         run: dotnet build Photonize/Photonize.csproj -c Release --no-restore
 
+      - name: Run unit tests
+        run: dotnet test Photonize.Tests/Photonize.Tests.csproj -c Release --logger "console;verbosity=normal"
+
       - name: Publish Photonize Application
         run: dotnet publish Photonize/Photonize.csproj -c Release -o Photonize/bin/Release/net8.0-windows/publish --no-build
 

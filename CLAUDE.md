@@ -147,7 +147,19 @@ This prevents issues when reordering files where target names might conflict wit
 **IMPORTANT**: When adding new NuGet packages, you **must** also update the WiX installer (`Photonize.Installer/Product.wxs`) to include the new DLL files. See the "Installer Configuration" section below.
 
 ## Supported Image Formats
-JPG, JPEG, PNG, WebP, BMP, GIF, TIFF - defined in `ThumbnailGenerator.SupportedExtensions`
+JPG, JPEG, PNG, WebP, BMP, GIF, TIFF, DNG - defined in `ThumbnailGenerator.SupportedExtensions`
+(Windows) and `ThumbnailGenerator.supportedExtensions` (macOS, which also has HEIC/HEIF).
+
+**DNG is shown from the JPEG preview embedded in the file, never by demosaicing the
+sensor data.** On Windows `DngPreviewExtractor` walks the file's TIFF IFDs and pulls the
+largest preview out itself rather than trusting WIC, because Microsoft's Raw Image
+Extension supersedes the native DNG codec when installed and demosaics the full sensor
+for every tile. On macOS ImageIO handles it, but the decode options must use
+`kCGImageSourceCreateThumbnailFromImageIfAbsent` for raw — `...FromImageAlways` forces
+the same full demosaic.
+
+Raw files are deliberately excluded from export (ImageSharp cannot read one), Topaz
+PhotoAI and auto-caption; `PhotoItem.IsRaw` / `PhotoKind.raw` is the gate.
 
 ## UI Theming
 The application uses a comprehensive dark theme defined in `App.xaml`:
