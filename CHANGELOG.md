@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Other vendors' raw formats (CR2, NEF, ARW) are not claimed, so the Windows and macOS grids agree on what a folder contains
 
 ### Changed
+- **Sort by tag now slots untagged photos between tag 5 and tag 6 (Windows and macOS)**: they used to be swept to the very end of the grid regardless of what was tagged. Untagged photos now sort as though they carried a tag of 5.5, so tags 0-5 come before them and 6-9 after, which keeps a "reject" pile at the top and a "keep" pile at the bottom around the untouched middle. Folders and the `..` tile still hold the front of the grid, and untagged photos stay one contiguous run in their existing order.
 - **macOS: Removed the App Sandbox**: Photonize is distributed as a GitHub DMG, not through the Mac App Store, so the sandbox was only ever a liability. Without a paid Developer ID its security-scoped bookmarks could not be validated against a stable code-signing identity, so restoring the last folder, "Open With" on a folder, the Finder "Open in Photonize" service, and dragging files in all failed under the ad-hoc signature — the app had to be pointed at every folder through Browse… each launch. The app now opens any folder the user navigates to directly. The hardened runtime stays enabled (what notarization needs). This fixes: last-folder restore on launch; "Open With Photonize" / Dock / `open -a` / the Finder service on a folder; and drag-to-import.
 
 ### Fixed

@@ -1149,8 +1149,9 @@ class PhotoGridViewModel: ObservableObject {
         ListReorder.wouldChangeOrder(photos, moving: dragSet(startingFrom: photo), to: edge)
     }
 
-    /// Tags ▸ Sort by tag. Folders first, then tagged photos by ascending digit,
-    /// then untagged (see `TagSorter`). A genuine reorder, so it arms the
+    /// Tags ▸ Sort by tag. Folders first, then photos by ascending digit, with
+    /// untagged photos sorting as 5.5 — between 5 and 6 (see `TagSorter`). A
+    /// genuine reorder, so it arms the
     /// unsaved-changes guard and Apply Rename follows naturally.
     func sortByTag() {
         // Clear the selection before replacing the array, so nothing points at a

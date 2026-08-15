@@ -79,8 +79,37 @@ final class TagTests: XCTestCase {
 
         let sorted = TagSorter.sortByTag(photos).map { $0.fileName }
         // Folders first ("sub" after ".." by displayOrder), then tag 1, then the
-        // two tag-2 photos in stable order, then untagged.
+        // two tag-2 photos in stable order, then untagged — untagged sorts as 5.5,
+        // so it still trails every tag below 6.
         XCTAssertEqual(sorted, ["..", "sub", "a.jpg", "b.jpg", "c.jpg", "z.jpg"])
+    }
+
+    /// Untagged photos sort as though tagged 5.5: after tag 5, before tag 6.
+    func testSortByTagPlacesUntaggedBetweenFiveAndSix() {
+        let photos = [
+            makePhoto("tag6.jpg", displayOrder: 0, tag: 6),
+            makePhoto("untagged.jpg", displayOrder: 1, tag: nil),
+            makePhoto("tag5.jpg", displayOrder: 2, tag: 5),
+            makePhoto("tag0.jpg", displayOrder: 3, tag: 0),
+            makePhoto("tag9.jpg", displayOrder: 4, tag: 9),
+        ]
+
+        let sorted = TagSorter.sortByTag(photos).map { $0.fileName }
+        XCTAssertEqual(sorted, ["tag0.jpg", "tag5.jpg", "untagged.jpg", "tag6.jpg", "tag9.jpg"])
+    }
+
+    /// Several untagged photos stay one contiguous run in displayOrder, wedged
+    /// between the tag-5 and tag-6 groups.
+    func testSortByTagKeepsUntaggedRunTogether() {
+        let photos = [
+            makePhoto("second.jpg", displayOrder: 7, tag: nil),
+            makePhoto("tag6.jpg", displayOrder: 1, tag: 6),
+            makePhoto("first.jpg", displayOrder: 3, tag: nil),
+            makePhoto("tag5.jpg", displayOrder: 4, tag: 5),
+        ]
+
+        let sorted = TagSorter.sortByTag(photos).map { $0.fileName }
+        XCTAssertEqual(sorted, ["tag5.jpg", "first.jpg", "second.jpg", "tag6.jpg"])
     }
 
     /// ".." keeps the front among the folders because folders share group rank and

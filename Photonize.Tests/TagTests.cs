@@ -127,7 +127,7 @@ public class TagSorterTests
     };
 
     [Fact]
-    public void SortByTag_PutsFoldersFirst_ThenTagged_ThenUntagged()
+    public void SortByTag_PutsFoldersFirst_ThenTagged_WithUntaggedBetween5And6()
     {
         var photos = new List<PhotoItem>
         {
@@ -142,6 +142,45 @@ public class TagSorterTests
 
         Assert.Equal(
             new[] { "..", "subfolder", "tag1.jpg", "tag2.jpg", "untagged.jpg" },
+            sorted.Select(p => p.FileName));
+    }
+
+    [Fact]
+    public void SortByTag_PlacesUntaggedBetweenTag5AndTag6()
+    {
+        var photos = new List<PhotoItem>
+        {
+            Item("tag6.jpg", 0, 6),
+            Item("untagged.jpg", 1),
+            Item("tag5.jpg", 2, 5),
+            Item("tag0.jpg", 3, 0),
+            Item("tag9.jpg", 4, 9)
+        };
+
+        var sorted = TagSorter.SortByTag(photos);
+
+        Assert.Equal(
+            new[] { "tag0.jpg", "tag5.jpg", "untagged.jpg", "tag6.jpg", "tag9.jpg" },
+            sorted.Select(p => p.FileName));
+    }
+
+    [Fact]
+    public void SortByTag_KeepsUntaggedPhotosTogetherInDisplayOrder()
+    {
+        var photos = new List<PhotoItem>
+        {
+            Item("second-untagged.jpg", 0),
+            Item("tag6.jpg", 1, 6),
+            Item("first-untagged.jpg", 2),
+            Item("tag5.jpg", 3, 5)
+        };
+        photos[0].DisplayOrder = 7;
+        photos[2].DisplayOrder = 3;
+
+        var sorted = TagSorter.SortByTag(photos);
+
+        Assert.Equal(
+            new[] { "tag5.jpg", "first-untagged.jpg", "second-untagged.jpg", "tag6.jpg" },
             sorted.Select(p => p.FileName));
     }
 
