@@ -34,7 +34,7 @@ renamed, but not exported.
 
 ### From Release
 
-1. Download the latest `Photonize-{version}-universal.dmg` from [Releases](https://github.com/benstaniford/photonize/releases)
+1. Download the latest `Photonize-{version}-universal.dmg` from [Releases](https://github.com/nulldxx/photonize/releases)
 2. Open the DMG file
 3. Drag `Photonize.app` to your Applications folder
 4. Launch Photonize from Applications
@@ -54,7 +54,7 @@ renamed, but not exported.
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/benstaniford/photonize.git
+   git clone https://github.com/nulldxx/photonize.git
    cd photonize/macos
    ```
 
@@ -362,4 +362,4 @@ See the main repository LICENSE file.
 
 macOS version created as a Swift/SwiftUI port of the Windows WPF application.
 
-Original Windows version: [Photonize](https://github.com/benstaniford/photonize)
+Original Windows version: [Photonize](https://github.com/nulldxx/photonize)
