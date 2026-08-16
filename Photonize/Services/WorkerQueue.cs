@@ -15,7 +15,7 @@ public class WorkerQueue<TWorkItem> : IDisposable
     private readonly List<Thread> _workers;
     private readonly CancellationTokenSource _shutdownTokenSource;
     private bool _disposed;
-    private int _activeWorkerCount;
+    private int _outstandingCount;
     private readonly object _lockObj = new object();
 
     /// <summary>
@@ -24,7 +24,9 @@ public class WorkerQueue<TWorkItem> : IDisposable
     public int PendingCount => _workQueue.Count;
 
     /// <summary>
-    /// Gets whether all work is complete (no pending items and no active workers)
+    /// Gets whether all work is complete (nothing enqueued and nothing being processed).
+    /// An item counts as outstanding from the moment it is enqueued until its work func
+    /// returns, so there is no window where a dequeued-but-unstarted item looks idle.
     /// </summary>
     public bool IsIdle
     {
@@ -32,7 +34,7 @@ public class WorkerQueue<TWorkItem> : IDisposable
         {
             lock (_lockObj)
             {
-                return _workQueue.Count == 0 && _activeWorkerCount == 0;
+                return _outstandingCount == 0;
             }
         }
     }
@@ -124,7 +126,14 @@ public class WorkerQueue<TWorkItem> : IDisposable
             foreach (var workItem in _workQueue.GetConsumingEnumerable(_shutdownTokenSource.Token))
             {
                 if (_shutdownTokenSource.Token.IsCancellationRequested)
+                {
+                    // Dropped without running, so it is no longer outstanding
+                    lock (_lockObj)
+                    {
+                        _outstandingCount--;
+                    }
                     break;
+                }
 
                 // Apply staggered start delay only for the first work item
                 if (isFirstWorkItem && _staggerDelay > TimeSpan.Zero)
@@ -135,11 +144,6 @@ public class WorkerQueue<TWorkItem> : IDisposable
                         Thread.Sleep(delay);
                     }
                     isFirstWorkItem = false;
-                }
-
-                lock (_lockObj)
-                {
-                    _activeWorkerCount++;
                 }
 
                 try
@@ -157,7 +161,7 @@ public class WorkerQueue<TWorkItem> : IDisposable
                 {
                     lock (_lockObj)
                     {
-                        _activeWorkerCount--;
+                        _outstandingCount--;
                     }
                 }
             }
@@ -185,7 +189,25 @@ public class WorkerQueue<TWorkItem> : IDisposable
         if (workFunc == null)
             throw new ArgumentNullException(nameof(workFunc));
 
-        _workQueue.Add(new WorkItem(item, workFunc, cancellationToken));
+        // Count it before it is visible to a worker; otherwise a worker can pick it up,
+        // finish it and decrement before this increment lands.
+        lock (_lockObj)
+        {
+            _outstandingCount++;
+        }
+
+        try
+        {
+            _workQueue.Add(new WorkItem(item, workFunc, cancellationToken));
+        }
+        catch
+        {
+            lock (_lockObj)
+            {
+                _outstandingCount--;
+            }
+            throw;
+        }
     }
 
     /// <summary>
