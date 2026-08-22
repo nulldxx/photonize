@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Windows: "Video ▸ Slice / Splice" context menu**: right-clicking a video now offers a **Video** submenu with two editing operations. It appears only on video tiles, and only when FFmpeg is installed
+  - **Slice** cuts a clip into consecutive parts. A dialog asks for the part length in seconds and shows how many parts that will produce; parts are written next to the source as `clip-part-001.mp4`, `-002`, and so on
+    - **Nothing is re-encoded** — the streams are copied, so a 4K clip slices in seconds and loses no quality. The trade-off is that cuts can only land on keyframes, so parts vary by a second or two from the requested length. The dialog says so rather than leaving it to be discovered
+    - Each part starts at 00:00 rather than carrying the source's timestamps, so the pieces play as independent clips instead of appearing to begin with dead time
+    - Re-slicing the same clip writes a fresh `clip-2-part-001.mp4` family instead of overwriting the previous run
+    - Selecting several videos slices each of them with the same part length
+  - **Splice** joins several clips into one, named after the first (`clip1-spliced.mp4`). It stays disabled until **two or more videos are selected**
+    - Clips are joined in **grid order** — the order Apply Rename numbers by, not the order they were clicked — and the confirmation lists them in that order before anything runs
+    - Clips that already match are joined by copying their streams: instant and lossless. Clips that differ in codec, resolution, frame rate, pixel format, rotation or audio format are re-encoded, normalised to the first clip. The completion message says which route was taken and why
+    - **A silent clip mixed in with clips that have sound no longer produces a file whose audio stops partway through.** A plain stream copy does exactly that, with no error; Photonize detects the mismatch and generates matching silence for the silent clips instead
+    - Portrait phone clips are handled: a rotation mismatch forces the re-encode path rather than rotating the landscape footage to match
+  - Both operations show progress and can be cancelled; cancelling removes the partial output rather than leaving truncated clips in the folder
+  - Folders, the `..` tile, photos and DNGs are ignored in a mixed selection, so a selection of clips and stills splices only the clips
+- **Windows: FFmpeg is now also found on `PATH`**: previously only five fixed folders were checked, so a working FFmpeg installed anywhere else still produced the "FFmpeg Not Found" prompt on every launch
 - **Adobe DNG support (Windows and macOS)**: `.dng` files now appear in the grid and behave like any other photo — drag, reorder, tag, rename, move between folders and drag out to Explorer/Finder
   - **Photonize shows the JPEG preview embedded in the DNG, not a render of the raw sensor data** — the same image Explorer, Finder and Lightroom's grid display. Because every practical DNG carries that preview, this covers uncompressed and compressed raw with one code path, at JPEG speed, and a folder of 60 MP files scrolls as smoothly as one of JPEGs
   - Portrait shots come out upright: a DNG stores its preview in the raw image's own orientation, which is read and applied

@@ -335,6 +335,27 @@
                                                                     <TextBlock Text="📁" FontSize="14"/>
                                                                 </MenuItem.Icon>
                                                             </MenuItem>
+                                                            <!-- Video-only operations. Hidden outright when ffmpeg is
+                                                                 missing, the same way the PhotoAI entries hide when Topaz
+                                                                 is not installed. -->
+                                                            <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      Visibility="{Binding IsFFmpegAvailable, Converter={StaticResource BoolToVisConverter}}">
+                                                                <MenuItem.Header>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="Video" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="▶" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    </StackPanel>
+                                                                </MenuItem.Header>
+                                                                <MenuItem.Icon>
+                                                                    <TextBlock Text="🎬" FontSize="14"/>
+                                                                </MenuItem.Icon>
+                                                                <MenuItem Header="Slice..."
+                                                                          Command="{Binding SliceVideoCommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                                <MenuItem Header="Splice"
+                                                                          Command="{Binding SpliceVideosCommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                            </MenuItem>
                                                             <MenuItem DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                                                                 <MenuItem.Header>
                                                                     <StackPanel Orientation="Horizontal">

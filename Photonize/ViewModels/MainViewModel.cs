@@ -24,6 +24,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly ImageExporter _imageExporter;
     private readonly TopazPhotoAIService _topazPhotoAIService;
     private readonly TagService _tagService;
+    private readonly VideoEditService _videoEditService;
     private readonly WorkerQueue<PhotoItem> _thumbnailQueue;
     private CancellationTokenSource? _thumbnailLoadCancellation;
 
@@ -61,6 +62,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _imageExporter = new ImageExporter();
         _topazPhotoAIService = new TopazPhotoAIService();
         _tagService = new TagService();
+        _videoEditService = new VideoEditService();
 
         // Initialize worker queue for parallel thumbnail loading
         // Use CPU core count for worker count and 0.2s stagger delay
@@ -92,6 +94,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ClearTagsCommand = new RelayCommand(ClearTags, () => HasTaggedPhotos);
         SendToFrontCommand = new RelayCommand<PhotoItem?>(photo => SendTo(photo, SendToEdge.Front), photo => CanSendTo(photo, SendToEdge.Front));
         SendToBackCommand = new RelayCommand<PhotoItem?>(photo => SendTo(photo, SendToEdge.Back), photo => CanSendTo(photo, SendToEdge.Back));
+        SliceVideoCommand = new RelayCommand<PhotoItem?>(async photo => await SliceVideoAsync(photo), CanSliceVideo);
+        SpliceVideosCommand = new RelayCommand<PhotoItem?>(async photo => await SpliceVideosAsync(photo), CanSpliceVideos);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -205,6 +209,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public GridLength PreviewColumnWidth => IsPreviewVisible ? new GridLength(500) : new GridLength(0);
 
     public bool IsTopazInstalled => _topazPhotoAIService.IsTopazInstalled();
+
+    /// <summary>
+    /// Drives the visibility of the video context menu's "Video" submenu, the
+    /// same way <see cref="IsTopazInstalled"/> hides the PhotoAI entries. Slice
+    /// and Splice cannot do anything without ffmpeg, so on a machine without it
+    /// the submenu never appears.
+    /// </summary>
+    public bool IsFFmpegAvailable => _videoEditService.IsAvailable;
 
     public bool HasUnsavedChanges
     {
@@ -480,6 +492,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ((RelayCommand<PhotoItem?>)AutoCaptionCommand).RaiseCanExecuteChanged();
         ((RelayCommand)CompareImagesCommand).RaiseCanExecuteChanged();
         RaiseTagCommandsCanExecuteChanged();
+        RaiseVideoCommandsCanExecuteChanged();
 
         // Update preview photo to the first selected item
         PreviewPhoto = _selectedPhotos.FirstOrDefault();
@@ -506,6 +519,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ClearTagsCommand { get; }
     public ICommand SendToFrontCommand { get; }
     public ICommand SendToBackCommand { get; }
+    public ICommand SliceVideoCommand { get; }
+    public ICommand SpliceVideosCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -2053,6 +2068,215 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         ((RelayCommand<PhotoItem?>)SendToFrontCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)SendToBackCommand).RaiseCanExecuteChanged();
+    }
+
+    private void RaiseVideoCommandsCanExecuteChanged()
+    {
+        ((RelayCommand<PhotoItem?>)SliceVideoCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)SpliceVideosCommand).RaiseCanExecuteChanged();
+    }
+
+    private bool CanSliceVideo(PhotoItem? photo) =>
+        IsFFmpegAvailable &&
+        VideoSelectionRules.ResolveTargets(photo, _selectedPhotos, Photos).Count > 0;
+
+    // Splicing one clip is just a copy, so the entry stays disabled until a
+    // second video is selected -- which is what makes "Splice" self-explanatory
+    // without a tooltip.
+    private bool CanSpliceVideos(PhotoItem? photo) =>
+        IsFFmpegAvailable &&
+        VideoSelectionRules.ResolveTargets(photo, _selectedPhotos, Photos).Count >= 2;
+
+    private async Task SliceVideoAsync(PhotoItem? photo)
+    {
+        var targets = VideoSelectionRules.ResolveTargets(photo, _selectedPhotos, Photos);
+        if (targets.Count == 0)
+            return;
+
+        // The dialog needs the clip length to rule out a part length that would
+        // just copy the file. ffprobe is quick, but only meaningful for a single
+        // clip -- several clips have no one duration to validate against.
+        TimeSpan? duration = null;
+        if (targets.Count == 1)
+        {
+            IsLoading = true;
+            StatusMessage = $"Reading {targets[0].FileName}...";
+            try
+            {
+                duration = await _videoEditService.GetDurationAsync(targets[0].FilePath);
+            }
+            finally
+            {
+                IsLoading = false;
+                StatusMessage = "Ready";
+            }
+
+            if (duration is { } clipLength && clipLength.TotalSeconds < 2)
+            {
+                MessageBox.Show(
+                    $"'{targets[0].FileName}' is only {VideoOutputNaming.FormatDuration(clipLength)} long, so there is nothing to slice.",
+                    "Clip Too Short",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+        }
+
+        var subject = targets.Count == 1 ? targets[0].FileName : $"{targets.Count} videos";
+        var dialog = new SliceVideoDialog(subject, duration)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        if (!ConfirmDiscardingUnsavedOrder("Slicing"))
+            return;
+
+        var paths = targets.Select(item => item.FilePath).ToList();
+        await RunVideoOperationAsync(
+            title: "Slicing Video",
+            resultCaption: "Slice",
+            operation: (progress, token) =>
+                _videoEditService.SliceAsync(paths, dialog.SecondsPerPart, progress, token));
+    }
+
+    private async Task SpliceVideosAsync(PhotoItem? photo)
+    {
+        var targets = VideoSelectionRules.ResolveTargets(photo, _selectedPhotos, Photos);
+        if (targets.Count < 2)
+            return;
+
+        // Grid order, not click order -- state it, because "the order you see" is
+        // only obvious once someone tells you it isn't selection order.
+        var confirm = MessageBox.Show(
+            $"Join these {targets.Count} clips into one, in this order?\n\n" +
+            string.Join("\n", targets.Select((item, index) => $"{index + 1}. {item.FileName}")),
+            "Splice Videos",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.OK)
+            return;
+
+        if (!ConfirmDiscardingUnsavedOrder("Splicing"))
+            return;
+
+        var paths = targets.Select(item => item.FilePath).ToList();
+        await RunVideoOperationAsync(
+            title: "Splicing Videos",
+            resultCaption: "Splice",
+            operation: (progress, token) => _videoEditService.SpliceAsync(paths, progress, token));
+    }
+
+    /// <summary>
+    /// Both operations write into the folder being viewed, so both have to reload
+    /// it afterwards -- and a reload re-derives order alphabetically, discarding a
+    /// pending drag-reorder. Warn rather than silently throwing that away.
+    /// </summary>
+    private bool ConfirmDiscardingUnsavedOrder(string operation)
+    {
+        if (!HasUnsavedChanges)
+            return true;
+
+        var result = MessageBox.Show(
+            $"{operation} reloads this folder, which will discard your unsaved photo order.\n\nContinue?",
+            "Unsaved Order",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        return result == MessageBoxResult.Yes;
+    }
+
+    /// <summary>
+    /// The shared progress-dialog dance, following ExportToPhotoAIAsync.
+    /// </summary>
+    private async Task RunVideoOperationAsync(
+        string title,
+        string resultCaption,
+        Func<IProgress<(int current, int total, string status)>, CancellationToken, Task<(bool Success, string Message)>> operation)
+    {
+        // A MediaElement playing one of the inputs keeps a read handle on it and
+        // keeps its audio going over the progress dialog. ffmpeg only reads the
+        // inputs so it would not actually block, but the reload afterwards would
+        // leave the player pointed at a stale PhotoItem.
+        StopVideoPlayback();
+
+        var progressDialog = new ProgressDialog
+        {
+            Owner = Application.Current.MainWindow
+        };
+        progressDialog.TitleText.Text = title;
+
+        var cts = new CancellationTokenSource();
+        progressDialog.Closed += (s, e) =>
+        {
+            if (progressDialog.WasCancelled)
+            {
+                cts.Cancel();
+            }
+        };
+
+        var progress = new Progress<(int current, int total, string status)>(p =>
+        {
+            progressDialog.UpdateProgress(p.current, p.total, p.status);
+        });
+
+        progressDialog.Show();
+        IsLoading = true;
+
+        try
+        {
+            var (success, message) = await operation(progress, cts.Token);
+
+            progressDialog.Close();
+            StatusMessage = message;
+
+            if (success)
+            {
+                MessageBox.Show(message, $"{resultCaption} Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                await LoadPhotosAsync();
+            }
+            else
+            {
+                MessageBox.Show(message, $"{resultCaption} Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            progressDialog.Close();
+            StatusMessage = $"{resultCaption} cancelled; partial output was removed.";
+            await LoadPhotosAsync();
+        }
+        catch (Exception ex)
+        {
+            progressDialog.Close();
+            StatusMessage = $"Error during {resultCaption.ToLowerInvariant()}: {ex.Message}";
+            MessageBox.Show(StatusMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Drops the preview off any video before an edit runs.
+    ///
+    /// Order matters: PreviewPhoto has to be cleared first, because
+    /// ViewModel_VideoSourceChanged re-reads VideoSource and starts playing again
+    /// whenever it is non-null. Clearing it makes VideoSource null, so the
+    /// handler stops and closes the player instead of reloading it.
+    /// </summary>
+    private void StopVideoPlayback()
+    {
+        if (PreviewPhoto?.IsVideo != true)
+            return;
+
+        IsVideoPlaying = false;
+        PreviewPhoto = null;
+        VideoSourceChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void SortByTag()

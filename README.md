@@ -123,7 +123,16 @@ See [`macos/README.md`](macos/README.md) for full macOS documentation.
    - Move your mouse left and right to compare the images side-by-side
    - Press ESC or click "✕ Close" to exit the comparison view
 
-8. **Apply Rename**
+8. **Slice or Splice Videos** (Optional, Windows)
+   - Right-click a video and choose **Video ▸ Slice...** to cut it into consecutive parts
+     - Enter the length of each part in seconds; parts are written next to the source as `clip-part-001.mp4`, `-002`, and so on
+     - Nothing is re-encoded, so it is fast and lossless — but cuts land on the nearest keyframe, so parts vary by a second or two
+   - Select two or more videos, then **Video ▸ Splice** to join them into one file
+     - Clips are joined in grid order, and the result is named after the first (`clip1-spliced.mp4`)
+     - Matching clips are joined losslessly; clips that differ in resolution, frame rate or audio are re-encoded to match the first
+   - Both require [FFmpeg](https://www.ffmpeg.org/download.html). The **Video** menu is hidden when it is not installed
+
+9. **Apply Rename**
    - Click **"✓ Apply"** (enabled when you have pending changes)
    - Confirm the operation
    - All photos are renamed: `prefix-00001.jpg`, `prefix-00002.jpg`, `prefix-00003.jpg`, etc.

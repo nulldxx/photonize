@@ -1,6 +1,6 @@
 using System.IO;
 using System.Windows;
-using FFMpegCore;
+using Photonize.Services;
 
 namespace Photonize;
 
@@ -47,50 +47,23 @@ public partial class App : Application
     {
         try
         {
-            // Try common FFmpeg installation locations
-            var possiblePaths = new[]
+            if (FFmpegLocator.Initialize())
             {
-                // Bundled with application
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg"),
-                // User's local app data
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Photonize", "ffmpeg"),
-                // System-wide Program Files installation
-                @"C:\Program Files\ffmpeg\bin",
-                @"C:\ffmpeg\bin",
-                // Chocolatey installation path
-                @"C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin"
-            };
-
-            string? foundPath = null;
-            foreach (var path in possiblePaths)
-            {
-                var ffmpegExe = Path.Combine(path, "ffmpeg.exe");
-                if (File.Exists(ffmpegExe))
-                {
-                    foundPath = path;
-                    break;
-                }
-            }
-
-            if (foundPath != null)
-            {
-                // Configure FFMpegCore to use the found FFmpeg binaries
-                GlobalFFOptions.Configure(options => options.BinaryFolder = foundPath);
-                Console.WriteLine($"FFmpeg found at: {foundPath}");
+                Console.WriteLine($"FFmpeg found at: {FFmpegLocator.BinaryFolder}");
             }
             else
             {
                 // FFmpeg not found - show warning message
                 Console.WriteLine("FFmpeg not found. Video thumbnail extraction will not work.");
-                
+
                 var result = MessageBox.Show(
                     "FFmpeg is not installed on your system.\n\n" +
-                    "Video files will be displayed but thumbnails and preview will not work.\n\n" +
+                    "Video files will be displayed but thumbnails, preview, Slice and Splice will not work.\n\n" +
                     "Would you like to download FFmpeg now?",
                     "FFmpeg Not Found",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
-                
+
                 if (result == MessageBoxResult.Yes)
                 {
                     try
