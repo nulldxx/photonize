@@ -149,6 +149,16 @@ See [`macos/README.md`](macos/README.md) for full macOS documentation.
   uncompressed and compressed raw appear. DNGs can be browsed, reordered, tagged
   and renamed, but not exported, upscaled or auto-captioned.
 
+## Supported Video Formats
+
+- MP4 (.mp4), QuickTime (.mov), M4V (.m4v)
+- Matroska (.mkv) — Windows only, and thumbnails only: FFmpeg extracts the frame,
+  but the preview pane can play the clip back only if Windows itself has a codec
+  for what is inside the container. macOS ignores `.mkv`, which AVFoundation
+  cannot read.
+- Thumbnails on Windows need [FFmpeg](https://www.ffmpeg.org/download.html); the
+  macOS client decodes video natively and needs nothing installed.
+
 ## Keyboard Shortcuts
 
 - **F5** - Refresh photos from current directory

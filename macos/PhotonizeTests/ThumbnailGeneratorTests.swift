@@ -33,8 +33,9 @@ final class ThumbnailGeneratorTests: XCTestCase {
         )
     }
 
-    /// Video recognition is case-insensitive and limited to the Windows three;
-    /// images and unsupported containers are not videos.
+    /// Video recognition is case-insensitive and limited to what AVFoundation
+    /// decodes; images and unsupported containers — `.mkv` included, which the
+    /// Windows client does show — are not videos.
     func testIsVideoFileRecognizesExtensions() {
         let generator = ThumbnailGenerator()
         for name in ["clip.mp4", "clip.MOV", "clip.m4v", "CLIP.Mp4"] {

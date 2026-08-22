@@ -22,6 +22,7 @@ public class VideoOutputNamingTests
     [InlineData(".mov")]
     [InlineData(".m4v")]
     [InlineData(".MP4")]
+    [InlineData(".mkv")]
     public void SlicePattern_KeepsSourceExtension(string extension)
     {
         // Parts are stream-copied, so a .mov holding ProRes cannot become a .mp4.
@@ -48,6 +49,32 @@ public class VideoOutputNamingTests
             Existing(@"C:\v\clip-part-001.mp4", @"C:\v\clip-2-part-001.mp4"));
 
         Assert.Equal(@"C:\v\clip-3-part-%03d.mp4", pattern);
+    }
+
+    [Theory]
+    [InlineData(@"C:\v\clip.mp4", "mp4")]
+    [InlineData(@"C:\v\clip.m4v", "mp4")]
+    [InlineData(@"C:\v\clip.mov", "mov")]
+    [InlineData(@"C:\v\clip.MOV", "mov")]
+    [InlineData(@"C:\v\clip.mkv", "matroska")]
+    [InlineData(@"C:\v\clip.MKV", "matroska")]
+    public void MuxerFor_NamesTheContainerOutright(string path, string muxer)
+    {
+        // The segment muxer will not infer .m4v, and would write an mp4 into a
+        // .mkv given half a chance.
+        Assert.Equal(muxer, VideoOutputNaming.MuxerFor(path));
+    }
+
+    [Theory]
+    [InlineData(@"C:\v\clip.mp4", true)]
+    [InlineData(@"C:\v\clip.m4v", true)]
+    [InlineData(@"C:\v\clip.mov", true)]
+    // -movflags belongs to the mov muxer: handing it to matroska fails the run
+    // outright rather than being ignored.
+    [InlineData(@"C:\v\clip.mkv", false)]
+    public void SupportsFaststart_OnlyForTheMovFamily(string path, bool supported)
+    {
+        Assert.Equal(supported, VideoOutputNaming.SupportsFaststart(path));
     }
 
     [Fact]
@@ -85,6 +112,17 @@ public class VideoOutputNamingTests
             new[] { @"C:\v\a.mov", @"C:\v\b.MOV" }, reencoded: false);
 
         Assert.Equal(".mov", extension);
+    }
+
+    [Fact]
+    public void SpliceExtension_KeepsMatroskaWhenEveryClipIsMkv()
+    {
+        // A copy-concat of two .mkv files stays Matroska; only a re-encode, or a
+        // mixed selection, forces .mp4.
+        var extension = VideoOutputNaming.SpliceExtension(
+            new[] { @"C:\v\a.mkv", @"C:\v\b.MKV" }, reencoded: false);
+
+        Assert.Equal(".mkv", extension);
     }
 
     [Fact]

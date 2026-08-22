@@ -20,7 +20,13 @@ public class ThumbnailGenerator
     /// </summary>
     private static readonly string[] RawExtensions = { ".dng" };
 
-    private static readonly string[] VideoExtensions = { ".mp4", ".mov", ".m4v" };
+    /// <summary>
+    /// Video containers the grid shows. Every one of these is decoded by FFmpeg, so
+    /// the list is not limited to what Media Foundation can play — .mkv thumbnails
+    /// fine even where the preview pane cannot play the clip. The macOS client
+    /// deliberately claims fewer: AVFoundation cannot read Matroska at all.
+    /// </summary>
+    private static readonly string[] VideoExtensions = { ".mp4", ".mov", ".m4v", ".mkv" };
 
     /// <summary>Every extension the grid enumerates, images and videos together.</summary>
     public static readonly IReadOnlyList<string> SupportedExtensions =

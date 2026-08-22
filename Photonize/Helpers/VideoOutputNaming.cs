@@ -117,6 +117,36 @@ public static class VideoOutputNaming
     }
 
     /// <summary>
+    /// ffmpeg's muxer name for a container, stated outright because the extension
+    /// is not reliably inferred — .m4v is not, and the segment muxer needs telling
+    /// either way. Anything unrecognised falls back to mp4, which is what Photonize
+    /// writes when it has a free choice.
+    /// </summary>
+    public static string MuxerFor(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        return Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".mov" => "mov",
+            ".mkv" => "matroska",
+            _ => "mp4"
+        };
+    }
+
+    /// <summary>
+    /// Whether -movflags +faststart applies to this output. It is an option of
+    /// ffmpeg's mov/mp4 muxer, so passing it to matroska does not merely go
+    /// ignored — ffmpeg fails the whole run with "Option movflags not found".
+    /// </summary>
+    public static bool SupportsFaststart(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        return MuxerFor(path) is "mov" or "mp4";
+    }
+
+    /// <summary>
     /// How many parts a slice will produce. The last part is short unless the
     /// duration divides exactly.
     /// </summary>

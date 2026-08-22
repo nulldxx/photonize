@@ -51,6 +51,10 @@ public class ThumbnailGeneratorTests
     [InlineData(@"C:\photos\a.mp4")]
     [InlineData(@"C:\photos\a.MOV")]
     [InlineData(@"C:\photos\a.m4v")]
+    // FFmpeg does the decoding, so Matroska thumbnails whether or not Media
+    // Foundation can play it back.
+    [InlineData(@"C:\photos\a.mkv")]
+    [InlineData(@"C:\photos\a.MKV")]
     public void RecognisesVideos(string path)
     {
         Assert.True(ThumbnailGenerator.IsVideoFile(path));
@@ -59,7 +63,8 @@ public class ThumbnailGeneratorTests
 
     [Theory]
     [InlineData(@"C:\photos\notes.txt")]
-    [InlineData(@"C:\photos\clip.mkv")]
+    [InlineData(@"C:\photos\clip.avi")]
+    [InlineData(@"C:\photos\clip.webm")]
     [InlineData(@"C:\photos\noextension")]
     public void IgnoresEverythingElse(string path)
     {

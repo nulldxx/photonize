@@ -12,9 +12,10 @@ class ThumbnailGenerator {
     /// understands DNG's preview layout and the two grids should agree on what a
     /// folder contains.
     private static let rawExtensions = ["dng"]
-    /// The Windows three. AVFoundation decodes these natively on every supported
-    /// Mac, so — unlike Windows — no FFmpeg is required. Deliberately narrow: a
-    /// `.mkv` AVFoundation can't decode would just show a broken tile.
+    /// AVFoundation decodes these natively on every supported Mac, so — unlike
+    /// Windows — no FFmpeg is required. Deliberately narrower than the Windows
+    /// list, which adds `.mkv`: AVFoundation cannot read Matroska at all, so an
+    /// `.mkv` here would enumerate into the grid only to show a broken tile.
     private static let videoExtensions = ["mp4", "mov", "m4v"]
 
     /// The largest edge we will render a raw preview at. The sensor dimensions of a

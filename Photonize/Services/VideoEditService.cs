@@ -22,10 +22,18 @@ public class VideoEditService
 {
     /// <summary>
     /// Moves the moov atom to the front so the result starts playing before it
-    /// has fully downloaded. .mov and .mp4 share ffmpeg's mov muxer, so this is
-    /// valid for both containers Photonize writes.
+    /// has fully downloaded. It is an option of the mov muxer, which .mov, .mp4
+    /// and .m4v share — a Matroska output must not be given it, so this always
+    /// goes through <see cref="WithFaststart"/>.
     /// </summary>
     private const string Faststart = "-movflags +faststart";
+
+    /// <summary>
+    /// Appends <see cref="Faststart"/> to <paramref name="arguments"/> when the
+    /// output container takes it, and leaves them alone when it does not.
+    /// </summary>
+    private static string WithFaststart(string arguments, string outputPath) =>
+        VideoOutputNaming.SupportsFaststart(outputPath) ? $"{arguments} {Faststart}" : arguments;
 
     public bool IsAvailable => FFmpegLocator.IsAvailable;
 
@@ -147,7 +155,7 @@ public class VideoEditService
                         CultureInfo.InvariantCulture,
                         "-segment_format {0} -segment_time {1} -segment_start_number 1 " +
                         "-reset_timestamps 1 -avoid_negative_ts make_zero",
-                        SegmentFormatFor(sourcePath),
+                        VideoOutputNaming.MuxerFor(sourcePath),
                         partLengthSeconds)))
                 .CancellableThrough(cancellationToken)
                 .ProcessAsynchronously();
@@ -207,13 +215,6 @@ public class VideoEditService
                     : $"Slicing {name} — {found} part(s) so far"));
         }
     }
-
-    /// <summary>
-    /// .m4v is not reliably inferred from the extension, so the segment muxer's
-    /// container is always stated outright.
-    /// </summary>
-    private static string SegmentFormatFor(string path) =>
-        string.Equals(Path.GetExtension(path), ".mov", StringComparison.OrdinalIgnoreCase) ? "mov" : "mp4";
 
     private static void DeleteParts(string pattern)
     {
@@ -371,9 +372,8 @@ public class VideoEditService
             .OutputToFile(outputPath, overwrite: true, options => options
                 // +genpts repairs the timestamp discontinuity at each join; without
                 // it players stall at the seam between two copied clips.
-                .WithCustomArgument("-fflags +genpts -map 0:v:0 -map 0:a?")
-                .CopyChannel()
-                .WithCustomArgument(Faststart))
+                .WithCustomArgument(WithFaststart("-fflags +genpts -map 0:v:0 -map 0:a?", outputPath))
+                .CopyChannel())
             .NotifyOnProgress(onProgress, totalDuration)
             .CancellableThrough(cancellationToken)
             .ProcessAsynchronously();
@@ -435,8 +435,11 @@ public class VideoEditService
                 .WithCustomArgument($"-filter_complex \"{graph}\"")
                 .WithCustomArgument(anyAudio ? "-map [vout] -map [aout]" : "-map [vout]")
                 .WithCustomArgument("-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p")
-                .WithCustomArgument(anyAudio ? "-c:a aac -b:a 192k -ar 48000 -ac 2" : "-an")
-                .WithCustomArgument(Faststart))
+                // A re-encode always lands in .mp4, but ask anyway rather than
+                // leaving a bare Faststart for a future container to trip over.
+                .WithCustomArgument(WithFaststart(
+                    anyAudio ? "-c:a aac -b:a 192k -ar 48000 -ac 2" : "-an",
+                    outputPath)))
             .NotifyOnProgress(onProgress, totalDuration)
             .CancellableThrough(cancellationToken)
             .ProcessAsynchronously();

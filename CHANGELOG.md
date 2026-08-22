@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Windows: MKV thumbnails**: `.mkv` clips now appear in the grid alongside MP4, MOV and M4V, and can be reordered, tagged, renamed, moved and sliced/spliced like any other video. FFmpeg does the decoding, so the thumbnail shows even for clips Windows itself cannot play back — the preview pane still needs a system codec to play one, and says so if it has none. macOS continues to ignore `.mkv`: AVFoundation cannot read Matroska, so a tile there could only ever be a broken one
+  - Slicing an `.mkv` writes Matroska parts rather than mislabelled MP4s, and splicing `.mkv` clips no longer fails on the faststart flag, which belongs to the MP4/MOV muxer alone
 - **Windows: "Video ▸ Slice / Splice" context menu**: right-clicking a video now offers a **Video** submenu with two editing operations. It appears only on video tiles, and only when FFmpeg is installed
   - **Slice** cuts a clip into consecutive parts. A dialog asks for the part length in seconds and shows how many parts that will produce; parts are written next to the source as `clip-part-001.mp4`, `-002`, and so on
     - **Nothing is re-encoded** — the streams are copied, so a 4K clip slices in seconds and loses no quality. The trade-off is that cuts can only land on keyframes, so parts vary by a second or two from the requested length. The dialog says so rather than leaving it to be discovered
