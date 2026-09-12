@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 
 namespace Photonize.Helpers;
@@ -178,6 +179,117 @@ public static class VideoOutputNaming
 
         error = string.Empty;
         return true;
+    }
+
+    /// <summary>
+    /// Marks a trimmed extract, the way <see cref="PartInfix"/> marks a slice.
+    /// </summary>
+    public const string ClipSuffix = "-clip";
+
+    /// <summary>
+    /// Shortest range Extract clip will write. Anything under this is almost
+    /// certainly a slipped handle rather than an intended clip.
+    /// </summary>
+    public static readonly TimeSpan MinimumClipLength = TimeSpan.FromSeconds(0.5);
+
+    /// <summary>
+    /// Float seconds do not survive a round trip through ffprobe exactly, so a
+    /// range that reaches the end of the clip can read as a few ticks past it.
+    /// </summary>
+    private static readonly TimeSpan Tolerance = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>
+    /// Where an extracted clip lands: the source's name plus "-clip", in the same
+    /// folder, stepping to -clip-2 rather than overwriting an earlier extract.
+    /// </summary>
+    public static string ClipOutputPath(string sourcePath, bool reencoded, Func<string, bool> exists)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentNullException.ThrowIfNull(exists);
+
+        var directory = Path.GetDirectoryName(sourcePath) ?? string.Empty;
+        var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        var extension = ClipExtension(sourcePath, reencoded);
+
+        var candidate = Path.Combine(directory, $"{stem}{ClipSuffix}{extension}");
+        for (var attempt = 2; exists(candidate); attempt++)
+        {
+            candidate = Path.Combine(directory, $"{stem}{ClipSuffix}-{attempt}{extension}");
+        }
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Container for an extract. A fast cut copies the streams, so it has to keep
+    /// the source container -- ProRes in a .mov will not stream-copy into .mp4,
+    /// the same constraint <see cref="SlicePattern"/> works under. A precise cut
+    /// re-encodes to h264/aac, which only .mp4 reliably holds.
+    /// </summary>
+    public static string ClipExtension(string sourcePath, bool reencoded)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+
+        return reencoded ? ".mp4" : Path.GetExtension(sourcePath).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Validates a trim range against the clip it came from, phrased for the
+    /// dialog's read-out.
+    /// </summary>
+    public static bool IsValidTrimRange(TimeSpan start, TimeSpan end, TimeSpan duration, out string error)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            error = "Photonize could not read this clip's length.";
+            return false;
+        }
+
+        if (start < TimeSpan.Zero)
+        {
+            error = "The start is before the beginning of the clip.";
+            return false;
+        }
+
+        if (end > duration + Tolerance)
+        {
+            error = "The end is past the end of the clip.";
+            return false;
+        }
+
+        if (end - start < MinimumClipLength)
+        {
+            error = $"Select at least {MinimumClipLength.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} seconds.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// mm:ss.t for the trim read-out. <see cref="FormatDuration"/> carries whole
+    /// seconds, which is too coarse to position a handle by.
+    /// </summary>
+    public static string FormatTimecode(TimeSpan time)
+    {
+        var tenths = time.Milliseconds / 100;
+
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}.{tenths}"
+            : $"{time.Minutes:D2}:{time.Seconds:D2}.{tenths}";
+    }
+
+    /// <summary>
+    /// "00:04.0 -> 00:11.5 (7.5s)". Invariant throughout: a comma decimal
+    /// separator would make the read-out disagree with the tests on a German
+    /// machine, and the string is also used in completion messages.
+    /// </summary>
+    public static string FormatTrimRange(TimeSpan start, TimeSpan end)
+    {
+        var length = (end - start).TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture);
+
+        return $"{FormatTimecode(start)} \u2192 {FormatTimecode(end)} ({length}s)";
     }
 
     /// <summary>Human-readable clip length for dialogs and status messages.</summary>

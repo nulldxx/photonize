@@ -67,4 +67,36 @@ public static class VideoSelectionRules
 
         return selection;
     }
+
+    /// <summary>
+    /// The single clip Extract clip acts on.
+    ///
+    /// Trimming several clips at once would mean applying one range to all of
+    /// them, which is meaningless, so this resolves to exactly one or to nothing.
+    /// A right-clicked video always wins -- even inside a larger selection, where
+    /// "which clip?" would otherwise have no answer. A right-click on anything
+    /// else resolves to nothing rather than falling through to the selection.
+    /// Only with no clicked tile at all does the selection decide, and then only
+    /// when it holds exactly one video.
+    /// </summary>
+    public static PhotoItem? ResolveSingleTarget(
+        PhotoItem? clicked,
+        IReadOnlyList<PhotoItem> selection,
+        IReadOnlyList<PhotoItem> gridOrder)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(gridOrder);
+
+        // A clicked tile settles it either way. If it is not a clip the answer is
+        // "none" rather than the selection's clip: the click named a target, and
+        // quietly trimming something else is the worst possible reading of it.
+        if (clicked != null)
+        {
+            var clickedVideo = VideosOnly(new[] { clicked }, gridOrder);
+            return clickedVideo.Count == 1 ? clickedVideo[0] : null;
+        }
+
+        var selected = VideosOnly(selection, gridOrder);
+        return selected.Count == 1 ? selected[0] : null;
+    }
 }

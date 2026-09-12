@@ -189,4 +189,84 @@ public class VideoSelectionRulesTests
 
         Assert.Equal(new[] { "a.mp4", "stale.mp4" }, Names(targets));
     }
+
+    // ---- Extract clip resolves to exactly one clip ----
+
+    /// <summary>
+    /// Unlike Slice, a right-clicked video wins even inside a larger selection:
+    /// one trim range cannot sensibly be applied to several clips, and the tile
+    /// under the cursor is the only defensible answer to "which one?".
+    /// </summary>
+    [Fact]
+    public void ResolveSingleTarget_PrefersTheClickedVideoOverTheSelection()
+    {
+        var a = Video("a.mp4");
+        var b = Video("b.mp4");
+        var grid = new List<PhotoItem> { a, b };
+
+        var target = VideoSelectionRules.ResolveSingleTarget(b, grid, grid);
+
+        Assert.Same(b, target);
+    }
+
+    [Fact]
+    public void ResolveSingleTarget_FallsBackToALoneSelectedVideo()
+    {
+        var a = Video("a.mp4");
+        var grid = new List<PhotoItem> { a, Image("p.jpg") };
+
+        var target = VideoSelectionRules.ResolveSingleTarget(null, new List<PhotoItem> { a }, grid);
+
+        Assert.Same(a, target);
+    }
+
+    [Fact]
+    public void ResolveSingleTarget_IgnoresStillsInAMixedSelection()
+    {
+        var video = Video("a.mp4");
+        var selection = new List<PhotoItem> { Image("p.jpg"), video, Folder("sub") };
+        var grid = new List<PhotoItem> { video };
+
+        Assert.Same(video, VideoSelectionRules.ResolveSingleTarget(null, selection, grid));
+    }
+
+    [Fact]
+    public void ResolveSingleTarget_IsNullWhenSeveralVideosAreSelectedAndNoneClicked()
+    {
+        var a = Video("a.mp4");
+        var b = Video("b.mp4");
+        var grid = new List<PhotoItem> { a, b };
+
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(null, grid, grid));
+    }
+
+    [Fact]
+    public void ResolveSingleTarget_IsNullForAFolderAStillOrTheParentTile()
+    {
+        var grid = new List<PhotoItem> { Video("a.mp4") };
+
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(Folder("sub"), None(), grid));
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(Image("p.jpg"), None(), grid));
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(Parent(), None(), grid));
+    }
+
+    [Fact]
+    public void ResolveSingleTarget_IsNullWhenNothingIsSelectedAtAll()
+    {
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(null, None(), None()));
+    }
+
+    /// <summary>
+    /// Clicking a still while a single video is selected must not silently trim
+    /// that video -- the click is the user naming a target, and it is not a clip.
+    /// </summary>
+    [Fact]
+    public void ResolveSingleTarget_DoesNotFallBackWhenAStillWasClicked()
+    {
+        var video = Video("a.mp4");
+        var grid = new List<PhotoItem> { video };
+
+        Assert.Null(VideoSelectionRules.ResolveSingleTarget(
+            Image("p.jpg"), new List<PhotoItem> { video }, grid));
+    }
 }

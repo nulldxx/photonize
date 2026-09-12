@@ -96,6 +96,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         SendToBackCommand = new RelayCommand<PhotoItem?>(photo => SendTo(photo, SendToEdge.Back), photo => CanSendTo(photo, SendToEdge.Back));
         SliceVideoCommand = new RelayCommand<PhotoItem?>(async photo => await SliceVideoAsync(photo), CanSliceVideo);
         SpliceVideosCommand = new RelayCommand<PhotoItem?>(async photo => await SpliceVideosAsync(photo), CanSpliceVideos);
+        ExtractClipCommand = new RelayCommand<PhotoItem?>(async photo => await ExtractClipAsync(photo), CanExtractClip);
 
         // If a command line directory is provided, use it instead of loading saved settings
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -521,6 +522,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand SendToBackCommand { get; }
     public ICommand SliceVideoCommand { get; }
     public ICommand SpliceVideosCommand { get; }
+    public ICommand ExtractClipCommand { get; }
 
     private void LoadSavedSettings(bool skipDirectoryPath = false)
     {
@@ -2074,6 +2076,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         ((RelayCommand<PhotoItem?>)SliceVideoCommand).RaiseCanExecuteChanged();
         ((RelayCommand<PhotoItem?>)SpliceVideosCommand).RaiseCanExecuteChanged();
+        ((RelayCommand<PhotoItem?>)ExtractClipCommand).RaiseCanExecuteChanged();
     }
 
     private bool CanSliceVideo(PhotoItem? photo) =>
@@ -2086,6 +2089,67 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool CanSpliceVideos(PhotoItem? photo) =>
         IsFFmpegAvailable &&
         VideoSelectionRules.ResolveTargets(photo, _selectedPhotos, Photos).Count >= 2;
+
+    // Trimming several clips at once would mean applying one range to all of
+    // them, so this resolves to exactly one clip or stays disabled.
+    private bool CanExtractClip(PhotoItem? photo) =>
+        IsFFmpegAvailable &&
+        VideoSelectionRules.ResolveSingleTarget(photo, _selectedPhotos, Photos) != null;
+
+    private async Task ExtractClipAsync(PhotoItem? photo)
+    {
+        var target = VideoSelectionRules.ResolveSingleTarget(photo, _selectedPhotos, Photos);
+        if (target == null)
+            return;
+
+        IsLoading = true;
+        StatusMessage = $"Reading {target.FileName}...";
+        TimeSpan? duration;
+        try
+        {
+            duration = await _videoEditService.GetDurationAsync(target.FilePath);
+        }
+        finally
+        {
+            IsLoading = false;
+            StatusMessage = "Ready";
+        }
+
+        if (duration is not { } clipLength || clipLength <= VideoOutputNaming.MinimumClipLength)
+        {
+            MessageBox.Show(
+                $"'{target.FileName}' is too short to trim.",
+                "Clip Too Short",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        // The dialog opens its own player on the same file, so the grid's has to
+        // let go first. RunVideoOperationAsync does this too, but not until the
+        // dialog has already been and gone.
+        StopVideoPlayback();
+
+        var dialog = new ExtractClipDialog(target.FilePath, target.FileName, clipLength)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        if (!ConfirmDiscardingUnsavedOrder("Extracting a clip"))
+            return;
+
+        var (path, start, end, precise) =
+            (target.FilePath, dialog.ClipStart, dialog.ClipEnd, dialog.Precise);
+
+        await RunVideoOperationAsync(
+            title: "Extracting Clip",
+            resultCaption: "Extract",
+            operation: (progress, token) =>
+                _videoEditService.ExtractClipAsync(path, start, end, precise, progress, token));
+    }
 
     private async Task SliceVideoAsync(PhotoItem? photo)
     {

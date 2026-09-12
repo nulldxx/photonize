@@ -123,14 +123,20 @@ See [`macos/README.md`](macos/README.md) for full macOS documentation.
    - Move your mouse left and right to compare the images side-by-side
    - Press ESC or click "✕ Close" to exit the comparison view
 
-8. **Slice or Splice Videos** (Optional, Windows)
+8. **Trim, Slice or Splice Videos** (Optional, Windows)
+   - Right-click a video and choose **Video ▸ Extract clip...** to pull one clip out of it
+     - A preview sits above a filmstrip of the whole video; drag the handle at each end inwards to choose the range, the way the iPhone's trimmer works
+     - Dragging a handle scrubs the preview to it, and the read-out shows the range and its length. The play button previews just the selection
+     - **Fast** (the default) copies the streams, so it is instant and keeps the original quality — but the clip can start a second or two before the mark, because a copied stream can only begin on a keyframe. Tick **Precise** to re-encode and land on the exact frame
+     - The result is written next to the source as `clip-clip.mp4`; the original is never touched, and re-extracting writes `clip-clip-2.mp4`
+     - The filmstrip is decoded by FFmpeg, so an `.mkv` can be trimmed even where Windows cannot play it back
    - Right-click a video and choose **Video ▸ Slice...** to cut it into consecutive parts
      - Enter the length of each part in seconds; parts are written next to the source as `clip-part-001.mp4`, `-002`, and so on
      - Nothing is re-encoded, so it is fast and lossless — but cuts land on the nearest keyframe, so parts vary by a second or two
    - Select two or more videos, then **Video ▸ Splice** to join them into one file
      - Clips are joined in grid order, and the result is named after the first (`clip1-spliced.mp4`)
      - Matching clips are joined losslessly; clips that differ in resolution, frame rate or audio are re-encoded to match the first
-   - Both require [FFmpeg](https://www.ffmpeg.org/download.html). The **Video** menu is hidden when it is not installed
+   - All three require [FFmpeg](https://www.ffmpeg.org/download.html). The **Video** menu is hidden when it is not installed
 
 9. **Apply Rename**
    - Click **"✓ Apply"** (enabled when you have pending changes)

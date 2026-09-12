@@ -507,6 +507,201 @@ public class VideoEditService
         return string.Join(";", parts);
     }
 
+    /// <summary>
+    /// Writes the range [start, end) of one clip out as a new file beside it.
+    ///
+    /// Fast copies the streams: instant and lossless, but a copied stream cannot
+    /// begin mid-GOP, so the clip starts at the keyframe at or before the mark and
+    /// may run a little long at the front. Precise re-encodes to h264/aac and
+    /// lands on the exact frame.
+    ///
+    /// The source is only ever read; nothing here touches the original.
+    /// </summary>
+    public async Task<(bool Success, string Message)> ExtractClipAsync(
+        string videoPath,
+        TimeSpan start,
+        TimeSpan end,
+        bool precise,
+        IProgress<(int current, int total, string status)>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(videoPath))
+            return (false, "No video to extract from.");
+
+        if (!IsAvailable)
+            return (false, "FFmpeg was not found. Install it and restart Photonize.");
+
+        progress?.Report((0, 100, "Reading the clip…"));
+
+        // One probe, not two: the range check needs the duration and the encoder
+        // needs to know whether there is any audio.
+        IMediaAnalysis analysis;
+        try
+        {
+            analysis = await FFProbe.AnalyseAsync(videoPath, cancellationToken: cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Could not read the clip: {Summarise(ex)}");
+        }
+
+        if (analysis.PrimaryVideoStream == null)
+            return (false, $"{Path.GetFileName(videoPath)} has no video track, so there is nothing to extract.");
+
+        if (!VideoOutputNaming.IsValidTrimRange(start, end, analysis.Duration, out var rangeError))
+            return (false, rangeError);
+
+        var length = end - start;
+        var hasAudio = analysis.PrimaryAudioStream != null;
+        // Before the arguments are built: WithFaststart has to see the container.
+        var outputPath = VideoOutputNaming.ClipOutputPath(videoPath, precise, File.Exists);
+        var range = VideoOutputNaming.FormatTrimRange(start, end);
+
+        var reporter = ExtractProgressReporter(progress, length, precise);
+        progress?.Report((0, 100, precise ? $"Re-encoding {range}…" : $"Copying {range}…"));
+
+        try
+        {
+            if (precise)
+                await RunPreciseCutAsync(videoPath, start, length, outputPath, hasAudio, reporter, cancellationToken);
+            else
+                await RunFastCutAsync(videoPath, start, length, outputPath, reporter, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            TryDelete(outputPath);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            TryDelete(outputPath);
+            return (false, $"Extract failed: {Summarise(ex)}");
+        }
+
+        if (!File.Exists(outputPath))
+            return (false, "Extract produced no output.");
+
+        var name = Path.GetFileName(outputPath);
+
+        return (true, precise
+            ? $"Extracted {range} to '{name}', re-encoded so the cut lands on the frame you chose."
+            : $"Extracted {range} to '{name}' without re-encoding.\n\n" +
+              "A copied stream can only start on a keyframe, so the clip may begin a little " +
+              "before the mark you set. Use Precise if it needs to be exact.");
+    }
+
+    /// <summary>
+    /// The lossless path. Stream copy, so it runs at disk speed whatever the clip.
+    /// </summary>
+    private static async Task RunFastCutAsync(
+        string videoPath,
+        TimeSpan start,
+        TimeSpan length,
+        string outputPath,
+        Action<double> onProgress,
+        CancellationToken cancellationToken)
+    {
+        await FFMpegArguments
+            .FromFileInput(videoPath, verifyExists: true, options => options
+                // -ss in front of -i is an input seek: ffmpeg jumps to the keyframe
+                // at or before the mark rather than decoding from zero.
+                .WithCustomArgument(SeekArgument(start))
+                // Not an optimisation -- a correctness fix. Accurate seek is on by
+                // default and discards the packets between that keyframe and the
+                // mark; with -c copy there is no re-encode to cover the gap, so the
+                // clip opens on P-frames with no reference and shows a second or so
+                // of grey smear.
+                .WithCustomArgument("-noaccurate_seek"))
+            .OutputToFile(outputPath, overwrite: true, options => options
+                // -t, not -to: the output clock restarts near zero after an input
+                // seek, so a length is the only unambiguous limit.
+                .WithDuration(length)
+                // First video stream plus audio if there is any. Plain "-map 0"
+                // would drag in the tmcd timecode track iPhone .mov files carry.
+                .WithCustomArgument(WithFaststart(
+                    "-map 0:v:0 -map 0:a? -avoid_negative_ts make_zero", outputPath))
+                .CopyChannel()
+                // Named rather than inferred: ffmpeg would otherwise hand .m4v to
+                // the ipod muxer, which rejects codecs the mp4 muxer accepts.
+                .ForceFormat(VideoOutputNaming.MuxerFor(outputPath)))
+            .NotifyOnProgress(onProgress, length)
+            .CancellableThrough(cancellationToken)
+            .ProcessAsynchronously();
+    }
+
+    /// <summary>
+    /// The frame-accurate path. Settings match the splice re-encode, so output
+    /// from the two operations is interchangeable.
+    /// </summary>
+    private static async Task RunPreciseCutAsync(
+        string videoPath,
+        TimeSpan start,
+        TimeSpan length,
+        string outputPath,
+        bool hasAudio,
+        Action<double> onProgress,
+        CancellationToken cancellationToken)
+    {
+        await FFMpegArguments
+            // Still an input seek, and still frame-accurate: ffmpeg seeks to the
+            // preceding keyframe and decodes forward, discarding everything before
+            // the mark. The old advice to put -ss after -i for accuracy now only
+            // buys a full decode of the clip up to the cut, which on a long file is
+            // minutes spent for no difference in the result.
+            .FromFileInput(videoPath, verifyExists: true, options => options
+                .WithCustomArgument(SeekArgument(start)))
+            .OutputToFile(outputPath, overwrite: true, options => options
+                .WithDuration(length)
+                // -map 0:a? and -an contradict each other, so the map is chosen
+                // from what ffprobe actually found rather than asking for both.
+                .WithCustomArgument(hasAudio ? "-map 0:v:0 -map 0:a:0" : "-map 0:v:0")
+                // yuv420p stated outright: a 10-bit HEVC phone clip would otherwise
+                // encode to yuv420p10le, which most Windows players refuse to open.
+                // The cost is that an HDR clip is flattened to 8-bit SDR, which is
+                // why Fast is the default.
+                .WithCustomArgument("-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p")
+                .WithCustomArgument(WithFaststart(
+                    hasAudio ? "-c:a aac -b:a 192k -ar 48000 -ac 2" : "-an", outputPath))
+                .ForceFormat(VideoOutputNaming.MuxerFor(outputPath)))
+            .NotifyOnProgress(onProgress, length)
+            .CancellableThrough(cancellationToken)
+            .ProcessAsynchronously();
+    }
+
+    /// <summary>
+    /// An input seek. FFMpegCore 5.1.0 ships EndSeekArgument (-to) but no -ss
+    /// counterpart, so the flag is written out. InvariantCulture because a comma
+    /// decimal separator makes ffmpeg read a different timestamp entirely.
+    /// </summary>
+    private static string SeekArgument(TimeSpan time) =>
+        string.Format(CultureInfo.InvariantCulture, "-ss {0:0.###}", time.TotalSeconds);
+
+    private static Action<double> ExtractProgressReporter(
+        IProgress<(int current, int total, string status)>? progress,
+        TimeSpan length,
+        bool precise)
+    {
+        // A stream copy finishes almost at once, so its progress is cosmetic; a
+        // re-encode's is real, and is what the dialog is actually waiting on.
+        var verb = precise ? "Re-encoding" : "Copying";
+
+        return percent =>
+        {
+            var clamped = (int)Math.Clamp(percent, 0, 100);
+            var elapsed = TimeSpan.FromSeconds(length.TotalSeconds * clamped / 100.0);
+
+            progress?.Report((
+                clamped,
+                100,
+                $"{verb} — {VideoOutputNaming.FormatDuration(elapsed)} of " +
+                $"{VideoOutputNaming.FormatDuration(length)}"));
+        };
+    }
+
     private async Task<List<VideoFormatFingerprint>> FingerprintAsync(
         IReadOnlyList<string> videoPaths,
         CancellationToken cancellationToken)

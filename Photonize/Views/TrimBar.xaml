@@ -1,0 +1,80 @@
+<UserControl x:Class="Photonize.Views.TrimBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="72"
+             ClipToBounds="False">
+
+    <UserControl.Resources>
+        <Style x:Key="TrimHandleStyle" TargetType="Thumb">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Cursor" Value="SizeWE"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <!-- Transparent Grid so the whole 16px is grabbable,
+                             not just the painted bar. -->
+                        <Grid Background="Transparent">
+                            <Border Background="{StaticResource AccentBrush}" CornerRadius="3"/>
+                            <Rectangle Width="2" Height="20" Fill="White" Opacity="0.85"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Gutters: the grabbers overhang the strip at both ends, so the start
+         handle sits at a negative Canvas.Left when the range starts at zero. -->
+    <Grid Margin="16,0,16,0" ClipToBounds="False">
+
+        <Border Background="#FF141414" ClipToBounds="True">
+            <Grid>
+                <Image x:Name="StripImage"
+                       Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock x:Name="StripStatus"
+                           Text="Loading frames…"
+                           FontSize="11"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Z-order in a Canvas is declaration order, so the handles come last.
+             Everything else is hit-test invisible, or a click in the dimmed
+             region would never reach the track. -->
+        <Canvas x:Name="Track"
+                Background="Transparent"
+                ClipToBounds="False"
+                SizeChanged="Track_SizeChanged"
+                MouseLeftButtonDown="Track_MouseLeftButtonDown">
+            <Rectangle x:Name="DimLeft" Fill="#B4000000" Canvas.Top="0" IsHitTestVisible="False"/>
+            <Rectangle x:Name="DimRight" Fill="#B4000000" Canvas.Top="0" IsHitTestVisible="False"/>
+            <Rectangle x:Name="RangeFrame"
+                       Canvas.Top="0"
+                       Stroke="{StaticResource AccentBrush}"
+                       StrokeThickness="2"
+                       IsHitTestVisible="False"/>
+            <Line x:Name="Playhead"
+                  Y1="0"
+                  Stroke="White"
+                  StrokeThickness="1.5"
+                  Opacity="0.9"
+                  IsHitTestVisible="False"/>
+            <Thumb x:Name="StartHandle"
+                   Style="{StaticResource TrimHandleStyle}"
+                   Canvas.Top="0"
+                   DragStarted="Handle_DragStarted"
+                   DragDelta="StartHandle_DragDelta"
+                   DragCompleted="Handle_DragCompleted"/>
+            <Thumb x:Name="EndHandle"
+                   Style="{StaticResource TrimHandleStyle}"
+                   Canvas.Top="0"
+                   DragStarted="Handle_DragStarted"
+                   DragDelta="EndHandle_DragDelta"
+                   DragCompleted="Handle_DragCompleted"/>
+        </Canvas>
+    </Grid>
+</UserControl>

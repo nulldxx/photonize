@@ -349,6 +349,9 @@
                                                                 <MenuItem.Icon>
                                                                     <TextBlock Text="🎬" FontSize="14"/>
                                                                 </MenuItem.Icon>
+                                                                <MenuItem Header="Extract clip..."
+                                                                          Command="{Binding ExtractClipCommand}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                                 <MenuItem Header="Slice..."
                                                                           Command="{Binding SliceVideoCommand}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>

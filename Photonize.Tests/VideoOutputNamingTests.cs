@@ -1,3 +1,4 @@
+using System.Globalization;
 using Photonize.Helpers;
 using Xunit;
 
@@ -198,5 +199,184 @@ public class VideoOutputNamingTests
         var pattern = VideoOutputNaming.SlicePattern(@"C:\v\Ben's 100% [raw].mp4", NothingExists());
 
         Assert.Equal(@"C:\v\Ben's 100% [raw]-part-%03d.mp4", pattern);
+    }
+
+    // ---- Extract clip ----
+
+    [Fact]
+    public void ClipOutputPath_UsesTheClipSuffix()
+    {
+        var path = VideoOutputNaming.ClipOutputPath(@"C:\v\clip.mp4", reencoded: false, NothingExists());
+
+        Assert.Equal(@"C:\v\clip-clip.mp4", path);
+    }
+
+    /// <summary>
+    /// A fast extract copies the streams, so it is under the same constraint as a
+    /// slice: ProRes in a .mov will not stream-copy into an .mp4.
+    /// </summary>
+    [Theory]
+    [InlineData(".mov", ".mov")]
+    [InlineData(".m4v", ".m4v")]
+    [InlineData(".mkv", ".mkv")]
+    [InlineData(".MOV", ".mov")]
+    public void ClipOutputPath_KeepsTheSourceContainerWhenCopying(string extension, string expected)
+    {
+        var path = VideoOutputNaming.ClipOutputPath($@"C:\v\clip{extension}", reencoded: false, NothingExists());
+
+        Assert.EndsWith($"-clip{expected}", path);
+    }
+
+    [Theory]
+    [InlineData(".mov")]
+    [InlineData(".m4v")]
+    [InlineData(".mkv")]
+    [InlineData(".mp4")]
+    public void ClipOutputPath_IsAlwaysMp4WhenReencoded(string extension)
+    {
+        var path = VideoOutputNaming.ClipOutputPath($@"C:\v\clip{extension}", reencoded: true, NothingExists());
+
+        Assert.EndsWith("-clip.mp4", path);
+    }
+
+    [Fact]
+    public void ClipOutputPath_StepsPastAnEarlierExtract()
+    {
+        var path = VideoOutputNaming.ClipOutputPath(
+            @"C:\v\clip.mp4", reencoded: false, Existing(@"C:\v\clip-clip.mp4"));
+
+        Assert.Equal(@"C:\v\clip-clip-2.mp4", path);
+    }
+
+    [Fact]
+    public void ClipOutputPath_KeepsSteppingUntilANameIsFree()
+    {
+        var path = VideoOutputNaming.ClipOutputPath(
+            @"C:\v\clip.mp4",
+            reencoded: false,
+            Existing(@"C:\v\clip-clip.mp4", @"C:\v\clip-clip-2.mp4"));
+
+        Assert.Equal(@"C:\v\clip-clip-3.mp4", path);
+    }
+
+    /// <summary>
+    /// A side effect of the container rule worth keeping: extracting the same
+    /// range twice, once each way, produces two files rather than a collision.
+    /// </summary>
+    [Fact]
+    public void ClipOutputPath_FastAndPreciseDoNotCollideForANonMp4Source()
+    {
+        var fast = VideoOutputNaming.ClipOutputPath(@"C:\v\clip.mov", reencoded: false, NothingExists());
+        var precise = VideoOutputNaming.ClipOutputPath(@"C:\v\clip.mov", reencoded: true, NothingExists());
+
+        Assert.NotEqual(fast, precise);
+    }
+
+    [Fact]
+    public void IsValidTrimRange_AcceptsAnInteriorRange()
+    {
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(11.5), TimeSpan.FromSeconds(30), out var error);
+
+        Assert.True(valid);
+        Assert.Empty(error);
+    }
+
+    [Fact]
+    public void IsValidTrimRange_RejectsARangeShorterThanTheMinimum()
+    {
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4.2), TimeSpan.FromSeconds(30), out var error);
+
+        Assert.False(valid);
+        Assert.Contains("at least", error);
+    }
+
+    [Fact]
+    public void IsValidTrimRange_RejectsAnInvertedRange()
+    {
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.FromSeconds(11), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(30), out _);
+
+        Assert.False(valid);
+    }
+
+    [Fact]
+    public void IsValidTrimRange_RejectsAnEndPastTheClip()
+    {
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(40), TimeSpan.FromSeconds(30), out var error);
+
+        Assert.False(valid);
+        Assert.Contains("past the end", error);
+    }
+
+    [Fact]
+    public void IsValidTrimRange_RejectsAnUnreadableClip()
+    {
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.Zero, TimeSpan.FromSeconds(4), TimeSpan.Zero, out var error);
+
+        Assert.False(valid);
+        Assert.Contains("length", error);
+    }
+
+    /// <summary>
+    /// ffprobe durations do not round-trip exactly, so a range dragged to the very
+    /// end of the clip lands a few ticks past it and must not be rejected.
+    /// </summary>
+    [Fact]
+    public void IsValidTrimRange_ToleratesAnEndAHairPastTheDuration()
+    {
+        var duration = TimeSpan.FromSeconds(30);
+        var valid = VideoOutputNaming.IsValidTrimRange(
+            TimeSpan.FromSeconds(4), duration + TimeSpan.FromMilliseconds(8), duration, out _);
+
+        Assert.True(valid);
+    }
+
+    [Theory]
+    [InlineData(4, "00:04.0")]
+    [InlineData(71.5, "01:11.5")]
+    [InlineData(0, "00:00.0")]
+    public void FormatTimecode_PadsMinutesAndCarriesTenths(double seconds, string expected)
+    {
+        Assert.Equal(expected, VideoOutputNaming.FormatTimecode(TimeSpan.FromSeconds(seconds)));
+    }
+
+    [Fact]
+    public void FormatTimecode_IncludesHoursForALongClip()
+    {
+        Assert.Equal("1:05:03.0", VideoOutputNaming.FormatTimecode(TimeSpan.FromSeconds(3903)));
+    }
+
+    [Fact]
+    public void FormatTrimRange_ReadsAsTheDialogReadout()
+    {
+        var range = VideoOutputNaming.FormatTrimRange(
+            TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(11.5));
+
+        Assert.Equal("00:04.0 \u2192 00:11.5 (7.5s)", range);
+    }
+
+    /// <summary>
+    /// The read-out is also used in completion messages, so a comma decimal
+    /// separator would leak into the UI as well as failing this test.
+    /// </summary>
+    [Fact]
+    public void FormatTrimRange_UsesAnInvariantDecimalPoint()
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+
+            Assert.Contains("(7.5s)", VideoOutputNaming.FormatTrimRange(
+                TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(11.5)));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 }
