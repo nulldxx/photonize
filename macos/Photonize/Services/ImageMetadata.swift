@@ -45,14 +45,10 @@ enum ImageMetadata {
     /// Raw EXIF (a TIFF structure, starting `II*`/`MM*`) for a WebP `EXIF` chunk.
     ///
     /// ImageIO only exposes EXIF as a dictionary, so this has it write the metadata
-    /// into a tiny JPEG and lifts the APP1 segment back out. The EXIF pixel dimensions
-    /// are dropped first so the stand-in's 8×8 can't leak into them; the WebP header
-    /// carries the real size.
-    static func exifBlob(from metadata: CGImageMetadata) -> Data? {
-        guard let metadata = CGImageMetadataCreateMutableCopy(metadata) else { return nil }
-        CGImageMetadataRemoveTagWithPath(metadata, nil, "exif:PixelXDimension" as CFString)
-        CGImageMetadataRemoveTagWithPath(metadata, nil, "exif:PixelYDimension" as CFString)
-
+    /// into a tiny JPEG and lifts the APP1 segment back out. ImageIO stamps that
+    /// stand-in's 8×8 into the EXIF pixel dimensions whatever the metadata says, so
+    /// they are patched to `width`×`height` afterwards.
+    static func exifBlob(from metadata: CGImageMetadata, width: Int, height: Int) -> Data? {
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let ctx = CGContext(
                 data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
@@ -68,7 +64,63 @@ enum ImageMetadata {
         CGImageDestinationAddImageAndMetadata(dest, image, metadata, nil)
         guard CGImageDestinationFinalize(dest) else { return nil }
 
-        return exifPayload(inJPEG: data as Data)
+        return exifPayload(inJPEG: data as Data).map {
+            settingPixelDimensions(inTIFF: $0, width: width, height: height)
+        }
+    }
+
+    /// Rewrites `PixelXDimension`/`PixelYDimension` in a raw EXIF (TIFF) blob's Exif
+    /// IFD. Both are single values stored inline, so this is an in-place patch; a
+    /// SHORT too small for the new size is widened to a LONG, which still fits. A
+    /// blob that doesn't parse is returned unchanged.
+    static func settingPixelDimensions(inTIFF tiff: Data, width: Int, height: Int) -> Data {
+        var b = [UInt8](tiff)
+        guard b.count >= 8 else { return tiff }
+        let little: Bool
+        switch (b[0], b[1]) {
+        case (0x49, 0x49): little = true
+        case (0x4D, 0x4D): little = false
+        default: return tiff
+        }
+
+        func read(_ at: Int, _ size: Int) -> Int? {
+            guard at >= 0, at + size <= b.count else { return nil }
+            var v = 0
+            for k in 0..<size { v |= Int(b[at + (little ? k : size - 1 - k)]) << (8 * k) }
+            return v
+        }
+        func write(_ at: Int, _ size: Int, _ value: Int) {
+            for k in 0..<size { b[at + (little ? k : size - 1 - k)] = UInt8((value >> (8 * k)) & 0xFF) }
+        }
+        /// Byte offset of each 12-byte entry in the IFD at `offset`.
+        func entries(_ offset: Int) -> [Int] {
+            guard let count = read(offset, 2) else { return [] }
+            return (0..<count).map { offset + 2 + $0 * 12 }.filter { $0 + 12 <= b.count }
+        }
+
+        guard let ifd0 = read(4, 4),
+              let pointer = entries(ifd0).first(where: { read($0, 2) == 0x8769 }),
+              let exifIFD = read(pointer + 8, 4)
+        else { return tiff }
+
+        let shortType = 3, longType = 4
+        for entry in entries(exifIFD) {
+            let value: Int
+            switch read(entry, 2) {
+            case 0xA002?: value = width
+            case 0xA003?: value = height
+            default: continue
+            }
+            guard read(entry + 4, 4) == 1, let type = read(entry + 2, 2) else { continue }
+            if type == shortType, value <= 0xFFFF {
+                write(entry + 8, 4, 0)
+                write(entry + 8, 2, value)
+            } else if type == shortType || type == longType {
+                write(entry + 2, 2, longType)
+                write(entry + 8, 4, value)
+            }
+        }
+        return Data(b)
     }
 
     /// The TIFF payload of a JPEG's `Exif\0\0` APP1 segment, or nil if it has none.

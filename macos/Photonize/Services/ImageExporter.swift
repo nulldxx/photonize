@@ -200,7 +200,9 @@ actor ImageExporter {
             return try WebPEncoder.encode(
                 cgImage,
                 quality: 90,
-                exif: metadata.flatMap(ImageMetadata.exifBlob(from:)),
+                exif: metadata.flatMap {
+                    ImageMetadata.exifBlob(from: $0, width: cgImage.width, height: cgImage.height)
+                },
                 xmp: metadata.flatMap(ImageMetadata.xmpData(from:))
             )
         case .png:
