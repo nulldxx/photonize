@@ -143,7 +143,8 @@ public class WebPExporter
                         var encoder = new WebpEncoder
                         {
                             Quality = 90,
-                            FileFormat = WebpFileFormatType.Lossy
+                            FileFormat = WebpFileFormatType.Lossy,
+                            SkipMetadata = false
                         };
 
                         // Save as WebP

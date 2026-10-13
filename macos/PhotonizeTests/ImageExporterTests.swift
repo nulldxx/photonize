@@ -121,7 +121,100 @@ final class ImageExporterTests: XCTestCase {
         }
     }
 
+    // MARK: - Metadata
+
+    func testJPGExportKeepsMetadata() async throws { try await assertExportKeepsMetadata(.jpg) }
+    func testPNGExportKeepsMetadata() async throws { try await assertExportKeepsMetadata(.png) }
+    func testWebPExportKeepsMetadata() async throws { try await assertExportKeepsMetadata(.webp) }
+
+    /// A sideways P3 phone photo with a capture date and GPS fix must come out with
+    /// all three intact, upright, and tagged Orientation 1 so it isn't rotated twice.
+    private func assertExportKeepsMetadata(_ format: ExportFormat, file: StaticString = #filePath, line: UInt = #line) async throws {
+        let dir = try Self.makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let source = dir.appendingPathComponent("phone.jpg")
+        try Self.writeMetadataFixture(to: source)
+
+        let result = try await ImageExporter().export(
+            [PhotoItem(filePath: source, fileName: source.lastPathComponent, displayOrder: 0, isFolder: false, thumbnail: nil)],
+            in: dir, as: format,
+            overwrite: { _ in .overwriteAll },
+            progress: { _, _, _ in }
+        )
+        XCTAssertEqual(result.exported, 1, "\(result.failed)", file: file, line: line)
+
+        let output = result.outputURL.appendingPathComponent("phone.\(format.fileExtension)")
+        guard let src = CGImageSourceCreateWithURL(output as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+            return XCTFail("output did not decode", file: file, line: line)
+        }
+
+        // Orientation 6 on a 64×32 source: the pixels are rotated, so 32×64 upright.
+        XCTAssertEqual(props[kCGImagePropertyPixelWidth] as? Int, 32, file: file, line: line)
+        XCTAssertEqual(props[kCGImagePropertyPixelHeight] as? Int, 64, file: file, line: line)
+        XCTAssertEqual(props[kCGImagePropertyOrientation] as? Int ?? 1, 1, file: file, line: line)
+
+        let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any]
+        XCTAssertEqual(exif?[kCGImagePropertyExifDateTimeOriginal] as? String, Self.dateTaken, file: file, line: line)
+        // Either absent or the real size — never the source's, nor a stand-in's.
+        if let x = exif?[kCGImagePropertyExifPixelXDimension] as? Int {
+            XCTAssertEqual(x, 32, file: file, line: line)
+        }
+
+        let gps = props[kCGImagePropertyGPSDictionary] as? [CFString: Any]
+        XCTAssertEqual(gps?[kCGImagePropertyGPSLatitude] as? Double ?? 0, 51.5, accuracy: 0.001, file: file, line: line)
+        XCTAssertEqual(gps?[kCGImagePropertyGPSLatitudeRef] as? String, "N", file: file, line: line)
+
+        XCTAssertEqual(props[kCGImagePropertyProfileName] as? String, "Display P3", file: file, line: line)
+    }
+
+    func testExifPayloadIsTIFF() throws {
+        let data = NSMutableData()
+        let dest = CGImageDestinationCreateWithData(data as CFMutableData, UTType.jpeg.identifier as CFString, 1, nil)!
+        let props: [CFString: Any] = [
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: Self.dateTaken],
+        ]
+        CGImageDestinationAddImage(dest, Self.makeTestImage(width: 8, height: 8), props as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+
+        let payload = try XCTUnwrap(ImageMetadata.exifPayload(inJPEG: data as Data))
+        let byteOrder = String(decoding: payload.prefix(2), as: UTF8.self)
+        XCTAssertTrue(byteOrder == "II" || byteOrder == "MM", "EXIF chunk must start with a TIFF header, got \(byteOrder)")
+    }
+
+    func testExifPayloadAbsentWithoutExif() {
+        XCTAssertNil(ImageMetadata.exifPayload(inJPEG: Data([0xFF, 0xD8, 0xFF, 0xD9])))
+        XCTAssertNil(ImageMetadata.exifPayload(inJPEG: Data("not a jpeg".utf8)))
+    }
+
     // MARK: - Helpers
+
+    private static let dateTaken = "2024:06:01 12:34:56"
+
+    /// A 64×32 Display P3 JPEG tagged Orientation 6 (rotate 90° CW), with a capture
+    /// date and GPS position.
+    private static func writeMetadataFixture(to url: URL) throws {
+        let p3 = CGColorSpace(name: CGColorSpace.displayP3)!
+        let ctx = CGContext(
+            data: nil, width: 64, height: 32, bitsPerComponent: 8, bytesPerRow: 0,
+            space: p3, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        ctx.setFillColor(CGColor(red: 0.9, green: 0.3, blue: 0.1, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: 64, height: 32))
+
+        let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil)!
+        let props: [CFString: Any] = [
+            kCGImagePropertyOrientation: 6,
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: dateTaken],
+            kCGImagePropertyGPSDictionary: [
+                kCGImagePropertyGPSLatitude: 51.5,
+                kCGImagePropertyGPSLatitudeRef: "N",
+            ],
+        ]
+        CGImageDestinationAddImage(dest, ctx.makeImage()!, props as CFDictionary)
+        guard CGImageDestinationFinalize(dest) else { throw XCTSkip("could not write metadata fixture") }
+    }
 
     private actor ResultBox {
         private(set) var result: ExportResult?

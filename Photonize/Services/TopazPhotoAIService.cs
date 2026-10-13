@@ -406,10 +406,17 @@ public class TopazPhotoAIService
                         {
                             using (var image = Image.Load(intermediateFilePath))
                             {
+                                // Take EXIF/XMP from the original rather than trusting
+                                // whatever tpai carried into its intermediate file.
+                                // Identify reads metadata without decoding pixels.
+                                var sourceInfo = Image.Identify(photo.FilePath);
+                                ImageMetadataCopier.CopyFrom(sourceInfo.Metadata, image);
+
                                 var webpEncoder = new WebpEncoder
                                 {
                                     Quality = 90,
-                                    FileFormat = WebpFileFormatType.Lossy
+                                    FileFormat = WebpFileFormatType.Lossy,
+                                    SkipMetadata = false
                                 };
                                 image.Save(webpFilePath, webpEncoder);
                             }

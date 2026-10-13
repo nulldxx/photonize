@@ -174,7 +174,8 @@ public class ImageExporter
                                 var webpEncoder = new WebpEncoder
                                 {
                                     Quality = 90,
-                                    FileFormat = WebpFileFormatType.Lossy
+                                    FileFormat = WebpFileFormatType.Lossy,
+                                    SkipMetadata = false
                                 };
                                 await image.SaveAsync(outputFilePathFinal, webpEncoder, ct);
                                 break;
@@ -182,7 +183,8 @@ public class ImageExporter
                             case ImageFormat.PNG:
                                 var pngEncoder = new PngEncoder
                                 {
-                                    CompressionLevel = PngCompressionLevel.BestCompression
+                                    CompressionLevel = PngCompressionLevel.BestCompression,
+                                    SkipMetadata = false
                                 };
                                 await image.SaveAsync(outputFilePathFinal, pngEncoder, ct);
                                 break;
@@ -190,7 +192,8 @@ public class ImageExporter
                             case ImageFormat.JPG:
                                 var jpgEncoder = new JpegEncoder
                                 {
-                                    Quality = 90
+                                    Quality = 90,
+                                    SkipMetadata = false
                                 };
                                 await image.SaveAsync(outputFilePathFinal, jpgEncoder, ct);
                                 break;

@@ -47,7 +47,8 @@ enum ExportError: Error {
 
 /// Batch image export to WebP / PNG / JPG. Loads each source at full resolution
 /// with EXIF orientation applied, encodes with the format's Windows-matching
-/// settings, and writes into a `<directory>/<folderName>` subfolder.
+/// settings and the source's metadata, and writes into a
+/// `<directory>/<folderName>` subfolder.
 actor ImageExporter {
     /// Per-file result, kept `Sendable` so it can flow back out of the task group.
     private enum FileOutcome: Sendable {
@@ -184,19 +185,33 @@ actor ImageExporter {
     // MARK: - Encoding
 
     private nonisolated static func encode(_ url: URL, as format: ExportFormat) throws -> Data {
-        guard let cgImage = loadOrientedCGImage(url) else { throw ExportError.decodeFailed }
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = loadOrientedCGImage(src)
+        else { throw ExportError.decodeFailed }
+
+        // The source's EXIF/GPS/XMP, marked upright to match the baked-in rotation
+        // and sized to the decoded image.
+        let metadata = ImageMetadata.uprightMetadata(from: src).map {
+            ImageMetadata.withPixelSize($0, width: cgImage.width, height: cgImage.height)
+        }
 
         switch format {
         case .webp:
-            return try WebPEncoder.encode(cgImage, quality: 90)
+            return try WebPEncoder.encode(
+                cgImage,
+                quality: 90,
+                exif: metadata.flatMap(ImageMetadata.exifBlob(from:)),
+                xmp: metadata.flatMap(ImageMetadata.xmpData(from:))
+            )
         case .png:
             // ImageIO's PNG encoder has no compression-level knob; Windows asks
             // for BestCompression, which is the closest we can express here.
-            return try encodeImageIO(cgImage, type: .png, properties: [:])
+            return try encodeImageIO(cgImage, type: .png, metadata: metadata, properties: [:])
         case .jpg:
             return try encodeImageIO(
                 cgImage,
                 type: .jpeg,
+                metadata: metadata,
                 properties: [kCGImageDestinationLossyCompressionQuality: 0.9]
             )
         }
@@ -205,9 +220,7 @@ actor ImageExporter {
     /// Full-resolution decode with EXIF orientation baked in, so a sideways phone
     /// photo (orientation 6) exports upright — the same ImageIO transform the
     /// slice-02 thumbnail path uses.
-    private nonisolated static func loadOrientedCGImage(_ url: URL) -> CGImage? {
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-
+    private nonisolated static func loadOrientedCGImage(_ src: CGImageSource) -> CGImage? {
         let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
         let pixelWidth = props?[kCGImagePropertyPixelWidth] as? Int ?? 0
         let pixelHeight = props?[kCGImagePropertyPixelHeight] as? Int ?? 0
@@ -230,6 +243,7 @@ actor ImageExporter {
     private nonisolated static func encodeImageIO(
         _ cgImage: CGImage,
         type: UTType,
+        metadata: CGImageMetadata?,
         properties: [CFString: Any]
     ) throws -> Data {
         let data = NSMutableData()
@@ -238,7 +252,11 @@ actor ImageExporter {
         ) else {
             throw ExportError.encodeFailed
         }
-        CGImageDestinationAddImage(dest, cgImage, properties as CFDictionary)
+        if let metadata {
+            CGImageDestinationAddImageAndMetadata(dest, cgImage, metadata, properties as CFDictionary)
+        } else {
+            CGImageDestinationAddImage(dest, cgImage, properties as CFDictionary)
+        }
         guard CGImageDestinationFinalize(dest) else { throw ExportError.encodeFailed }
         return data as Data
     }
